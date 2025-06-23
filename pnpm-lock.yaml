@@ -23,6 +23,9 @@ importers:
       '@prisma/client':
         specifier: ^6.10.1
         version: 6.10.1(prisma@6.10.1(typescript@5.8.3))(typescript@5.8.3)
+      csv-parse:
+        specifier: ^5.6.0
+        version: 5.6.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -51,6 +54,9 @@ importers:
       '@swc/core':
         specifier: ^1.10.7
         version: 1.12.1
+      '@types/cli-progress':
+        specifier: ^3.11.6
+        version: 3.11.6
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.3
@@ -63,6 +69,12 @@ importers:
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3
+      cli-progress:
+        specifier: ^3.12.0
+        version: 3.12.0
+      csv-parser:
+        specifier: ^3.2.0
+        version: 3.2.0
       eslint:
         specifier: ^9.18.0
         version: 9.29.0(jiti@2.4.2)
@@ -993,6 +1005,9 @@ packages:
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
 
+  '@types/cli-progress@3.11.6':
+    resolution: {integrity: sha512-cE3+jb9WRlu+uOSAugewNpITJDt1VF8dHOopPO4IABFc3SXYL5WE/+PTz/FCdZRRfIujiWW3n3aMbv1eIGVRWA==}
+
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
@@ -1489,6 +1504,10 @@ packages:
     resolution: {integrity: sha512-I/zHAwsKf9FqGoXM4WWRACob9+SNukZTd94DWF57E4toouRulbCxcUh6RKUEOQlYTHJnzkPMySvPNaaSLNfLZw==}
     engines: {node: '>=8'}
 
+  cli-progress@3.12.0:
+    resolution: {integrity: sha512-tRkV3HJ1ASwm19THiiLIXLO7Im7wlTuKnvkYaTkyoAPefqjNg7W7DHKUlGRxy9vxDvbyCYQkQozvptuMkGCg8A==}
+    engines: {node: '>=4'}
+
   cli-spinners@2.9.2:
     resolution: {integrity: sha512-ywqV+5MmyL4E7ybXgKys4DugZbX0FC6LnwrhjuykIjnK9k8OQacQ7axGKnjDXWNhns0xot3bZI5h55H8yo9cJg==}
     engines: {node: '>=6'}
@@ -1613,6 +1632,14 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  csv-parse@5.6.0:
+    resolution: {integrity: sha512-l3nz3euub2QMg5ouu5U09Ew9Wf6/wQ8I++ch1loQ0ljmzhmfZYrH9fflS22i/PQEvsPvxCwxgz5q7UB8K1JO4Q==}
+
+  csv-parser@3.2.0:
+    resolution: {integrity: sha512-fgKbp+AJbn1h2dcAHKIdKNSSjfp43BZZykXsCjzALjKy80VXQNHPFJ6T9Afwdzoj24aMkq8GwDS7KGcDPpejrA==}
+    engines: {node: '>= 10'}
+    hasBin: true
 
   debug@4.4.1:
     resolution: {integrity: sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==}
@@ -4430,6 +4457,10 @@ snapshots:
       '@types/connect': 3.4.38
       '@types/node': 22.15.32
 
+  '@types/cli-progress@3.11.6':
+    dependencies:
+      '@types/node': 22.15.32
+
   '@types/connect@3.4.38':
     dependencies:
       '@types/node': 22.15.32
@@ -5051,6 +5082,10 @@ snapshots:
     dependencies:
       restore-cursor: 3.1.0
 
+  cli-progress@3.12.0:
+    dependencies:
+      string-width: 4.2.3
+
   cli-spinners@2.9.2: {}
 
   cli-table3@0.6.5:
@@ -5168,6 +5203,10 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  csv-parse@5.6.0: {}
+
+  csv-parser@3.2.0: {}
 
   debug@4.4.1:
     dependencies:

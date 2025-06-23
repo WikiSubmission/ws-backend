@@ -16,7 +16,7 @@ datasource db {
 model Quran {
   id       String    @id @default(uuid())
   language Languages
-  qiraat   Qiraats
+  qiraat   Qiraats?
   audios   Audio[]
   chapters Chapter[]
 }
@@ -29,6 +29,8 @@ model Chapter {
   name             String
   revelation_order Int
   verses           Verse[]
+
+  @@unique([quranId, number])
 }
 
 model Verse {
@@ -37,7 +39,11 @@ model Verse {
   chapterId String
   number    Int     @default(1)
   content   String
+  subtitle  String?
+  footnote  String?
   words     Word[]
+
+  @@unique([chapterId, number])
 }
 
 model Word {
@@ -59,13 +65,30 @@ model Audio {
 }
 
 enum Languages {
-  ARABIC
+  ARABIC_TASHKEEL
+  ARABIC_NON_TASHKEEL
+  TRANSLITERATED
   ENGLISH
+  FR_NCH
+  TAMIL
+  HINDI
+  TURKISH
+  PERSIAN
 }
 
 enum Qiraats {
   HAFIZ
   HAFIZH
+  NAFI_AL_MADANI
+  IBN_KATHIR_AL_MAKKI
+  ABU_AMR_AL_BASRI
+  IBN_AMIR_AD_DIMASHQI
+  ASIM_AL_KUFI
+  HAMZAH_AL_KUFI
+  AL_KISAI_AL_KUFI
+  ABU_JAFER_AL_MADANI
+  JAKOB_AL_HADRAMI
+  KHALAF_AL__ASHIR
 }
 
 enum Bitrates {

@@ -1,0 +1,115 @@
+chapter_number,chapter_title_english,chapter_title_arabic,chapter_title_transliterated,chapter_verses,chapter_revelation_order
+1,The Key,الفاتحة,Al-Fãtehah,7,5
+2,The Heifer,البقرة,Al-Baqarah,286,87
+3,The Amramites,آل عمران,Ãli-'Imrãn,200,89
+4,The Women,النساء,Al-Nesa',176,92
+5,The Feast,المائدة,Al-Ma'edah,120,112
+6,The Livestock,الأنعام,Al-An'am,165,55
+7,The Purgatory,الأعراف,Al-A'araf,206,39
+8,The Spoils of War,الأنفال,Al-Anfal,75,88
+9,Ultimatum,براءة,Bara'ah,127,113
+10,Jonah,يونس,Younus,109,51
+11,Hood,هود,Hud,123,52
+12,Joseph,يوسف,Yousuf,111,53
+13,The Thunder,الرعد,Al-Ra'ad,43,96
+14,Abraham,إبراهيم,Ibrahîm,52,72
+15,The Hijr Valley,الحجر,Al-Hijr,99,54
+16,The Bee,النّحل,Al-Nahl,128,70
+17,The Children of Israel,بني إسرءيل,Banî Israel,111,50
+18,The Cave,الكهف,Al-Kahf,110,69
+19,Mary,مريم,Maryam,98,44
+20,T-H,طه,TãHã,135,45
+21,The Prophets,الأنبياء,Al-Anbyã’,112,73
+22,The Pilgrimage,الحج,Al-Hajj,78,103
+23,The Believers,المؤمنون,Al-Mu’minûn,118,74
+24,The Light,النّور,Al-Noor,64,102
+25,The Statute Book,الفرقان,Al-Furqãn,77,42
+26,The Poets,الشعراء,Al-Shu‘arã’,227,47
+27,The Ant,النّمل,Al-Naml,93,48
+28,The History,القصص,Al-Qasas,88,49
+29,The Spider,العنكبوت,Al-‘Ankaboot,69,85
+30,The Romans,الروم,Al-Room,60,84
+31,Luqmaan,لقمان,Luqmãn,34,57
+32,Prostration,السجدة,Al-Sajdah,30,75
+33,The Parties,الأحزاب,Al-Ahzãb,73,90
+34,Sheba,سبإ,Saba’,54,58
+35,Initiator,فاطر,Fãter,45,43
+36,Y-S,يس,YãSîn,83,41
+37,The Arrangers,الصّافات,Al-Sãffãt,182,56
+38,S,ص,Saad,88,38
+39,The Throngs,الزُّمر,Al-Zumar,75,59
+40,Forgiver,غافر,Ghãfer,85,60
+41,Detailed,فصلت,Fussilat,54,61
+42,Consultation,الشورى,Al-Shoorã,53,62
+43,The Ornaments,الزخرف,Al-Zukhruf,89,63
+44,The Smoke,الدّخان,Al-Dukhãn,59,64
+45,The Kneeling,الجاثية,Al-Jãtheyah,37,65
+46,The Dunes,الأحقاف,Al-Ahqãf,35,66
+47,Muhammed,محمد,Muḥammad,38,95
+48,Victory,الفتح,Al-Fatt-h,29,111
+49,The Walls,الحجرات,Al-Hujurãt,18,106
+50,Q,ق,Qãf,45,34
+51,Driver of the Winds,الذاريات,Al-Dhãreyãt,60,67
+52,Mount Sinai,الطور,Al-Toor,49,76
+53,The Stars,النّجم,Al-Najm,62,23
+54,The Moon,القمر,Al-Qamar,55,37
+55,The Gracious,الرحمن,Al-Rahmaan,78,97
+56,The Inevitable,الواقعة,Al-Waaqe‘ah,96,46
+57,Iron,الحديد,Al-Hadeed,29,94
+58,The Debate,المجادلة,Al-Mujaadalah,22,105
+59,The Exodus,الحشر,Al-Hashr,24,101
+60,The Test,الممتحنة,Al-Mumtahanah,13,91
+61,The Column,الصف,Al-Suff,14,109
+62,Friday,الجمعة,Al-Jumu‘ah,11,110
+63,The Hypocrites,المنافقون,Al-Munaafeqoon,11,104
+64,Mutual Blaming,التغابن,Al-Taghaabun,18,108
+65,Divorce,الطلاق,Al-Talaaq,12,99
+66,Prohibition,التحريم,Al-Tahreem,12,107
+67,Kingship,الملك,Al-Mulk,30,77
+68,The Pen,القلم,Al-Qalam,52,2
+69,Incontestable,الحاقة,Al-Haaqqah,52,78
+70,The Heights,المعارج,Al-Ma‘aarej,44,79
+71,Noah,نوح,Nuh,28,71
+72,Jinns,الجن,Al-Jinn,28,40
+73,Cloaked,المزمل,Al-Muzzammil,20,3
+74,The Hidden Secret,المدثر,Al-Muddath-thir,56,4
+75,Resurrection,القيامة,Al-Qeyaamah,40,31
+76,The Human,الانسان,Al-Insaan,31,98
+77,Dispatched,المرسلات,Al-Mursalaat,50,33
+78,The Event,النبأ,Al-Naba’,40,80
+79,The Snatchers,النازعات,Al-Naaze‘aat,46,81
+80,He Frowned,عبس,Abasa,42,24
+81,The Rolling,التكوير,Al-Takweer,29,7
+82,The Shattering,الانفطار,Al-Infitaar,19,82
+83,The Cheaters,المطففين,Al-Mutaffifeen,36,86
+84,The Rupture,الانشقاق,Al-Inshiqaaq,25,83
+85,The Galaxies,البروج,Al-Burooj,22,27
+86,The Bright Star,الطارق,Al-Taareq,17,36
+87,The Most High,الأعلى,Al-A‘alaa,19,8
+88,Overwhelming,الغاشية,Al-Ghaasheyah,26,68
+89,Dawn,الفجر,Al-Fajr,30,10
+90,The Town,البلد,Al-Balad,20,35
+91,The Sun,الشمس,Al-Shams,15,26
+92,The Night,الليل,Al-Layl,21,9
+93,The Forenoon,الضحى,Al-Duhaa,11,11
+94,Cooling the Temper,الشرح,Al-Sharrhh,8,12
+95,The Fig,التين,Al-Teen,8,28
+96,The Embryo,العلق,Al-‘Alaq,19,1
+97,The Destiny,القدر,Al-Qadr,5,25
+98,The Proof,البينة,Al-Bayyinah,8,100
+99,The Quake,الزلزلة,Al-Zalzalah,8,93
+100,The Gallopers,العاديات,Al-‘Aadeyaat,11,14
+101,The Shocker,القارعة,Al-Qaare‘ah,11,30
+102,Hoarding,التكاثر,Al-Takaathur,8,16
+103,The Afternoon,العصر,Al-‘Asr,3,13
+104,The Backbiter,الهمزة,Al-Humazah,9,32
+105,The Elephant,الفيل,Al-Feel,5,19
+106,Quraish Tribe,قريش,The Quraish Tribe,4,29
+107,Charity,الماعون,Al-Maa‘oon,7,17
+108,Bounty,الكوثر,Al-Kawthar,3,15
+109,The Disbelievers,الكافرون,Al-Kaaferoon,6,18
+110,Triumph,النّصر,Al-Nassr,3,114
+111,Thorns,المسد,Al-Masad,5,6
+112,Absoluteness,الإخلاص,Al-Ikhlaas,4,22
+113,Daybreak,الفلق,Al-Falaq,5,20
+114,People,الناس,Al-Naas,6,21
