@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Quran {
+  id       String    @id @default(uuid())
+  language Languages
+  qiraat   Qiraats
+  audios   Audio[]
+  chapters Chapter[]
+}
+
+model Chapter {
+  id               String  @id @default(uuid())
+  quran            Quran   @relation(fields: [quranId], references: [id])
+  quranId          String
+  number           Int     @default(1)
+  name             String
+  revelation_order Int
+  verses           Verse[]
+}
+
+model Verse {
+  id        String  @id @default(uuid())
+  chapter   Chapter @relation(fields: [chapterId], references: [id])
+  chapterId String
+  number    Int     @default(1)
+  content   String
+  words     Word[]
+}
+
+model Word {
+  id      String @id @default(uuid())
+  verse   Verse  @relation(fields: [verseId], references: [id])
+  verseId String
+  number  Int
+  content String
+}
+
+model Audio {
+  id      String   @id @default(uuid())
+  quran   Quran    @relation(fields: [quranId], references: [id])
+  quranId String
+  reciter String   @default("Unknown")
+  root    String
+  edition String
+  bitrate Bitrates
+}
+
+enum Languages {
+  ARABIC
+  ENGLISH
+}
+
+enum Qiraats {
+  HAFIZ
+  HAFIZH
+}
+
+enum Bitrates {
+  Kbps32  @map("32")
+  Kbps40  @map("40")
+  Kbps48  @map("48")
+  Kbps64  @map("64")
+  Kbps128 @map("128")
+  Kbps192 @map("192")
+  Kbps320 @map("320")
+}
