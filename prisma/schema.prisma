@@ -19,6 +19,8 @@ model Quran {
   qiraat   Qiraats?
   audios   Audio[]
   chapters Chapter[]
+
+  @@unique([language, qiraat])
 }
 
 model Chapter {
@@ -47,11 +49,13 @@ model Verse {
 }
 
 model Word {
-  id      String @id @default(uuid())
-  verse   Verse  @relation(fields: [verseId], references: [id])
-  verseId String
-  number  Int
-  content String
+  id          String  @id @default(uuid())
+  verse       Verse   @relation(fields: [verseId], references: [id])
+  verseId     String
+  number      Int
+  content     String
+  root        String?
+  quran_index Int
 }
 
 model Audio {
@@ -74,6 +78,11 @@ enum Languages {
   HINDI
   TURKISH
   PERSIAN
+  RUSSIAN
+  SWEDISH
+  GERMAN
+  BAHASA
+  ARABIC_ROOT
 }
 
 enum Qiraats {

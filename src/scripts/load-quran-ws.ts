@@ -7,7 +7,7 @@ import { parse } from 'csv-parse';
 import * as cliProgress from 'cli-progress';
 import { Quran } from '@prisma/client';
 
-export type WsQuran = {
+type WsQuran = {
   global_index: number; // bigint -> number in TS
   verse_index: number;
   chapter_number: number;
