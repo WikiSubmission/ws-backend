@@ -13,10 +13,38 @@ export class ApiRestQuranService {
     private readonly logger: LoggerService,
   ) {}
 
-  private async getRandomVerse(chapterFrom?: number, ChatperTo?: number) {
+  public async getRandomChapter() {
+    this.logger.log({
+      message: `getRandomChapter`,
+      context: 'ApiRestQuranController.getRandomChapter',
+    });
+    const chapterNum = randomInt(1, 115);
+    return await this.prisma.chapter.findFirstOrThrow({
+      where: {
+        number: chapterNum,
+        quran: {
+          language: 'ENGLISH',
+        },
+      },
+      include: {
+        verses: {
+          omit: {
+            id: true,
+            chapterId: true,
+          },
+        },
+      },
+      omit: {
+        id: true,
+        quranId: true,
+      },
+    });
+  }
+
+  public async getRandomVerse(chapterFrom?: number, chapterTo?: number) {
     const chapterNum = randomInt(
       chapterFrom ? Math.max(1, chapterFrom) : 1,
-      ChatperTo ? Math.min(ChatperTo, 115) : 115,
+      chapterTo ? Math.min(chapterTo, 115) : 115,
     );
     const chapter = await this.prisma.chapter.findFirstOrThrow({
       where: {

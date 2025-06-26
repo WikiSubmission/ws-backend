@@ -33,4 +33,22 @@ export class ApiRestQuranController {
     });
     return this.Utilities.getQuran(String(query));
   }
+
+  @Get('random-verse')
+  getRandomVerse() {
+    this.Logger.log({
+      message: `getRandomVerse`,
+      context: 'ApiRestQuranController.getRandomVerse',
+    });
+    return this.Utilities.getRandomVerse();
+  }
+
+  @Get('random-chapter')
+  getRandomChapter() {
+    this.Logger.log({
+      message: `getRandomChapter`,
+      context: 'ApiRestQuranController.getRandomChapter',
+    });
+    return this.Utilities.getRandomChapter();
+  }
 }
