@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Logger } from 'winston';
-import { LoggerModule } from '../logger/logger.module';
+import { LoggerModule } from '@modules';
 import { LoggerService } from '../logger/logger.service';
 
 @Injectable()

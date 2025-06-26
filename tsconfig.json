@@ -11,7 +11,10 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "src/*": ["src/*"]
+      "src/*": ["src/*"],
+      "@prisma/*": ["src/modules/prisma/*"],
+      "@logger/*": ["src/modules/logger/*"],
+      "@modules": ["src/modules/index"]
     },
     "incremental": true,
     "skipLibCheck": true,
