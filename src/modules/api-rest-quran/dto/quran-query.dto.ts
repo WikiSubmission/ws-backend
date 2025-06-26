@@ -2,11 +2,7 @@
 // import { regex } from '../regex.constant';
 import { ApiProperty } from '@nestjs/swagger';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-<<<<<<< HEAD
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
-=======
 import { IsOptional, IsString } from 'class-validator';
->>>>>>> 9ddffa0 (added parameters for: - language - audio)
 import { LanguageCodes } from '../api-rest-quran.constant';
 
 export class QuranQueryDto {
