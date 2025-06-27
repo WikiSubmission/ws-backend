@@ -101,7 +101,11 @@ export class ApiRestQuranController {
   }
 
   @Get('chapter-audio')
+<<<<<<< HEAD
   async fetchChapterAudio(): Promise<string> {
+=======
+  fetchChapterAudio(): string {
+>>>>>>> 9ddffa0 (added parameters for: - language - audio)
     this.Logger.log({
       message: `fetchChapterAudio`,
       context: 'ApiRestQuranController.fetchChapterAudio',
