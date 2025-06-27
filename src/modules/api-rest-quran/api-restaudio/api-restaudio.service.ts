@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
-import { LoggerService } from '@modules';
+import { LoggerService } from '@m/logger/logger.service';
 
 @Injectable()
 export class ApiRestaudioService {
