@@ -71,17 +71,17 @@ describe('ApiRestQuranService', () => {
   });
 
   it('parseQuranQuery should parse chapter input', () => {
-    const result = (service as any).parseQuranQuery('2');
+    const result = service.parseQuranQuery('2');
     expect(result).toEqual([{ chapterNum: 2, type: 'chapter' }]);
   });
 
   it('parseQuranQuery should parse verse input', () => {
-    const result = (service as any).parseQuranQuery('2:5');
+    const result = service.parseQuranQuery('2:5');
     expect(result).toEqual([{ chapterNum: 2, verse: 5, type: 'verse' }]);
   });
 
   it('parseQuranQuery should parse range input', () => {
-    const result = (service as any).parseQuranQuery('2:1-5');
+    const result = service.parseQuranQuery('2:1-5');
     expect(result).toEqual([
       { chapterNum: 2, start: 1, end: 5, type: 'range' },
     ]);

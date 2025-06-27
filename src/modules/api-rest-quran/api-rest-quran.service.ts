@@ -241,7 +241,7 @@ export class ApiRestQuranService {
     };
   }
 
-  private parseQuranQuery(input: string) {
+  public parseQuranQuery(input: string) {
     this.logger.log({ message: `input: ${input}` });
     // if (regex.test(String(input).trim())) throw new Error('invalid entry');
     try {

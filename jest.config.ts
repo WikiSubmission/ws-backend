@@ -1,6 +1,13 @@
 import { pathsToModuleNameMapper } from 'ts-jest';
 import type { JestConfigWithTsJest } from 'ts-jest';
-import { compilerOptions } from './tsconfig.json';
+import tsconfig from './tsconfig.json';
+
+const { compilerOptions } = tsconfig as {
+  compilerOptions: {
+    baseUrl?: string;
+    paths?: Record<string, string[]>;
+  };
+};
 
 const config: JestConfigWithTsJest = {
   preset: 'ts-jest',

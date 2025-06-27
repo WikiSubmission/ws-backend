@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ApiRestaudioService } from './api-restaudio.service';
 import { HttpService } from '@nestjs/axios';
-import { LoggerService } from '@m/logger/logger.service';
+import { LoggerService } from '@modules';
 import { of, throwError } from 'rxjs';
 import { AxiosResponse, AxiosHeaders } from 'axios';
 
