@@ -4,6 +4,12 @@
   "description": "",
   "author": "",
   "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "libs/*"
+    ]
+  },
   "license": "UNLICENSED",
   "scripts": {
     "prepare": "corepack enable && corepack prepare pnpm@8.15.4 --activate",
