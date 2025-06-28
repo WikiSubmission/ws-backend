@@ -5,7 +5,6 @@ import { PrismaService } from 'src/modules';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import * as cliProgress from 'cli-progress';
-import { Quran } from '@prisma/client';
 
 export type WsQuranForeign = {
   verse_id: string;
@@ -57,8 +56,7 @@ export async function bootstrapQT() {
 
   try {
     console.log('Starting translated Quran CSV import...');
-    const csvFilePath =
-      '/home/hichem/Projects/wikisubmission-backend-quran/data/ws-quran-foreign_rows.csv';
+    const csvFilePath = 'prisma/seeds/data/ws-quran-foreign_rows.csv';
 
     const rowCount = await countCsvRows(csvFilePath);
     console.log('csv rows are: ', rowCount);
@@ -374,4 +372,3 @@ async function countCsvRows(filePath: string): Promise<number> {
       });
   });
 }
-bootstrapQT();

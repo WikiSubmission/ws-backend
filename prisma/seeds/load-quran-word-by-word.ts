@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from 'src/app.module';
 import { PrismaService } from 'src/modules';
@@ -22,8 +21,7 @@ export async function bootstrapWBW() {
 
   try {
     console.log('Starting Quran words CSV import...');
-    const csvFilePath =
-      '/home/hichem/Projects/wikisubmission-backend-quran/data/ws-quran-word-by-word_rows.csv';
+    const csvFilePath = 'prisma/seeds/data/ws-quran-word-by-word_rows.csv';
 
     const rowCount = await countCsvRows(csvFilePath);
     console.log('csv rows are: ', rowCount);
@@ -228,4 +226,3 @@ async function countCsvRows(filePath: string): Promise<number> {
       });
   });
 }
-bootstrapWBW();

@@ -1,6 +1,6 @@
-import { bootstrapQT } from 'src/scripts/load-quran-other-translations-ws';
-import { bootstrapW } from 'src/scripts/load-quran-ws';
-import { bootstrapWBW } from 'src/scripts/load-quran-word-by-word';
+import { bootstrapQT } from 'prisma/seeds/load-quran-other-translations-ws';
+import { bootstrapW } from 'prisma/seeds/load-quran-ws';
+import { bootstrapWBW } from 'prisma/seeds/load-quran-word-by-word';
 
 async function main() {
   await bootstrapW();
