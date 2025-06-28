@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from 'src/app.module';
-import { PrismaService } from 'src/modules';
+import { AppModule } from '../../src/app.module';
+import { PrismaService } from '@modules';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import * as cliProgress from 'cli-progress';
