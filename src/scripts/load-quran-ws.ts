@@ -26,7 +26,7 @@ type WsQuran = {
   chapter_revelation_order: number;
 };
 
-async function bootstrap() {
+export async function bootstrapW() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const prisma = app.get(PrismaService);
 
@@ -217,4 +217,4 @@ async function countCsvRows(filePath: string): Promise<number> {
   });
 }
 
-bootstrap();
+bootstrapW();

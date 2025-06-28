@@ -51,7 +51,7 @@ export type WsQuranForeign = {
   chapter_title_tamil: string;
 };
 
-async function bootstrap() {
+export async function bootstrapQT() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const prisma = app.get(PrismaService);
 
@@ -374,4 +374,4 @@ async function countCsvRows(filePath: string): Promise<number> {
       });
   });
 }
-bootstrap();
+bootstrapQT();

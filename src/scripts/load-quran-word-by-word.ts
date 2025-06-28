@@ -16,7 +16,7 @@ export type WsQuranWordByWord = {
   root_word: string;
 };
 
-async function bootstrap() {
+export async function bootstrapWBW() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const prisma = app.get(PrismaService);
 
@@ -228,4 +228,4 @@ async function countCsvRows(filePath: string): Promise<number> {
       });
   });
 }
-bootstrap();
+bootstrapWBW();
