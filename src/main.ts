@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Transport } from '@nestjs/microservices';
+// import { Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -15,10 +15,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
-  app.connectMicroservice({
-    transport: Transport.REDIS,
-    options: { url: process.env.REDIS_URL || 'redis://localhost:6379' },
-  });
+  // app.connectMicroservice({
+  //   transport: Transport.REDIS,
+  //   options: { url: process.env.REDIS_URL || 'redis://localhost:6379' },
+  // });
 
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000);
