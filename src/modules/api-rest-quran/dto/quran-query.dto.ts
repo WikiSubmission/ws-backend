@@ -3,7 +3,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { LanguageCodes } from '../api-rest-quran.constant';
+import { Languages, Qiraats, Scripts } from '@prisma/client';
 
 export class QuranQueryDto {
   // // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -24,6 +24,53 @@ export class QuranQueryParamsDto {
   })
   query!: string;
 
+  @ApiPropertyOptional({
+    description: 'Primary language of the quran',
+    enum: Languages,
+  })
+  mainLanguage?: LanguageQueryParamsDto;
+
+  @ApiPropertyOptional({
+    description: 'Secondary language of the quran',
+  })
+  @IsOptional()
+  secondaryLanguage?: LanguageQueryParamsDto;
+
+  audioQuery?: AudioQueryParamsDto;
+}
+
+class LanguageQueryParamsDto {
+  @ApiPropertyOptional({
+    example: 'ENGLISH',
+    description: 'Language',
+    enum: Languages,
+  })
+  @IsOptional()
+  @IsString()
+  language?: Languages;
+
+  @ApiPropertyOptional({
+    example: 'HAFS',
+    description: 'Qiraat',
+    enum: Qiraats,
+  })
+  @IsOptional()
+  @IsString()
+  qiraat?: Qiraats;
+
+  scripts?: Scripts;
+
+  @ApiPropertyOptional({
+    example: 'versebyverse',
+    description: 'Display type',
+    enum: ['wordbyword', 'versebyverse', 'chapter'],
+  })
+  @IsOptional()
+  @IsString()
+  type?: 'wordbyword' | 'versebyverse' | 'chapter';
+}
+
+class AudioQueryParamsDto {
   @ApiPropertyOptional({ example: false, description: 'Include audio links' })
   @IsOptional()
   audio?: boolean;
@@ -39,52 +86,4 @@ export class QuranQueryParamsDto {
     example: 128,
   })
   audioBitrate?: number;
-
-  @ApiPropertyOptional({
-    example: 'en',
-    description: 'Primary language of the quran',
-    enum: [
-      'ar',
-      'ar-clean',
-      'ar-root',
-      'en',
-      'tr',
-      'fr',
-      'ta',
-      'hi',
-      'tr',
-      'fa',
-      'ru',
-      'sv',
-      'de',
-      'id',
-    ],
-  })
-  @IsOptional()
-  @IsString()
-  mainLanguage?: LanguageCodes;
-
-  @ApiPropertyOptional({
-    example: 'en',
-    description: 'Secondary language of the quran',
-    enum: [
-      'ar',
-      'ar-clean',
-      'ar-root',
-      'en',
-      'tr',
-      'fr',
-      'ta',
-      'hi',
-      'tr',
-      'fa',
-      'ru',
-      'sv',
-      'de',
-      'id',
-    ],
-  })
-  @IsOptional()
-  @IsString()
-  secondaryLanguage?: LanguageCodes;
 }

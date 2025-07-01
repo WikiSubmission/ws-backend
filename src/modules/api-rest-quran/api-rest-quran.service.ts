@@ -14,22 +14,6 @@ export class ApiRestQuranService {
     private readonly audio: ApiRestaudioService,
   ) {}
 
-  private readonly languageMap: Record<LanguageCodes, Languages> = {
-    ar: 'ARABIC_TASHKEEL',
-    'ar-clean': 'ARABIC_NON_TASHKEEL',
-    'ar-root': 'ARABIC_ROOT',
-    en: 'ENGLISH',
-    tr: 'TURKISH',
-    fr: 'FR_NCH',
-    ta: 'TAMIL',
-    hi: 'HINDI',
-    fa: 'PERSIAN',
-    ru: 'RUSSIAN',
-    sv: 'SWEDISH',
-    de: 'GERMAN',
-    id: 'BAHASA',
-  };
-
   private readonly verseCounts: Record<number, number> = {
     1: 7,
     2: 286,
@@ -505,7 +489,7 @@ export class ApiRestQuranService {
     };
   }
 
-  public async getQuran({
+  public async getQuranFromQuery({
     query,
     language = 'ENGLISH',
     qiraat,

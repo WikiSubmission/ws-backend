@@ -14,11 +14,13 @@ datasource db {
 }
 
 model Quran {
-  id       String    @id @default(uuid())
-  language Languages
-  qiraat   Qiraats?
-  audios   Audio[]
-  chapters Chapter[]
+  id         String    @id @default(uuid())
+  language   Languages
+  qiraat     Qiraats?
+  chapters   Chapter[]
+  metadata   MetaData? @relation(fields: [metaDataId], references: [id])
+  metaDataId String?
+  Script     Scripts?
 
   @@unique([language, qiraat])
 }
@@ -58,17 +60,11 @@ model Word {
   quran_index Int
 }
 
-model Audio {
-  id      String   @id @default(uuid())
-  quran   Quran    @relation(fields: [quranId], references: [id])
-  quranId String
-  reciter String   @default("Unknown")
-  root    String
-  edition String
-  bitrate Bitrates
+model MetaData {
+  id    String  @id @default(uuid())
+  name  String
+  Quran Quran[]
 }
-
-
 
 enum Languages {
   ARABIC_TASHKEEL
@@ -102,12 +98,9 @@ enum Qiraats {
   KHALAF_AL__ASHIR
 }
 
-enum Bitrates {
-  Kbps32  @map("32")
-  Kbps40  @map("40")
-  Kbps48  @map("48")
-  Kbps64  @map("64")
-  Kbps128 @map("128")
-  Kbps192 @map("192")
-  Kbps320 @map("320")
+enum Scripts {
+  UTHMANI
+  UTHMANI_SIMPLE
+  IMLAEI
+  IMLAEI_SIMPLE
 }

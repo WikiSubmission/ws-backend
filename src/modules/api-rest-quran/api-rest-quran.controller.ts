@@ -59,7 +59,7 @@ export class ApiRestQuranController {
       message: `getQuran, ${queryParams.query}`,
       context: 'ApiRestQuranController.getQuran',
     });
-    return this.Utilities.getQuran(queryParams);
+    return this.Utilities.getQuranFromQuery(queryParams);
   }
   @ApiOkResponse({ type: QuranResponseVerse })
   @Get('random-verse')
