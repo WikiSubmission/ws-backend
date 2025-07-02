@@ -1,21 +1,6 @@
-// import { IsString, Matches } from 'class-validator';
-// import { regex } from '../regex.constant';
-import { ApiProperty } from '@nestjs/swagger';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { Languages, Qiraats, Scripts } from '@prisma/client';
-
-export class QuranQueryDto {
-  // // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  // @Matches(regex, {
-  //   message: 'Query must be a valid format like 1, 1:2, 2:4-6, 5:1,6',
-  // })
-  @ApiProperty({
-    description: 'Query string like 1:1, 1:2-4',
-    example: '1:1-7',
-  })
-  query!: string;
-}
 
 export class QuranQueryParamsDto {
   @ApiPropertyOptional({
@@ -24,56 +9,86 @@ export class QuranQueryParamsDto {
   })
   query!: string;
 
-  @ApiPropertyOptional({
-    description: 'Primary language of the quran',
-    enum: Languages,
-  })
-  mainLanguage?: LanguageQueryParamsDto;
-
-  @ApiPropertyOptional({
-    description: 'Secondary language of the quran',
-  })
-  @IsOptional()
-  secondaryLanguage?: LanguageQueryParamsDto;
-
-  audioQuery?: AudioQueryParamsDto;
-}
-
-class LanguageQueryParamsDto {
+  // Main Language
   @ApiPropertyOptional({
     example: 'ENGLISH',
-    description: 'Language',
+    description: 'Main language',
     enum: Languages,
   })
-  @IsOptional()
-  @IsString()
-  language?: Languages;
+  mainLanguage?: Languages;
 
   @ApiPropertyOptional({
     example: 'HAFS',
-    description: 'Qiraat',
+    description: 'Main Qiraat',
     enum: Qiraats,
   })
   @IsOptional()
   @IsString()
-  qiraat?: Qiraats;
-
-  scripts?: Scripts;
+  mainQiraat?: Qiraats;
 
   @ApiPropertyOptional({
     example: 'versebyverse',
-    description: 'Display type',
+    description: 'Main display type',
     enum: ['wordbyword', 'versebyverse', 'chapter'],
   })
   @IsOptional()
   @IsString()
-  type?: 'wordbyword' | 'versebyverse' | 'chapter';
-}
+  mainType?: 'wordbyword' | 'versebyverse' | 'chapter';
 
-class AudioQueryParamsDto {
-  @ApiPropertyOptional({ example: false, description: 'Include audio links' })
+  @ApiPropertyOptional({
+    example: 'UTHMANIC',
+    description: 'Main script type',
+    enum: Scripts,
+  })
   @IsOptional()
-  audio?: boolean;
+  @IsString()
+  mainScript?: Scripts;
+
+  // Secondary Language
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Should a secondary language be sent. ',
+  })
+  includeSecondaryLanguage?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'FRENCH',
+    description: 'Secondary language',
+    enum: Languages,
+  })
+  secondaryLanguage?: Languages;
+
+  @ApiPropertyOptional({
+    example: 'WARSH',
+    description: 'Secondary Qiraat',
+    enum: Qiraats,
+  })
+  @IsOptional()
+  @IsString()
+  secondaryQiraat?: Qiraats;
+
+  @ApiPropertyOptional({
+    example: 'chapter',
+    description: 'Secondary display type',
+    enum: ['wordbyword', 'versebyverse', 'chapter'],
+  })
+  @IsOptional()
+  @IsString()
+  secondaryType?: 'wordbyword' | 'versebyverse' | 'chapter';
+
+  @ApiPropertyOptional({
+    example: 'INDOPAK',
+    description: 'Secondary script type',
+    enum: Scripts,
+  })
+  @IsOptional()
+  @IsString()
+  secondaryScript?: Scripts;
+
+  // Audio
+  @ApiPropertyOptional({ example: false, description: 'Include audio' })
+  @IsOptional()
+  includeAudio?: boolean;
 
   @ApiPropertyOptional({
     description: 'Audio identifier',
@@ -84,6 +99,7 @@ class AudioQueryParamsDto {
   @ApiPropertyOptional({
     description: 'Audio bitrate',
     example: 128,
+    enum: [128, 64, 40, 32],
   })
-  audioBitrate?: number;
+  audioBitrate?: 128 | 64 | 40 | 32;
 }

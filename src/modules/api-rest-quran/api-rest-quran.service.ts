@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Chapter, Languages, Qiraats, Verse } from '@prisma/client';
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
-import { LanguageCodes } from './api-rest-quran.constant';
+import { ParsedQueryList } from './types';
 
 @Injectable()
 export class ApiRestQuranService {
@@ -225,9 +225,128 @@ export class ApiRestQuranService {
     };
   }
 
-  public parseQuranQuery(input: string) {
+  /**
+   * Parses a Quran query string (e.g., "2:3-5,3:1") into a structured format.
+   *
+   * Supported formats:
+   * - "2" → chapter only
+   * - "2:3" → single verse
+   * - "2:3-5" → verse range
+   * - Comma-separated values like "2,3:1,4:2-4"
+   *
+   * @param {string} input - The Quran query string to parse.
+   * @returns {ParsedQueryList} An array of parsed query objects or error descriptions.
+   */
+  private parseQuranQuery(input: string): ParsedQueryList {
+    let rest_parsed = undefined;
+    if (input.includes(',')) {
+      const [first, rest] = input.split(',');
+      rest_parsed = this.parseQuranQuery(rest);
+      input = first;
+    }
+    if (input.length === 0) {
+      return [
+        {
+          queryWithError: '',
+          errors: ['Input is empty.'],
+        },
+        ...(rest_parsed ?? []),
+      ];
+    }
+    if (/^\d+$/.test(input)) {
+      const chapterNum = parseInt(input);
+      if (chapterNum > 0 && chapterNum <= 114) {
+        return [{ chapterNum }, ...(rest_parsed ?? [])];
+      } else {
+        return [
+          {
+            queryWithError: input,
+            errors: [`Chapter ${chapterNum} is not within the (1, 114) range.`],
+          },
+          ...(rest_parsed ?? []),
+        ];
+      }
+    } else {
+      const [chapterPart, versePart] = input.split(':').map((e) => e.trim());
+      if (!chapterPart || !versePart) {
+        return [
+          {
+            queryWithError: input,
+            errors: [
+              `Either the chapter part [${chapterPart}] or verse part [${versePart}] is missing.`,
+            ],
+          },
+          ...(rest_parsed ?? []),
+        ];
+      }
+      const chapterNum = parseInt(chapterPart);
+      if (versePart.includes('-')) {
+        const [startVerseStr, endVerseStr] = versePart.split('-');
+        const startVerse = parseInt(startVerseStr);
+        let endVerse = startVerse;
+        if (endVerseStr === '') {
+          endVerse = this.verseCounts[chapterNum];
+        } else {
+          endVerse = parseInt(endVerseStr);
+        }
+        if (
+          startVerse > 0 &&
+          startVerse <= this.verseCounts[chapterNum] &&
+          endVerse > 0 &&
+          endVerse <= this.verseCounts[chapterNum] &&
+          startVerse <= endVerse
+        ) {
+          return [
+            {
+              chapterNum,
+              startingVerseNum: startVerse,
+              endingVerseNum: endVerse,
+            },
+            ...(rest_parsed ?? []),
+          ];
+        } else {
+          return [
+            {
+              queryWithError: input,
+              errors: [
+                `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${startVerse}, ${endVerse}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
+              ],
+            },
+            ...(rest_parsed ?? []),
+          ];
+        }
+      } else {
+        const verseNum = parseInt(versePart);
+        if (
+          chapterNum > 0 &&
+          chapterNum <= 114 &&
+          verseNum > 0 &&
+          verseNum <= this.verseCounts[chapterNum]
+        ) {
+          return [
+            {
+              chapterNum,
+              verseNum,
+            },
+            ...(rest_parsed ?? []),
+          ];
+        } else {
+          return [
+            {
+              queryWithError: input,
+              errors: [
+                `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${verseNum}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
+              ],
+            },
+            ...(rest_parsed ?? []),
+          ];
+        }
+      }
+    }
+  }
+
+  public __parseQuranQuery(input: string) {
     this.logger.log({ message: `input: ${input}` });
-    // if (regex.test(String(input).trim())) throw new Error('invalid entry');
     try {
       const entries = input.split(',').map((e) => e.trim());
       const parsedEntries: QuranRef[] = entries.map((entry) => {
@@ -262,7 +381,7 @@ export class ApiRestQuranService {
       return parsedEntries;
     } catch (error) {
       this.logger.error({
-        context: 'ApiRestQuranService.parseQuranQuery',
+        context: 'ApiRestQuranService.__parseQuranQuery',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
       throw new Error('invalid entry');
@@ -500,7 +619,7 @@ export class ApiRestQuranService {
     qiraat?: Qiraats;
     audio?: boolean;
   }) {
-    const parsedEntries = this.parseQuranQuery(query);
+    const parsedEntries = this.__parseQuranQuery(query);
     const ans = [];
     for (const entry of parsedEntries) {
       if (entry.type === 'chapter') {
