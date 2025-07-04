@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { Chapter, Languages, Qiraats, Verse } from '@prisma/client';
+import {
+  Chapter,
+  Languages,
+  Qiraats,
+  Scripts,
+  Verse,
+  Word,
+} from '@prisma/client';
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
 import { ParsedQueryList } from './types';
+import { ItemsWithData, ParsedQueryItem } from './types/query';
 
 @Injectable()
 export class ApiRestQuranService {
@@ -247,6 +255,7 @@ export class ApiRestQuranService {
     if (input.length === 0) {
       return [
         {
+          type: 'invalid',
           queryWithError: '',
           errors: ['Input is empty.'],
         },
@@ -256,10 +265,11 @@ export class ApiRestQuranService {
     if (/^\d+$/.test(input)) {
       const chapterNum = parseInt(input);
       if (chapterNum > 0 && chapterNum <= 114) {
-        return [{ chapterNum }, ...(rest_parsed ?? [])];
+        return [{ type: 'valid', chapterNum }, ...(rest_parsed ?? [])];
       } else {
         return [
           {
+            type: 'invalid',
             queryWithError: input,
             errors: [`Chapter ${chapterNum} is not within the (1, 114) range.`],
           },
@@ -271,6 +281,7 @@ export class ApiRestQuranService {
       if (!chapterPart || !versePart) {
         return [
           {
+            type: 'invalid',
             queryWithError: input,
             errors: [
               `Either the chapter part [${chapterPart}] or verse part [${versePart}] is missing.`,
@@ -298,6 +309,7 @@ export class ApiRestQuranService {
         ) {
           return [
             {
+              type: 'valid',
               chapterNum,
               startingVerseNum: startVerse,
               endingVerseNum: endVerse,
@@ -307,6 +319,7 @@ export class ApiRestQuranService {
         } else {
           return [
             {
+              type: 'invalid',
               queryWithError: input,
               errors: [
                 `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${startVerse}, ${endVerse}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
@@ -325,6 +338,7 @@ export class ApiRestQuranService {
         ) {
           return [
             {
+              type: 'valid',
               chapterNum,
               verseNum,
             },
@@ -333,6 +347,7 @@ export class ApiRestQuranService {
         } else {
           return [
             {
+              type: 'invalid',
               queryWithError: input,
               errors: [
                 `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${verseNum}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
@@ -388,268 +403,315 @@ export class ApiRestQuranService {
     }
   }
 
-  private async getChapter({
-    chapterNum,
-    language = 'ENGLISH',
-    qiraat = null,
-    audio = false,
-    bitrate = 128,
-    edition = 'quran-simple',
+  private matchVerses({
+    item,
+    targetedVerses,
+    fullChapterVerses,
   }: {
-    chapterNum: number;
-    language?: Languages;
-    qiraat?: Qiraats | null;
-    audio?: boolean;
+    item: ParsedQueryItem;
+    targetedVerses: (Verse & {
+      words: Word[];
+      chapter: Chapter;
+    })[];
+    fullChapterVerses: (Verse & {
+      words: Word[];
+      chapter: Chapter;
+    })[];
+  }) {
+    if (item.type === 'invalid') return [];
+
+    if (item.verseNum) {
+      return targetedVerses.filter(
+        (v) =>
+          v.chapter.number === item.chapterNum && v.number === item.verseNum,
+      );
+    } else if (item.startingVerseNum && item.endingVerseNum) {
+      return targetedVerses.filter(
+        (v) =>
+          v.chapter.number === item.chapterNum &&
+          v.number >= item.startingVerseNum! &&
+          v.number <= item.endingVerseNum!,
+      );
+    } else {
+      return fullChapterVerses.filter(
+        (v) => v.chapter.number === item.chapterNum,
+      );
+    }
+  }
+
+  /**
+   * Injects verse and word data (in both a main and optional secondary language)
+   * for a list of parsed Quranic queries. It supports:
+   * - Full chapter queries
+   * - Single verse queries
+   * - Verse range queries
+   *
+   * For each query item, it returns:
+   * - The full concatenated text (`fullText`)
+   * - An array of verses (`verseByVerse`) with word-by-word breakdown
+   * - Optionally, parallel verse content from a secondary language
+   *
+   * All data is batch-fetched to minimize Prisma DB calls.
+   *
+   * @param request - Parsed query input list (valid or invalid entries)
+   * @param mainLanguage - Primary language of Quran content (e.g., `ENGLISH`, `ARABIC_TASHKEEL`)
+   * @param outputType - Output style: `wordbyword`, `versebyverse`, or `chapter`
+   * @param mainQiraat - Optional Qiraat variant for main language
+   * @param mainScript - Optional script style for main language
+   * @param secondaryLanguage - Optional secondary language for bilingual output
+   * @param secondaryQiraat - Optional Qiraat for secondary language
+   * @param secondaryScript - Optional script for secondary language
+   * @param includeWordByWord - Whether to include words inside each verse (default: false)
+   * @param sendFullText - Whether to include concatenated full text in the result (default: false)
+   * @param includeAudioVerse - Whether to add audio URLs to verses (default: false)
+   * @param includeAudioChapter - Whether to add audio URLs at the chapter level (default: false)
+   * @returns Enriched query results with full text, verses, and words (optionally bilingual)
+   */
+  private async injectLanguageData({
+    request,
+    mainLanguage,
+    mainQiraat,
+    mainScript,
+    secondaryLanguage,
+    secondaryQiraat,
+    secondaryScript,
+    includeWordByWord = false,
+    sendFullText = false,
+    includeAudioVerse = false,
+    includeAudioChapter = false,
+    bitrate = 128,
+    edition = 'ar.alafasy',
+  }: {
+    request: ParsedQueryList;
+    mainLanguage: Languages;
+    outputType: 'wordbyword' | 'versebyverse' | 'chapter';
+    mainQiraat?: Qiraats;
+    mainScript?: Scripts;
+    secondaryLanguage?: Languages;
+    secondaryQiraat?: Qiraats;
+    secondaryScript?: Scripts;
+    sendFullText?: boolean;
+    includeWordByWord?: boolean;
+    includeAudioVerse?: boolean;
+    includeAudioChapter?: boolean;
     bitrate?: number;
     edition?: string;
   }) {
-    const chapter = await this.prisma.chapter.findFirstOrThrow({
-      where: {
-        number: chapterNum,
-        quran: {
-          language: language,
-          qiraat: qiraat,
-        },
-      },
-      include: {
-        verses: {
-          omit: {
-            id: true,
-            chapterId: true,
-          },
-        },
-      },
-      omit: {
-        id: true,
-        quranId: true,
-      },
-    });
+    type VerseTarget = { chapterNum: number; verseNum: number };
 
-    if (audio) {
-      const url = this.audio.buildChapterAudioUrl({
-        bitrate,
-        edition,
-        number: chapterNum,
-      });
-      return {
-        type: 'versebyverse',
-        audio: url,
-        data: {
-          ...chapter,
-          verses: chapter.verses.map((verse) => ({
-            ...verse,
-            audio: this.audio.buildVerseByVerseAudioUrl({
-              bitrate: bitrate,
-              edition: edition,
-              number: this.getTraditionalVerseIndex({
-                chapterNumber: chapterNum,
-                verseNumber: verse.number,
-              }),
-            }),
-          })),
-        },
-      };
-    }
+    const targets: VerseTarget[] = [];
+    const fullChapterNums = new Set<number>();
 
-    return {
-      type: 'chapter',
-      data: chapter,
-    };
-  }
+    // Classify request items into full chapters or specific verse targets while removing invalid items
+    for (const item of request) {
+      if (item.type === 'invalid') continue;
 
-  private async getVerse({
-    chapterNum,
-    verseNum,
-    language = 'ENGLISH',
-    qiraat = null,
-    audio = false,
-    bitrate = 128,
-    edition = 'quran-simple',
-  }: {
-    chapterNum: number;
-    verseNum: number;
-    language?: Languages;
-    qiraat?: Qiraats | null;
-    audio?: boolean;
-    bitrate?: number;
-    edition?: string;
-  }) {
-    const verse = await this.prisma.verse.findFirstOrThrow({
-      where: {
-        number: verseNum,
-        chapter: {
-          number: chapterNum,
-          quran: {
-            language: language,
-            qiraat: qiraat,
-          },
-        },
-      },
-      omit: {
-        id: true,
-        chapterId: true,
-      },
-      include: {
-        chapter: {
-          omit: {
-            id: true,
-            quranId: true,
-          },
-        },
-      },
-    });
-
-    if (audio) {
-      const audioUrl = this.audio.buildVerseByVerseAudioUrl({
-        bitrate: bitrate,
-        edition: edition,
-        number: this.getTraditionalVerseIndex({
-          chapterNumber: chapterNum,
-          verseNumber: verseNum,
-        }),
-      });
-      return {
-        type: 'verse',
-
-        chapterNum: chapterNum,
-        chapterTitle: verse.chapter.name,
-        data: { ...verse, audio: audioUrl },
-      };
-    }
-
-    return {
-      type: 'verse',
-
-      chapterNum: chapterNum,
-      chapterTitle: verse.chapter.name,
-      data: verse,
-    };
-  }
-
-  private async getVerses({
-    chapterNum,
-    start,
-    end,
-    language = 'ENGLISH',
-    audio = false,
-    qiraat,
-    bitrate = 128,
-    edition = 'quran-simple',
-  }: {
-    chapterNum: number;
-    start: number;
-    end: number;
-    language: Languages;
-    audio?: boolean;
-    qiraat?: Qiraats | null;
-    bitrate?: number;
-    edition?: string;
-  }) {
-    const chapter = await this.prisma.chapter.findFirstOrThrow({
-      where: {
-        number: chapterNum,
-        quran: {
-          qiraat: qiraat,
-          language: language,
-        },
-      },
-    });
-    const verses = await this.prisma.verse.findMany({
-      where: {
-        number: {
-          gte: start,
-          lte: end,
-        },
-        chapter: {
-          number: chapterNum,
-          quran: {
-            language: language,
-            qiraat: qiraat,
-          },
-        },
-      },
-      omit: {
-        id: true,
-        chapterId: true,
-      },
-    });
-
-    if (audio) {
-      const chapterAudioUrl = this.audio.buildChapterAudioUrl({
-        bitrate,
-        edition,
-        number: chapterNum,
-      });
-
-      return {
-        type: 'verses',
-        chapterNum: chapterNum,
-        chapterTitle: chapter.name,
-        audio: chapterAudioUrl,
-        data: verses.map((verse) => {
-          const audioUrl = this.audio.buildVerseByVerseAudioUrl({
-            bitrate,
-            edition,
-            number: this.getTraditionalVerseIndex({
-              chapterNumber: chapterNum,
-              verseNumber: verse.number,
-            }),
-          });
-          return { ...verse, audio: audioUrl };
-        }),
-      };
-    }
-
-    return {
-      type: 'verses',
-      chapterNum: chapterNum,
-      chapterTitle: chapter.name,
-      data: verses,
-    };
-  }
-
-  public async getQuranFromQuery({
-    query,
-    language = 'ENGLISH',
-    qiraat,
-    audio,
-  }: {
-    query: string;
-    language?: Languages;
-    qiraat?: Qiraats;
-    audio?: boolean;
-  }) {
-    const parsedEntries = this.__parseQuranQuery(query);
-    const ans = [];
-    for (const entry of parsedEntries) {
-      if (entry.type === 'chapter') {
-        const chapter = await this.getChapter({
-          chapterNum: entry.chapterNum,
-          audio: audio,
-          language: language,
-          qiraat: qiraat,
-        });
-        ans.push(chapter);
-      } else if (entry.type === 'verse') {
-        const verse = await this.getVerse({
-          chapterNum: entry.chapterNum,
-          verseNum: entry.verse,
-        });
-        ans.push(verse);
-      } else if (entry.type === 'range') {
-        const verses = await this.getVerses({
-          chapterNum: entry.chapterNum,
-          start: entry.start,
-          end: entry.end,
-          audio: audio,
-          language: language,
-          qiraat: qiraat,
-        });
-        ans.push(verses);
+      if (item.verseNum) {
+        // case of request one chapter
+        targets.push({ chapterNum: item.chapterNum, verseNum: item.verseNum });
+      } else if (item.startingVerseNum && item.endingVerseNum) {
+        // case of request range of verses
+        for (let v = item.startingVerseNum; v <= item.endingVerseNum; v++) {
+          targets.push({ chapterNum: item.chapterNum, verseNum: v });
+        }
+      } else {
+        // case of requesting full chapter
+        fullChapterNums.add(item.chapterNum);
       }
     }
-    this.logger.log(ans);
-    return ans;
+
+    // Reusable where clause generators
+    const commonVerseWhere = (
+      language: Languages,
+      qiraat?: Qiraats,
+      script?: Scripts,
+    ) => ({
+      chapter: {
+        number: { in: [...fullChapterNums] },
+        quran: {
+          language,
+          qiraat,
+          Script: script,
+        },
+      },
+    });
+
+    const commonTargetFilters = (
+      targets: VerseTarget[],
+      language: Languages,
+      qiraat?: Qiraats,
+      script?: Scripts,
+    ) =>
+      targets.map(({ chapterNum, verseNum }) => ({
+        chapter: {
+          number: chapterNum,
+          quran: {
+            language,
+            qiraat,
+            Script: script,
+          },
+        },
+        number: verseNum,
+      }));
+
+    // Batch all Prisma queries in one transaction
+    const txCalls = [
+      this.prisma.verse.findMany({
+        where: commonVerseWhere(mainLanguage, mainQiraat, mainScript),
+        include: { words: true, chapter: true },
+        orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
+      }),
+      this.prisma.verse.findMany({
+        where: {
+          OR: commonTargetFilters(
+            targets,
+            mainLanguage,
+            mainQiraat,
+            mainScript,
+          ),
+        },
+        include: { words: true, chapter: true },
+        orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
+      }),
+    ];
+
+    if (secondaryLanguage) {
+      txCalls.push(
+        this.prisma.verse.findMany({
+          where: {
+            OR: commonTargetFilters(
+              targets,
+              secondaryLanguage,
+              secondaryQiraat,
+              secondaryScript,
+            ),
+          },
+          include: { chapter: true, words: true },
+          orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
+        }),
+        this.prisma.verse.findMany({
+          where: commonVerseWhere(
+            secondaryLanguage,
+            secondaryQiraat,
+            secondaryScript,
+          ),
+          include: { chapter: true, words: true },
+          orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
+        }),
+      );
+    }
+
+    const [
+      fullChapterVerses,
+      targetedVerses,
+      secondaryTargetedVerses = [],
+      secondaryFullChapterVerses = [],
+    ] = await this.prisma.$transaction(txCalls);
+
+    // 🔄 Combine primary and secondary verses
+    const allMainVerses = [...targetedVerses, ...fullChapterVerses];
+    const allSecondaryVerses = [
+      ...secondaryTargetedVerses,
+      ...secondaryFullChapterVerses,
+    ];
+
+    // Build a lookup for (chapter:verse) => secondaryContent
+    const secondaryVerseMap = new Map<string, string>();
+    for (const v of allSecondaryVerses) {
+      const key = `${v.chapter.number}:${v.number}`;
+      secondaryVerseMap.set(key, v.content);
+    }
+
+    // Build response for each input item
+    const result = request.map((item) => {
+      if (item.type === 'invalid') return item;
+
+      const verses = this.matchVerses({
+        item,
+        targetedVerses,
+        fullChapterVerses,
+      });
+
+      return {
+        ...item,
+        data: {
+          type: 'verses',
+          ...(sendFullText && {
+            fullText: verses.map((v) => v.content).join(' '),
+          }),
+          ...(includeAudioChapter
+            ? {
+                audio: this.audio.buildChapterAudioUrl({
+                  bitrate: bitrate,
+                  edition: edition,
+                  number: item.chapterNum,
+                }),
+              }
+            : undefined),
+          verseByVerse: verses.map((v) => {
+            const key = `${v.chapter.number}:${v.number}`;
+            return {
+              verse: {
+                number: v.number,
+                content: v.content,
+                secondaryContent: secondaryVerseMap.get(key) ?? null,
+                subtitle: v.subtitle,
+                footnote: v.footnote,
+                ...(includeAudioVerse && {
+                  audio: this.audio.buildVerseByVerseAudioUrl({
+                    bitrate: bitrate,
+                    edition: edition,
+                    number: `${v.chapter.number}${v.number.toString().padStart(3, '0')}`,
+                  }),
+                }),
+              },
+              ...(includeWordByWord && {
+                words: v.words.map((w) => ({
+                  number: w.number,
+                  content: w.content,
+                  root: w.root,
+                })),
+              }),
+            };
+          }),
+        },
+      };
+    });
+
+    return result;
+  }
+
+  public getQuranFromQuery({
+    query,
+    mainLanguage = 'ENGLISH',
+    mainQiraat,
+    includeVerseByVerseAudio,
+    includeChapterAudio,
+  }: {
+    query: string;
+    mainLanguage?: Languages;
+    mainQiraat?: Qiraats;
+    includeVerseByVerseAudio?: boolean;
+    includeChapterAudio?: boolean;
+  }) {
+    // Convert string query to machine readable list of Quran references
+    const parsedRequest = this.parseQuranQuery(query);
+
+    // inject language
+    const withMainLanguage = this.injectLanguageData({
+      request: parsedRequest,
+      mainLanguage: mainLanguage,
+      mainQiraat: mainQiraat,
+      includeAudioChapter: includeChapterAudio,
+      includeAudioVerse: includeVerseByVerseAudio,
+      outputType: 'versebyverse',
+    });
+
+    // inject audio
+    //
+
+    const res = withMainLanguage;
+    return res;
   }
 }
 

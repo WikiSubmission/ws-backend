@@ -10,15 +10,14 @@ export class QuranQueryParamsDto {
   query!: string;
 
   // Main Language
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'ENGLISH',
     description: 'Main language',
     enum: Languages,
   })
-  mainLanguage?: Languages;
+  mainLanguage!: Languages;
 
   @ApiPropertyOptional({
-    example: 'HAFS',
     description: 'Main Qiraat',
     enum: Qiraats,
   })
@@ -26,14 +25,14 @@ export class QuranQueryParamsDto {
   @IsString()
   mainQiraat?: Qiraats;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'versebyverse',
     description: 'Main display type',
     enum: ['wordbyword', 'versebyverse', 'chapter'],
   })
   @IsOptional()
   @IsString()
-  mainType?: 'wordbyword' | 'versebyverse' | 'chapter';
+  mainType!: 'wordbyword' | 'versebyverse' | 'chapter';
 
   @ApiPropertyOptional({
     example: 'UTHMANIC',
@@ -45,21 +44,20 @@ export class QuranQueryParamsDto {
   mainScript?: Scripts;
 
   // Secondary Language
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: false,
     description: 'Should a secondary language be sent. ',
   })
-  includeSecondaryLanguage?: boolean;
+  includeSecondaryLanguage!: boolean;
 
   @ApiPropertyOptional({
-    example: 'FRENCH',
+    example: 'PERSIAN',
     description: 'Secondary language',
     enum: Languages,
   })
   secondaryLanguage?: Languages;
 
   @ApiPropertyOptional({
-    example: 'WARSH',
     description: 'Secondary Qiraat',
     enum: Qiraats,
   })
@@ -86,20 +84,22 @@ export class QuranQueryParamsDto {
   secondaryScript?: Scripts;
 
   // Audio
-  @ApiPropertyOptional({ example: false, description: 'Include audio' })
-  @IsOptional()
-  includeAudio?: boolean;
+  @ApiProperty({ example: false, description: 'Include verse audio' })
+  includeVerseByVerseAudio!: boolean;
 
-  @ApiPropertyOptional({
+  @ApiProperty({ example: false, description: 'Include chapter audio' })
+  includeChapterAudio!: boolean;
+
+  @ApiProperty({
     description: 'Audio identifier',
     example: 'ar.abdulazizazzahrani',
   })
-  audioIdentifier?: string;
+  audioIdentifier!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'Audio bitrate',
     example: 128,
     enum: [128, 64, 40, 32],
   })
-  audioBitrate?: 128 | 64 | 40 | 32;
+  audioBitrate!: 128 | 64 | 40 | 32;
 }

@@ -56,10 +56,16 @@ export class ApiRestQuranController {
   @UsePipes(new ValidationPipe({ transform: true }))
   getQuran(@Query() queryParams: QuranQueryParamsDto) {
     this.Logger.log({
-      message: `getQuran, ${queryParams.query}`,
+      message: `getQuran, with these params ${JSON.stringify(queryParams)}`,
       context: 'ApiRestQuranController.getQuran',
     });
-    return this.Utilities.getQuranFromQuery(queryParams);
+    return this.Utilities.getQuranFromQuery({
+      query: queryParams.query,
+      mainLanguage: queryParams.mainLanguage,
+      mainQiraat: queryParams.mainQiraat,
+      includeChapterAudio: queryParams.includeChapterAudio,
+      includeVerseByVerseAudio: queryParams.includeVerseByVerseAudio,
+    });
   }
   @ApiOkResponse({ type: QuranResponseVerse })
   @Get('random-verse')
