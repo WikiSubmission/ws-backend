@@ -61,19 +61,20 @@ export class ApiRestQuranController {
       message: `getQuran, with these params ${JSON.stringify(queryParams)}`,
       context: 'ApiRestQuranController.getQuran',
     });
-    return this.Utilities.getQuranFromQuery({ query: queryParams }).then(
-      (result) => {
-        const end = performance.now();
-        const timeTaken = (end - start).toFixed(2);
+    return;
+    // return this.Utilities.getQuranFromQuery({ query: queryParams }).then(
+    //   (result) => {
+    //     const end = performance.now();
+    //     const timeTaken = (end - start).toFixed(2);
 
-        this.Logger.log({
-          message: `getQuran completed in ${timeTaken}ms`,
-          context: 'ApiRestQuranController.getQuran',
-        });
+    //     this.Logger.log({
+    //       message: `getQuran completed in ${timeTaken}ms`,
+    //       context: 'ApiRestQuranController.getQuran',
+    //     });
 
-        return result;
-      },
-    );
+    //     return result;
+    //   },
+    // );
   }
 
   @ApiOkResponse({ type: QuranResponseVerse })
@@ -83,7 +84,6 @@ export class ApiRestQuranController {
       message: `getRandomVerse`,
       context: 'ApiRestQuranController.getRandomVerse',
     });
-    return this.Utilities.getRandomVerse();
   }
 
   @ApiOkResponse({ type: QuranResponseChapter })
@@ -93,7 +93,6 @@ export class ApiRestQuranController {
       message: `getRandomChapter`,
       context: 'ApiRestQuranController.getRandomChapter',
     });
-    return this.Utilities.getRandomChapter();
   }
 
   @Get('audio-chapter-metadata')

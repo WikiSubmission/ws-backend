@@ -13,57 +13,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Quran {
-  id         String    @id @default(uuid())
-  language   Languages
-  qiraat     Qiraats?
-  chapters   Chapter[]
-  metadata   MetaData? @relation(fields: [metaDataId], references: [id])
-  metaDataId String?
-  Script     Scripts?
-
-  @@unique([language, qiraat])
+model Verses {
+  uuid          String    @id @default(uuid())
+  global_index  Int       @default(autoincrement())
+  verse_index   Int
+  subtitle      String?
+  content       String
+  footer        String?
+  language      Languages
+  chapter_index Int
+  chapter_title String
+  @@unique([global_index, chapter_index, verse_index, language ])
 }
 
-model Chapter {
-  id               String  @id @default(uuid())
-  quran            Quran   @relation(fields: [quranId], references: [id])
-  quranId          String
-  number           Int     @default(1)
-  name             String
+model Words {
+  uuid          String    @id @default(uuid())
+  global_index  Int       @default(autoincrement())
+  chapter_index Int
+  verse_index   Int
+  word_index    Int
+  content       String
+  root          String
+  language      Languages
+  @@unique([global_index, chapter_index, verse_index, word_index, language ])
+}
+
+model ChapterMetadata {
+  chapter_index     Int    @id
+  global_index     Int
+  title_english            String
+  title_arabic String
+  title_transliterated String
+  verse_count      Int
   revelation_order Int
-  verses           Verse[]
-
-  @@unique([quranId, number])
 }
 
-model Verse {
-  id        String  @id @default(uuid())
-  chapter   Chapter @relation(fields: [chapterId], references: [id])
-  chapterId String
-  number    Int     @default(1)
-  content   String
-  subtitle  String?
-  footnote  String?
-  words     Word[]
-
-  @@unique([chapterId, number])
-}
-
-model Word {
-  id          String  @id @default(uuid())
-  verse       Verse   @relation(fields: [verseId], references: [id])
-  verseId     String
-  number      Int
-  content     String
-  root        String?
-  quran_index Int
-}
-
-model MetaData {
-  id    String  @id @default(uuid())
-  name  String
-  Quran Quran[]
+model Gematria {
+  letter String @id
+  value  Int
 }
 
 enum Languages {
@@ -71,7 +58,7 @@ enum Languages {
   ARABIC_NON_TASHKEEL
   TRANSLITERATED
   ENGLISH
-  FR_NCH
+  FRENCH
   TAMIL
   HINDI
   TURKISH

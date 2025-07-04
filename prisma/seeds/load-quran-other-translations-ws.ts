@@ -4,6 +4,7 @@ import { PrismaService } from '@modules';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import * as cliProgress from 'cli-progress';
+import { Verses } from '@prisma/client';
 
 export type WsQuranForeign = {
   verse_id: string;
@@ -64,286 +65,114 @@ export async function bootstrapQT() {
       cliProgress.Presets.shades_classic,
     );
 
-    // get / create the qurans
-
-    const quran = await prisma.quran.findFirstOrThrow({
-      where: {
-        language: 'ENGLISH',
-      },
-    });
-
-    const french = await prisma.quran.create({
-      data: {
-        language: 'FR_NCH',
-      },
-    });
-
-    const swedish = await prisma.quran.create({
-      data: {
-        language: 'SWEDISH',
-      },
-    });
-
-    const german = await prisma.quran.create({
-      data: {
-        language: 'GERMAN',
-      },
-    });
-
-    const bahasa = await prisma.quran.create({
-      data: {
-        language: 'BAHASA',
-      },
-    });
-
-    const tamil = await prisma.quran.create({
-      data: {
-        language: 'TAMIL',
-      },
-    });
-
-    const persian = await prisma.quran.create({
-      data: {
-        language: 'PERSIAN',
-      },
-    });
-
     progressBar.start(rowCount, 0);
     let processedRows = 0;
     const parser = fs
       .createReadStream(csvFilePath)
       .pipe(parse({ columns: true }));
+
+    let verseList: (Omit<Verses, 'uuid' | 'subtitle' | 'footer'> &
+      Partial<Pick<Verses, 'subtitle' | 'footer'>>)[] = [];
     for await (const untypedRow of parser) {
       const row = untypedRow as WsQuranForeign;
       const [chapter, verse] = row.verse_id.split(':').map(Number);
 
-      const currentChapter = await prisma.chapter.findUniqueOrThrow({
+      const og = await prisma.verses.findFirstOrThrow({
         where: {
-          quranId_number: {
-            quranId: quran.id,
-            number: chapter,
-          },
+          verse_index: verse,
+          chapter_index: chapter,
         },
       });
 
-      const frenchChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: french.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: french.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_french,
-        },
-      });
-
-      const swedishChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: swedish.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: swedish.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_swedish,
-        },
-      });
-
-      const germanChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: german.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: german.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_german,
-        },
-      });
-
-      const bahasaChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: bahasa.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: bahasa.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_bahasa,
-        },
-      });
-
-      const tamilChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: tamil.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: tamil.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_tamil,
-        },
-      });
-
-      const persianChapter = await prisma.chapter.upsert({
-        where: {
-          quranId_number: {
-            quranId: persian.id,
-            number: chapter,
-          },
-        },
-        update: {},
-        create: {
-          quran: {
-            connect: {
-              id: persian.id,
-            },
-          },
-          revelation_order: currentChapter?.revelation_order,
-          number: chapter,
-          name: row.chapter_title_persian,
-        },
-      });
-
-      // verses
-      const verseData = await prisma.verse.findUniqueOrThrow({
-        where: {
-          chapterId_number: {
-            chapterId: currentChapter.id,
-            number: verse,
-          },
-        },
-      });
-
-      const frenchVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: frenchChapter.id,
-            },
-          },
-          number: verse,
-          subtitle: row.verse_subtitle_french,
-          content: row.verse_text_french,
-          footnote: row.verse_footnote_french,
-        },
-      });
-
-      const swedishVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: swedishChapter.id,
-            },
-          },
-          number: verse,
-          subtitle: row.verse_subtitle_swedish,
-          content: row.verse_text_swedish,
-          footnote: row.verse_footnote_swedish,
-        },
-      });
-
-      const persianVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: persianChapter.id,
-            },
-          },
-          number: verse,
-          subtitle: row.verse_subtitle_persian,
-          content: row.verse_text_persian,
-          footnote: row.verse_footnote_persian,
-        },
-      });
-
-      const tamilVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: tamilChapter.id,
-            },
-          },
-          number: verse,
-          subtitle: row.verse_subtitle_tamil,
-          content: row.verse_text_tamil,
-          footnote: row.verse_footnote_tamil,
-        },
-      });
-
-      const bahasaVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: bahasaChapter.id,
-            },
-          },
-          number: verse,
+      verseList = verseList.concat([
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
           subtitle: row.verse_subtitle_bahasa,
           content: row.verse_text_bahasa,
-          footnote: row.verse_footnote_bahasa,
+          footer: row.verse_footnote_bahasa,
+          language: 'BAHASA',
+          chapter_title: row.chapter_title_bahasa,
         },
-      });
-
-      const germanVerse = await prisma.verse.create({
-        data: {
-          chapter: {
-            connect: {
-              id: germanChapter.id,
-            },
-          },
-          number: verse,
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_french,
+          content: row.verse_text_french,
+          footer: row.verse_footnote_french,
+          language: 'FRENCH',
+          chapter_title: row.chapter_title_french,
+        },
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_persian,
+          content: row.verse_text_persian,
+          footer: row.verse_footnote_persian,
+          language: 'PERSIAN',
+          chapter_title: row.chapter_title_persian,
+        },
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_russian,
+          content: row.verse_text_russian,
+          footer: row.verse_footnote_russian,
+          language: 'RUSSIAN',
+          chapter_title: row.chapter_title_russian,
+        },
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_swedish,
+          content: row.verse_text_swedish,
+          footer: row.verse_footnote_swedish,
+          language: 'SWEDISH',
+          chapter_title: row.chapter_title_swedish,
+        },
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
           subtitle: row.verse_subtitle_german,
           content: row.verse_text_german,
-          footnote: row.verse_text_german,
+          footer: row.verse_footnote_german,
+          language: 'GERMAN',
+          chapter_title: row.chapter_title_german,
         },
-      });
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_tamil,
+          content: row.verse_text_tamil,
+          footer: row.verse_footnote_tamil,
+          language: 'TAMIL',
+          chapter_title: row.chapter_title_tamil,
+        },
+        {
+          global_index: og.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          subtitle: row.verse_subtitle_turkish,
+          content: row.verse_text_turkish,
+          footer: row.verse_footnote_turkish,
+          language: 'TURKISH',
+          chapter_title: row.chapter_title_turkish,
+        },
+      ]);
 
       processedRows += 1;
       progressBar.update(processedRows);
     }
-
+    await prisma.verses.createMany({
+      data: verseList,
+    });
     progressBar.stop();
     console.log('Finished import');
     await app.close();

@@ -4,6 +4,7 @@ import { PrismaService } from '@modules';
 import * as fs from 'fs';
 import { parse } from 'csv-parse';
 import * as cliProgress from 'cli-progress';
+import { Words } from '@prisma/client';
 
 export type WsQuranWordByWord = {
   global_index: number;
@@ -30,35 +31,13 @@ export async function bootstrapWBW() {
       cliProgress.Presets.shades_classic,
     );
 
-    const englishQuran = await prisma.quran.findFirstOrThrow({
-      where: {
-        language: 'ENGLISH',
-      },
-    });
-
-    const arabicTashkeelQuran = await prisma.quran.findFirstOrThrow({
-      where: {
-        language: 'ARABIC_TASHKEEL',
-      },
-    });
-
-    const arabicNoTashkeelQuran = await prisma.quran.findFirstOrThrow({
-      where: {
-        language: 'ARABIC_NON_TASHKEEL',
-      },
-    });
-
-    const transliterationQuran = await prisma.quran.findFirstOrThrow({
-      where: {
-        language: 'TRANSLITERATED',
-      },
-    });
-
     progressBar.start(rowCount, 0);
     let processedRows = 0;
     const parser = fs
       .createReadStream(csvFilePath)
       .pipe(parse({ columns: true }));
+
+    let WordList: Omit<Words, 'uuid'>[] = [];
     for await (const untypedRow of parser) {
       let row = untypedRow as WsQuranWordByWord;
       row = {
@@ -67,138 +46,51 @@ export async function bootstrapWBW() {
         global_index: Number(row.global_index),
       };
       const [chapter, verse] = row.verse_id.split(':').map(Number);
-
-      const englishChapter = await prisma.chapter.findUniqueOrThrow({
-        where: {
-          quranId_number: {
-            quranId: englishQuran.id,
-            number: chapter,
-          },
+      WordList = WordList.concat([
+        {
+          global_index: row.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          word_index: row.word_index,
+          root: row.root_word,
+          content: row.arabic_text,
+          language: 'ARABIC_NON_TASHKEEL',
         },
-      });
-
-      const arabicTashkeelChapter = await prisma.chapter.findUniqueOrThrow({
-        where: {
-          quranId_number: {
-            quranId: arabicTashkeelQuran.id,
-            number: chapter,
-          },
+        {
+          global_index: row.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          word_index: row.word_index,
+          root: row.root_word,
+          content: row.arabic_text,
+          language: 'ARABIC_TASHKEEL',
         },
-      });
-
-      const arabicNoTashkeelChapter = await prisma.chapter.findUniqueOrThrow({
-        where: {
-          quranId_number: {
-            quranId: arabicNoTashkeelQuran.id,
-            number: chapter,
-          },
-        },
-      });
-
-      const transliterationChapter = await prisma.chapter.findUniqueOrThrow({
-        where: {
-          quranId_number: {
-            quranId: transliterationQuran.id,
-            number: chapter,
-          },
-        },
-      });
-
-      // verses
-      const englishVerse = await prisma.verse.findUniqueOrThrow({
-        where: {
-          chapterId_number: {
-            chapterId: englishChapter.id,
-            number: verse,
-          },
-        },
-      });
-
-      const arabicTashkeelVerse = await prisma.verse.findUniqueOrThrow({
-        where: {
-          chapterId_number: {
-            chapterId: arabicTashkeelChapter.id,
-            number: verse,
-          },
-        },
-      });
-
-      const arabicNoTashkeelVerse = await prisma.verse.findUniqueOrThrow({
-        where: {
-          chapterId_number: {
-            chapterId: arabicNoTashkeelChapter.id,
-            number: verse,
-          },
-        },
-      });
-
-      const transliterationVerse = await prisma.verse.findUniqueOrThrow({
-        where: {
-          chapterId_number: {
-            chapterId: transliterationChapter.id,
-            number: verse,
-          },
-        },
-      });
-
-      // words
-      const englishWord = await prisma.word.create({
-        data: {
-          verse: {
-            connect: {
-              id: englishVerse.id,
-            },
-          },
-          number: row.word_index,
+        {
+          global_index: row.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          word_index: row.word_index,
+          root: row.root_word,
           content: row.english_text,
-          quran_index: row.global_index,
+          language: 'ENGLISH',
         },
-      });
-
-      const arabicTashkeelWord = await prisma.word.create({
-        data: {
-          verse: {
-            connect: {
-              id: arabicTashkeelVerse.id,
-            },
-          },
-          number: row.word_index,
-          content: row.arabic_text,
+        {
+          global_index: row.global_index,
+          chapter_index: chapter,
+          verse_index: verse,
+          word_index: row.word_index,
           root: row.root_word,
-          quran_index: row.global_index,
-        },
-      });
-
-      const arabicNoTashkeelWord = await prisma.word.create({
-        data: {
-          verse: {
-            connect: {
-              id: arabicNoTashkeelVerse.id,
-            },
-          },
-          number: row.word_index,
-          content: row.arabic_text,
-          root: row.root_word,
-          quran_index: row.global_index,
-        },
-      });
-
-      const transliterationWord = await prisma.word.create({
-        data: {
-          verse: {
-            connect: {
-              id: transliterationVerse.id,
-            },
-          },
-          number: row.word_index,
           content: row.transliterated_text,
-          root: row.root_word,
-          quran_index: row.global_index,
+          language: 'TRANSLITERATED',
         },
-      });
+      ]);
+
       processedRows += 1;
       progressBar.update(processedRows);
     }
+    prisma.words.createMany({
+      data: WordList,
+    });
     progressBar.stop();
     console.log('Finished import');
     await app.close();
