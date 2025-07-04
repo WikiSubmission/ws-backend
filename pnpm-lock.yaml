@@ -126,6 +126,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.15.32)(ts-node@10.9.2(@swc/core@1.12.1)(@types/node@22.15.32)(typescript@5.8.3))
+      perf_hooks:
+        specifier: ^0.0.1
+        version: 0.0.1
       prettier:
         specifier: ^3.4.2
         version: 3.5.3
@@ -3028,6 +3031,9 @@ packages:
 
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
+
+  perf_hooks@0.0.1:
+    resolution: {integrity: sha512-qG/D9iA4KDme+KF4vCObJy6Bouu3BlQnmJ8jPydVPm32NJBD9ZK1ZNgXSYaZKHkVC1sKSqUiLgFvAZPUiIEnBw==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -6993,6 +6999,8 @@ snapshots:
   peek-readable@5.4.2: {}
 
   pend@1.2.0: {}
+
+  perf_hooks@0.0.1: {}
 
   picocolors@1.1.1: {}
 

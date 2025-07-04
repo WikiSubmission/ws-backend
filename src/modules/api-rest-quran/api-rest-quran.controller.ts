@@ -22,6 +22,7 @@ import {
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
 import { AudioResponseDto } from './dto/audio-response.dto';
 import { QuranQueryParamsDto } from './dto/quran-query.dto';
+import { performance } from 'perf_hooks';
 
 @ApiTags('quran')
 @Controller('api-rest-quran')
@@ -55,18 +56,26 @@ export class ApiRestQuranController {
   @Get('quran')
   @UsePipes(new ValidationPipe({ transform: true }))
   getQuran(@Query() queryParams: QuranQueryParamsDto) {
+    const start = performance.now();
     this.Logger.log({
       message: `getQuran, with these params ${JSON.stringify(queryParams)}`,
       context: 'ApiRestQuranController.getQuran',
     });
-    return this.Utilities.getQuranFromQuery({
-      query: queryParams.query,
-      mainLanguage: queryParams.mainLanguage,
-      mainQiraat: queryParams.mainQiraat,
-      includeChapterAudio: queryParams.includeChapterAudio,
-      includeVerseByVerseAudio: queryParams.includeVerseByVerseAudio,
-    });
+    return this.Utilities.getQuranFromQuery({ query: queryParams }).then(
+      (result) => {
+        const end = performance.now();
+        const timeTaken = (end - start).toFixed(2);
+
+        this.Logger.log({
+          message: `getQuran completed in ${timeTaken}ms`,
+          context: 'ApiRestQuranController.getQuran',
+        });
+
+        return result;
+      },
+    );
   }
+
   @ApiOkResponse({ type: QuranResponseVerse })
   @Get('random-verse')
   getRandomVerse() {

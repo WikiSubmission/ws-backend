@@ -2,6 +2,56 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { Languages, Qiraats, Scripts } from '@prisma/client';
 
+export interface QuranQueryParams {
+  /** Quran verse/chapter query. Example: 1:1-7 */
+  query: string;
+
+  /** Main language (e.g., ENGLISH) */
+  mainLanguage: Languages;
+
+  /** Optional main Qiraat */
+  mainQiraat?: Qiraats;
+
+  /** Main display type */
+  mainType: 'wordbyword' | 'versebyverse' | 'chapter';
+
+  /** Optional main script type */
+  mainScript?: Scripts;
+
+  /** Whether to include a secondary language */
+  includeSecondaryLanguage: boolean;
+
+  /** Optional secondary language */
+  secondaryLanguage?: Languages;
+
+  /** Optional secondary Qiraat */
+  secondaryQiraat?: Qiraats;
+
+  /** Optional secondary display type */
+  secondaryType?: 'wordbyword' | 'versebyverse' | 'chapter';
+
+  /** Optional secondary script type */
+  secondaryScript?: Scripts;
+
+  /** Whether to include verse-by-verse audio */
+  includeVerseByVerseAudio: boolean;
+
+  /** Whether to include chapter-level audio */
+  includeChapterAudio: boolean;
+
+  /** Audio identifier (e.g., ar.abdulazizazzahrani) */
+  audioIdentifier: string;
+
+  /** Audio bitrate */
+  audioBitrate: 128 | 64 | 40 | 32;
+
+  /** Whether to include word-by-word audio */
+  includeWordByWord: boolean;
+
+  /** Whether to send full text */
+  sendFullText: boolean;
+}
+
 export class QuranQueryParamsDto {
   @ApiPropertyOptional({
     description: 'Quran verse/chapter query. Example: 1:1, 1:2-7',
@@ -35,7 +85,6 @@ export class QuranQueryParamsDto {
   mainType!: 'wordbyword' | 'versebyverse' | 'chapter';
 
   @ApiPropertyOptional({
-    example: 'UTHMANIC',
     description: 'Main script type',
     enum: Scripts,
   })
@@ -75,7 +124,6 @@ export class QuranQueryParamsDto {
   secondaryType?: 'wordbyword' | 'versebyverse' | 'chapter';
 
   @ApiPropertyOptional({
-    example: 'INDOPAK',
     description: 'Secondary script type',
     enum: Scripts,
   })
@@ -89,6 +137,12 @@ export class QuranQueryParamsDto {
 
   @ApiProperty({ example: false, description: 'Include chapter audio' })
   includeChapterAudio!: boolean;
+
+  @ApiProperty({ example: false, description: 'Include word by word' })
+  includeWordByWord!: boolean;
+
+  @ApiProperty({ example: false, description: 'Send full text' })
+  sendFullText!: boolean;
 
   @ApiProperty({
     description: 'Audio identifier',

@@ -12,7 +12,15 @@ import {
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
 import { ParsedQueryList } from './types';
-import { ItemsWithData, ParsedQueryItem } from './types/query';
+import {
+  ParsedQueryItem,
+  ValidParsedQueryItem,
+  InvalidParsedQueryItem,
+  EnrichedQueryItem,
+  ProcessedQueryItem,
+  VerseWithRelations,
+} from './types/query';
+import { QuranQueryParams } from './dto/quran-query.dto';
 
 @Injectable()
 export class ApiRestQuranService {
@@ -496,18 +504,25 @@ export class ApiRestQuranService {
     includeAudioChapter?: boolean;
     bitrate?: number;
     edition?: string;
-  }) {
+  }): Promise<ProcessedQueryItem[]> {
+    this.logger.log(`parameters: mainlanguage: ${mainLanguage}`);
+    this.logger.log(`parameters: includeWordByWord: ${includeWordByWord}`);
+    this.logger.log(`parameters: includeAudioVerse: ${includeAudioVerse}`);
+    this.logger.log(`parameters: includeAudioChapter: ${includeAudioChapter}`);
+
     type VerseTarget = { chapterNum: number; verseNum: number };
 
     const targets: VerseTarget[] = [];
     const fullChapterNums = new Set<number>();
+
+    const t0 = performance.now();
 
     // Classify request items into full chapters or specific verse targets while removing invalid items
     for (const item of request) {
       if (item.type === 'invalid') continue;
 
       if (item.verseNum) {
-        // case of request one chapter
+        // case of request one verse
         targets.push({ chapterNum: item.chapterNum, verseNum: item.verseNum });
       } else if (item.startingVerseNum && item.endingVerseNum) {
         // case of request range of verses
@@ -520,141 +535,182 @@ export class ApiRestQuranService {
       }
     }
 
-    // Reusable where clause generators
-    const commonVerseWhere = (
-      language: Languages,
-      qiraat?: Qiraats,
-      script?: Scripts,
-    ) => ({
+    const t1 = performance.now();
+
+    // Build optimized include object based on what's actually needed
+    const buildInclude = (includeWords: boolean) => ({
       chapter: {
-        number: { in: [...fullChapterNums] },
-        quran: {
-          language,
-          qiraat,
-          Script: script,
+        include: {
+          quran: true,
         },
       },
+      ...(includeWords && { words: true }),
     });
 
-    const commonTargetFilters = (
-      targets: VerseTarget[],
-      language: Languages,
-      qiraat?: Qiraats,
-      script?: Scripts,
-    ) =>
-      targets.map(({ chapterNum, verseNum }) => ({
-        chapter: {
-          number: chapterNum,
-          quran: {
-            language,
-            qiraat,
-            Script: script,
-          },
-        },
-        number: verseNum,
-      }));
+    // Build unified WHERE clause for main language
+    const buildMainWhereClause = () => {
+      const conditions: any[] = [];
 
-    // Batch all Prisma queries in one transaction
-    const txCalls = [
-      this.prisma.verse.findMany({
-        where: commonVerseWhere(mainLanguage, mainQiraat, mainScript),
-        include: { words: true, chapter: true },
-        orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
-      }),
-      this.prisma.verse.findMany({
-        where: {
-          OR: commonTargetFilters(
-            targets,
-            mainLanguage,
-            mainQiraat,
-            mainScript,
-          ),
-        },
-        include: { words: true, chapter: true },
-        orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
-      }),
-    ];
-
-    if (secondaryLanguage) {
-      txCalls.push(
-        this.prisma.verse.findMany({
-          where: {
-            OR: commonTargetFilters(
-              targets,
-              secondaryLanguage,
-              secondaryQiraat,
-              secondaryScript,
-            ),
+      // Add full chapter conditions
+      if (fullChapterNums.size > 0) {
+        conditions.push({
+          chapter: {
+            number: { in: [...fullChapterNums] },
+            quran: {
+              language: mainLanguage,
+              ...(mainQiraat && { qiraat: mainQiraat }),
+              ...(mainScript && { Script: mainScript }),
+            },
           },
-          include: { chapter: true, words: true },
-          orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
-        }),
+        });
+      }
+
+      // Add targeted verse conditions
+      if (targets.length > 0) {
+        conditions.push(
+          ...targets.map(({ chapterNum, verseNum }) => ({
+            chapter: {
+              number: chapterNum,
+              quran: {
+                language: mainLanguage,
+                ...(mainQiraat && { qiraat: mainQiraat }),
+                ...(mainScript && { Script: mainScript }),
+              },
+            },
+            number: verseNum,
+          })),
+        );
+      }
+
+      return conditions.length > 0 ? { OR: conditions } : {};
+    };
+
+    // Build unified WHERE clause for secondary language
+    const buildSecondaryWhereClause = () => {
+      if (!secondaryLanguage) return {};
+
+      const conditions: any[] = [];
+
+      // Add full chapter conditions
+      if (fullChapterNums.size > 0) {
+        conditions.push({
+          chapter: {
+            number: { in: [...fullChapterNums] },
+            quran: {
+              language: secondaryLanguage,
+              ...(secondaryQiraat && { qiraat: secondaryQiraat }),
+              ...(secondaryScript && { Script: secondaryScript }),
+            },
+          },
+        });
+      }
+
+      // Add targeted verse conditions
+      if (targets.length > 0) {
+        conditions.push(
+          ...targets.map(({ chapterNum, verseNum }) => ({
+            chapter: {
+              number: chapterNum,
+              quran: {
+                language: secondaryLanguage,
+                ...(secondaryQiraat && { qiraat: secondaryQiraat }),
+                ...(secondaryScript && { Script: secondaryScript }),
+              },
+            },
+            number: verseNum,
+          })),
+        );
+      }
+
+      return conditions.length > 0 ? { OR: conditions } : {};
+    };
+
+    const t2 = performance.now();
+
+    // Execute queries in parallel instead of transaction for better performance
+    const queryPromises: Promise<VerseWithRelations[]>[] = [];
+
+    // Main language query
+    const mainWhereClause = buildMainWhereClause();
+    if (Object.keys(mainWhereClause).length > 0) {
+      queryPromises.push(
         this.prisma.verse.findMany({
-          where: commonVerseWhere(
-            secondaryLanguage,
-            secondaryQiraat,
-            secondaryScript,
-          ),
-          include: { chapter: true, words: true },
+          where: mainWhereClause,
+          include: buildInclude(includeWordByWord),
           orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
-        }),
+        }) as Promise<VerseWithRelations[]>,
       );
+    } else {
+      queryPromises.push(Promise.resolve([]));
     }
 
-    const [
-      fullChapterVerses,
-      targetedVerses,
-      secondaryTargetedVerses = [],
-      secondaryFullChapterVerses = [],
-    ] = await this.prisma.$transaction(txCalls);
+    // Secondary language query (only if needed)
+    if (secondaryLanguage) {
+      const secondaryWhereClause = buildSecondaryWhereClause();
+      if (Object.keys(secondaryWhereClause).length > 0) {
+        queryPromises.push(
+          this.prisma.verse.findMany({
+            where: secondaryWhereClause,
+            include: buildInclude(false), // Secondary language doesn't need words
+            orderBy: [{ chapter: { number: 'asc' } }, { number: 'asc' }],
+          }) as Promise<VerseWithRelations[]>,
+        );
+      } else {
+        queryPromises.push(Promise.resolve([]));
+      }
+    }
 
-    // 🔄 Combine primary and secondary verses
-    const allMainVerses = [...targetedVerses, ...fullChapterVerses];
-    const allSecondaryVerses = [
-      ...secondaryTargetedVerses,
-      ...secondaryFullChapterVerses,
-    ];
+    const t3 = performance.now();
+
+    // Execute all queries in parallel
+    const results = await Promise.all(queryPromises);
+    const [allMainVerses, allSecondaryVerses = []] = results;
+
+    const t4 = performance.now();
 
     // Build a lookup for (chapter:verse) => secondaryContent
     const secondaryVerseMap = new Map<string, string>();
-    for (const v of allSecondaryVerses) {
-      const key = `${v.chapter.number}:${v.number}`;
-      secondaryVerseMap.set(key, v.content);
+    if (secondaryLanguage && allSecondaryVerses.length > 0) {
+      for (const v of allSecondaryVerses) {
+        const key = `${v.chapter.number}:${v.number}`;
+        secondaryVerseMap.set(key, v.content);
+      }
     }
 
+    const t5 = performance.now();
+
     // Build response for each input item
-    const result = request.map((item) => {
+    const result: ProcessedQueryItem[] = request.map((item) => {
       if (item.type === 'invalid') return item;
 
-      const verses = this.matchVerses({
+      const verses = this.matchVersesOptimized({
         item,
-        targetedVerses,
-        fullChapterVerses,
+        allVerses: allMainVerses,
       });
 
-      return {
+      const enrichedItem: EnrichedQueryItem = {
         ...item,
         data: {
           type: 'verses',
           ...(sendFullText && {
             fullText: verses.map((v) => v.content).join(' '),
           }),
-          ...(includeAudioChapter
-            ? {
-                audio: this.audio.buildChapterAudioUrl({
-                  bitrate: bitrate,
-                  edition: edition,
-                  number: item.chapterNum,
-                }),
-              }
-            : undefined),
+          ...(includeAudioChapter && {
+            audio: this.audio.buildChapterAudioUrl({
+              bitrate: bitrate,
+              edition: edition,
+              number: item.chapterNum,
+            }),
+          }),
           verseByVerse: verses.map((v) => {
             const key = `${v.chapter.number}:${v.number}`;
             return {
               verse: {
                 number: v.number,
                 content: v.content,
-                secondaryContent: secondaryVerseMap.get(key) ?? null,
+                ...(secondaryLanguage && {
+                  secondaryContent: secondaryVerseMap.get(key) ?? null,
+                }),
                 subtitle: v.subtitle,
                 footnote: v.footnote,
                 ...(includeAudioVerse && {
@@ -665,50 +721,93 @@ export class ApiRestQuranService {
                   }),
                 }),
               },
-              ...(includeWordByWord && {
-                words: v.words.map((w) => ({
-                  number: w.number,
-                  content: w.content,
-                  root: w.root,
-                })),
-              }),
+              ...(includeWordByWord &&
+                v.words && {
+                  words: v.words.map((w) => ({
+                    number: w.number,
+                    content: w.content,
+                    root: w.root,
+                  })),
+                }),
             };
           }),
         },
       };
+
+      return enrichedItem;
     });
+
+    const t6 = performance.now();
+
+    // Optimized logging
+    this.logger.log(`Phase 1 (Classification): ${t1 - t0}ms`);
+    this.logger.log(`Phase 2 (Query Building): ${t2 - t1}ms`);
+    this.logger.log(`Phase 3 (Query Preparation): ${t3 - t2}ms`);
+    this.logger.log(`Phase 4 (Database Execution): ${t4 - t3}ms`);
+    this.logger.log(`Phase 5 (Secondary Map Building): ${t5 - t4}ms`);
+    this.logger.log(`Phase 6 (Result Building): ${t6 - t5}ms`);
 
     return result;
   }
 
-  public getQuranFromQuery({
-    query,
-    mainLanguage = 'ENGLISH',
-    mainQiraat,
-    includeVerseByVerseAudio,
-    includeChapterAudio,
+  /**
+   * Optimized verse matching that works with unified verse data
+   */
+  private matchVersesOptimized({
+    item,
+    allVerses,
   }: {
-    query: string;
-    mainLanguage?: Languages;
-    mainQiraat?: Qiraats;
-    includeVerseByVerseAudio?: boolean;
-    includeChapterAudio?: boolean;
-  }) {
+    item: ValidParsedQueryItem;
+    allVerses: VerseWithRelations[];
+  }): VerseWithRelations[] {
+    const chapterNum = item.chapterNum;
+
+    if (item.verseNum) {
+      // Single verse
+      return allVerses.filter(
+        (v) => v.chapter.number === chapterNum && v.number === item.verseNum,
+      );
+    } else if (item.startingVerseNum && item.endingVerseNum) {
+      // Verse range
+      return allVerses.filter(
+        (v) =>
+          v.chapter.number === chapterNum &&
+          v.number >= item.startingVerseNum! &&
+          v.number <= item.endingVerseNum!,
+      );
+    } else {
+      // Full chapter
+      return allVerses.filter((v) => v.chapter.number === chapterNum);
+    }
+  }
+
+  public getQuranFromQuery({ query }: { query: QuranQueryParams }) {
+    const t0 = performance.now();
     // Convert string query to machine readable list of Quran references
-    const parsedRequest = this.parseQuranQuery(query);
+    const parsedRequest = this.parseQuranQuery(query.query);
+
+    const t1 = performance.now();
 
     // inject language
     const withMainLanguage = this.injectLanguageData({
       request: parsedRequest,
-      mainLanguage: mainLanguage,
-      mainQiraat: mainQiraat,
-      includeAudioChapter: includeChapterAudio,
-      includeAudioVerse: includeVerseByVerseAudio,
-      outputType: 'versebyverse',
+      mainLanguage: query.mainLanguage,
+      mainQiraat: query.mainQiraat,
+      mainScript: query.mainScript,
+      secondaryLanguage: query.secondaryLanguage,
+      secondaryQiraat: query.secondaryQiraat,
+      secondaryScript: query.secondaryScript,
+      includeAudioChapter: query.includeChapterAudio,
+      includeAudioVerse: query.includeVerseByVerseAudio,
+      bitrate: query.audioBitrate,
+      edition: query.audioIdentifier,
+      outputType: query.mainType,
+      includeWordByWord: query.includeWordByWord,
+      sendFullText: query.sendFullText,
     });
-
-    // inject audio
-    //
+    const t2 = performance.now();
+    this.logger.log(`parsing: ${t1 - t0}ms`);
+    this.logger.log(`injecting language: ${t2 - t1}ms`);
 
     const res = withMainLanguage;
     return res;
