@@ -154,119 +154,86 @@ export class ApiRestQuranService {
    * @returns {ParsedQueryList} An array of parsed query objects or error descriptions.
    */
   private parseQuranQuery(input: string): ParsedQueryList {
-    let rest_parsed = undefined;
-    input = input.replace(' ', '');
-    if (input.includes(',')) {
-      const [first, rest] = input.split(',');
-      rest_parsed = this.parseQuranQuery(rest);
-      input = first;
-    }
-    if (input.length === 0) {
-      return [
-        {
+    const results: ParsedQueryList = [];
+    const parts = input.replace(/\s+/g, '').split(',');
+    const regex = /^(\d+)(?::(\d+)(?:-(\d*))?)?$/;
+
+    for (const part of parts) {
+      if (!part) {
+        results.push({
           type: 'invalid',
-          queryWithError: '',
-          errors: ['Input is empty.'],
-        },
-        ...(rest_parsed ?? []),
-      ];
-    }
-    if (/^\d+$/.test(input)) {
-      const chapterNum = parseInt(input);
-      if (chapterNum > 0 && chapterNum <= 114) {
-        return [{ type: 'valid', chapterNum }, ...(rest_parsed ?? [])];
-      } else {
-        return [
-          {
-            type: 'invalid',
-            queryWithError: input,
-            errors: [`Chapter ${chapterNum} is not within the (1, 114) range.`],
-          },
-          ...(rest_parsed ?? []),
-        ];
+          queryWithError: part,
+          errors: ['Empty query part.'],
+        });
+        continue;
       }
-    } else {
-      const [chapterPart, versePart] = input.split(':').map((e) => e.trim());
-      if (!chapterPart || !versePart) {
-        return [
-          {
+
+      const match = part.match(regex);
+      if (!match) {
+        results.push({
+          type: 'invalid',
+          queryWithError: part,
+          errors: ['Invalid format. Use e.g. 2, 2:3, or 2:3-5'],
+        });
+        continue;
+      }
+
+      const chapterNum = parseInt(match[1]);
+      const verseNum = match[2] ? parseInt(match[2]) : undefined;
+      const endVerseStr = match[3];
+
+      if (!(chapterNum >= 1 && chapterNum <= 114)) {
+        results.push({
+          type: 'invalid',
+          queryWithError: part,
+          errors: [`Chapter ${chapterNum} is out of range (1–114).`],
+        });
+        continue;
+      }
+
+      const maxVerse = this.verseCounts[chapterNum];
+
+      if (!verseNum) {
+        results.push({ type: 'valid', chapterNum });
+      } else if (!endVerseStr) {
+        if (verseNum <= maxVerse) {
+          results.push({ type: 'valid', chapterNum, verseNum });
+        } else {
+          results.push({
             type: 'invalid',
-            queryWithError: input,
+            queryWithError: part,
             errors: [
-              `Either the chapter part [${chapterPart}] or verse part [${versePart}] is missing.`,
+              `Verse ${verseNum} out of range for chapter ${chapterNum}.`,
             ],
-          },
-          ...(rest_parsed ?? []),
-        ];
-      }
-      const chapterNum = parseInt(chapterPart);
-      if (versePart.includes('-')) {
-        const [startVerseStr, endVerseStr] = versePart.split('-');
-        const startVerse = parseInt(startVerseStr);
-        let endVerse = startVerse;
-        if (endVerseStr === '') {
-          endVerse = this.verseCounts[chapterNum];
-        } else {
-          endVerse = parseInt(endVerseStr);
-        }
-        if (
-          startVerse > 0 &&
-          startVerse <= this.verseCounts[chapterNum] &&
-          endVerse > 0 &&
-          endVerse <= this.verseCounts[chapterNum] &&
-          startVerse <= endVerse
-        ) {
-          return [
-            {
-              type: 'valid',
-              chapterNum,
-              startingVerseNum: startVerse,
-              endingVerseNum: endVerse,
-            },
-            ...(rest_parsed ?? []),
-          ];
-        } else {
-          return [
-            {
-              type: 'invalid',
-              queryWithError: input,
-              errors: [
-                `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${startVerse}, ${endVerse}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
-              ],
-            },
-            ...(rest_parsed ?? []),
-          ];
+          });
         }
       } else {
-        const verseNum = parseInt(versePart);
+        const endVerse = endVerseStr === '' ? maxVerse : parseInt(endVerseStr);
         if (
-          chapterNum > 0 &&
-          chapterNum <= 114 &&
-          verseNum > 0 &&
-          verseNum <= this.verseCounts[chapterNum]
+          verseNum <= endVerse &&
+          verseNum >= 1 &&
+          endVerse >= 1 &&
+          endVerse <= maxVerse
         ) {
-          return [
-            {
-              type: 'valid',
-              chapterNum,
-              verseNum,
-            },
-            ...(rest_parsed ?? []),
-          ];
+          results.push({
+            type: 'valid',
+            chapterNum,
+            startingVerseNum: verseNum,
+            endingVerseNum: endVerse,
+          });
         } else {
-          return [
-            {
-              type: 'invalid',
-              queryWithError: input,
-              errors: [
-                `Either the chapter part [${chapterPart}] is not within the [1, 114] range or verse part [${verseNum}] is not within the corresponding verse range for this chapter[${[1, 9].includes(chapterNum) ? '1' : '0'},${this.verseCounts[chapterNum]}].`,
-              ],
-            },
-            ...(rest_parsed ?? []),
-          ];
+          results.push({
+            type: 'invalid',
+            queryWithError: part,
+            errors: [
+              `Invalid range ${verseNum}-${endVerse} for chapter ${chapterNum}.`,
+            ],
+          });
         }
       }
     }
+
+    return results;
   }
 
   private async injectVerseData({
@@ -275,8 +242,108 @@ export class ApiRestQuranService {
   }: {
     parsedRequest: ParsedQueryList;
     preferences: QuranFetchPreferences;
-  }) {
-    // Implementation of injectVerseData method
+  }): Promise<VerseWithWords[]> {
+    const includeWords =
+      preferences.mainLanguageIncludeWordByWord ||
+      preferences.mainLanguageIncludeRootWord;
+
+    const inputTuples: string[] = [];
+    parsedRequest.forEach((item, idx) => {
+      if (item.type === 'valid') {
+        if (item.verseNum !== undefined) {
+          inputTuples.push(
+            `(${idx}, ${item.chapterNum}, ${item.verseNum}, NULL, NULL)`,
+          );
+        } else if (
+          item.startingVerseNum !== undefined &&
+          item.endingVerseNum !== undefined
+        ) {
+          inputTuples.push(
+            `(${idx}, ${item.chapterNum}, NULL, ${item.startingVerseNum}, ${item.endingVerseNum})`,
+          );
+        } else {
+          inputTuples.push(`(${idx}, ${item.chapterNum}, NULL, NULL, NULL)`);
+        }
+      }
+    });
+
+    const inputCTE = `
+      WITH input_order (idx, chapter, verse, start, "end") AS (
+        SELECT
+          CAST(t.idx AS INT),
+          CAST(t.chapter AS INT),
+          CAST(t.verse AS INT),
+          CAST(t.start AS INT),
+          CAST(t."end" AS INT)
+        FROM (
+          VALUES
+            ${inputTuples.join(',\n')}
+        ) AS t(idx, chapter, verse, start, "end")
+      )
+    `;
+
+    const languageFilter = preferences.includeSecondaryLanguage
+      ? `v.language IN ('${preferences.mainLanguage}', '${preferences.secondaryLanguage}')`
+      : `v.language = '${preferences.mainLanguage}'`;
+
+    const joinWordsSQL = includeWords
+      ? `
+        , COALESCE(
+            json_agg(
+              json_build_object(
+                'verse_index', w.verse_index,
+                'word_index', w.word_index
+                ${preferences.mainLanguageIncludeWordByWord ? `, 'content', w.content` : ''}
+                ${preferences.mainLanguageIncludeRootWord ? `, 'root', w.root` : ''}
+              )
+              ORDER BY w.word_index
+            ) FILTER (WHERE w.word_index IS NOT NULL),
+            '[]'
+          ) AS words
+      `
+      : '';
+
+    const wordJoinSQL = includeWords
+      ? `LEFT JOIN "Words" w ON w."versesUuid" = v.uuid AND w.language = '${preferences.mainLanguage}'`
+      : '';
+
+    const sql = `
+      ${inputCTE}
+      SELECT
+        io.idx,
+        v.global_index,
+        v.verse_index,
+        v.subtitle,
+        v.content,
+        v.footer,
+        v.language,
+        v.chapter_index,
+        v.chapter_title
+        ${joinWordsSQL}
+      FROM input_order io
+      JOIN "Verses" v
+        ON v.chapter_index = io.chapter
+        AND (
+          (io.verse IS NOT NULL AND v.verse_index = io.verse)
+          OR (io.start IS NOT NULL AND io."end" IS NOT NULL AND v.verse_index BETWEEN io.start AND io."end")
+          OR (io.verse IS NULL AND io.start IS NULL AND io."end" IS NULL)
+        )
+        AND ${languageFilter}
+      ${wordJoinSQL}
+      GROUP BY io.idx, v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language, v.chapter_index, v.chapter_title
+      ORDER BY io.idx, v.verse_index,
+        CASE
+          WHEN v.language = '${preferences.mainLanguage}' THEN 0
+          ${
+            preferences.includeSecondaryLanguage
+              ? `WHEN v.language = '${preferences.secondaryLanguage}' THEN 1`
+              : ''
+          }
+          ELSE 2
+        END
+    `;
+
+    return this.prisma.$queryRawUnsafe<VerseWithWords[]>(sql);
   }
 
   public async getChapter({
@@ -422,17 +489,42 @@ export class ApiRestQuranService {
     preferences: QuranFetchPreferences;
   }) {
     const t0 = performance.now();
-    // Convert string query to machine readable list of Quran references
+
+    this.logger.log({
+      message: 'Started parsing Quran query',
+      context: 'getQuran',
+      query,
+    });
+
     const parsedRequest = this.parseQuranQuery(query);
 
     const t1 = performance.now();
 
-    // inject language
+    this.logger.log({
+      message: 'Finished parsing query',
+      context: 'getQuran',
+      durationMs: (t1 - t0).toFixed(2),
+      parsedCount: parsedRequest.length,
+    });
+
     const response = await this.injectVerseData({ parsedRequest, preferences });
 
     const t2 = performance.now();
-    this.logger.log(`parsing: ${t1 - t0}ms`);
-    this.logger.log(`injecting language: ${t2 - t1}ms`);
+
+    this.logger.log({
+      message: 'Fetched verses with preferences',
+      context: 'getQuran',
+      durationMs: (t2 - t1).toFixed(2),
+      preferences,
+    });
+
+    this.logger.log({
+      message: 'Total time for getQuran',
+      context: 'getQuran',
+      durationMs: (t2 - t0).toFixed(2),
+    });
+
+    return response;
   }
 }
 
