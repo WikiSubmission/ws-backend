@@ -1,22 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import {} from // Chapter,
-// Verse,
-// Word,
-'@prisma/client';
+import {
+  Verses, // Chapter,
+  // Verse,
+  // Word,
+} from '@prisma/client';
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
-import { ParsedQueryList } from './types';
-import {
-  ParsedQueryItem,
-  ValidParsedQueryItem,
-  InvalidParsedQueryItem,
-  EnrichedQueryItem,
-  ProcessedQueryItem,
-  VerseWithRelations,
-} from './types/query';
+import { ChapterResponseType, ParsedQueryList } from './types';
+
 import { QuranQueryParams } from './dto/quran-query.dto';
+import { ChapterPreferences } from './dto/quran-chapters.dto';
 
 @Injectable()
 export class ApiRestQuranService {
@@ -305,47 +300,81 @@ export class ApiRestQuranService {
     }
   }
 
-  public __parseQuranQuery(input: string) {
-    this.logger.log({ message: `input: ${input}` });
-    try {
-      const entries = input.split(',').map((e) => e.trim());
-      const parsedEntries: QuranRef[] = entries.map((entry) => {
-        const [chapterPart, versePart] = entry.split(':').map((e) => e.trim());
-        const chapterNum = parseInt(chapterPart);
-        if (!versePart) {
-          return {
-            chapterNum,
-            type: 'chapter',
-          };
-        }
+  public async getChapter({
+    index,
+    preferences,
+  }: {
+    index: number;
+    preferences: ChapterPreferences;
+  }): Promise<ChapterResponseType> {
+    this.logger.log({
+      message: `preferences: ${JSON.stringify(preferences)}`,
+      context: 'ApiRestQuranService.getChapter',
+    });
+    const verses = await this.prisma.verses.findMany({
+      where: {
+        chapter_index: index,
+        language: preferences.language,
+      },
+      select: {
+        global_index: true,
+        verse_index: true,
+        subtitle: true,
+        content: true,
+        footer: true,
+        language: true,
 
-        if (versePart.includes('-')) {
-          const [start, end] = versePart
-            .split('-')
-            .map((p) => parseInt(p.trim()));
-          return {
-            chapterNum,
-            start,
-            end,
-            type: 'range',
-          };
-        } else {
-          const verse = parseInt(versePart);
-          return {
-            chapterNum,
-            verse,
-            type: 'verse',
-          };
-        }
+        chapter_index: false,
+        chapter_title: false,
+        uuid: false,
+      },
+      orderBy: {
+        verse_index: 'asc',
+      },
+    });
+    let words = null;
+    if (preferences.includeWordByWord || preferences.includeRootWord) {
+      words = await this.prisma.words.findMany({
+        where: {
+          chapter_index: index,
+          language: preferences.language,
+        },
+        select: {
+          global_index: true,
+          verse_index: true,
+          word_index: true,
+          content: preferences.includeWordByWord,
+          root: preferences.includeRootWord,
+        },
+        orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
       });
-      return parsedEntries;
-    } catch (error) {
-      this.logger.error({
-        context: 'ApiRestQuranService.__parseQuranQuery',
-        message: error instanceof Error ? error.message : 'Unknown error',
+
+      this.logger.log({
+        message: `Doing word by word: ${preferences.includeWordByWord} || ${preferences.includeRootWord}: ${JSON.stringify(words.at(0))}`,
+        context: 'ApiRestQuranService.getChapter',
       });
-      throw new Error('invalid entry');
     }
+
+    return {
+      ...(preferences.includeChapterAudio && {
+        chapterAudio: this.audio.buildChapterAudioUrl({
+          bitrate: preferences.bitrate!,
+          edition: preferences.edition!,
+          number: index,
+        }),
+      }),
+      verses: preferences.includeVerseAudio
+        ? verses.map((v) => ({
+            ...v,
+            verseAudio: this.audio.buildVerseByVerseAudioUrl({
+              bitrate: preferences.bitrate!,
+              edition: preferences.edition!,
+              number: index,
+            }),
+          }))
+        : verses,
+      words: preferences.includeWordByWord && words ? words : [],
+    };
   }
 
   public getQuranFromQuery({ query }: { query: QuranQueryParams }) {

@@ -46,6 +46,34 @@ export async function bootstrapWBW() {
         global_index: Number(row.global_index),
       };
       const [chapter, verse] = row.verse_id.split(':').map(Number);
+      const ARABIC_NON_TASHKEEL_verse = await prisma.verses.findFirstOrThrow({
+        where: {
+          chapter_index: chapter,
+          language: 'ARABIC_NON_TASHKEEL',
+        },
+      });
+
+      const ARABIC_TASHKEEL_verse = await prisma.verses.findFirstOrThrow({
+        where: {
+          chapter_index: chapter,
+          language: 'ARABIC_TASHKEEL',
+        },
+      });
+
+      const ENGLISH_verse = await prisma.verses.findFirstOrThrow({
+        where: {
+          chapter_index: chapter,
+          language: 'ENGLISH',
+        },
+      });
+
+      const TRANSLITERATED_verse = await prisma.verses.findFirstOrThrow({
+        where: {
+          chapter_index: chapter,
+          language: 'TRANSLITERATED',
+        },
+      });
+
       WordList = WordList.concat([
         {
           global_index: row.global_index,
@@ -55,6 +83,7 @@ export async function bootstrapWBW() {
           root: row.root_word,
           content: row.arabic_text,
           language: 'ARABIC_NON_TASHKEEL',
+          versesUuid: ARABIC_NON_TASHKEEL_verse.uuid,
         },
         {
           global_index: row.global_index,
@@ -64,6 +93,7 @@ export async function bootstrapWBW() {
           root: row.root_word,
           content: row.arabic_text,
           language: 'ARABIC_TASHKEEL',
+          versesUuid: ARABIC_TASHKEEL_verse.uuid,
         },
         {
           global_index: row.global_index,
@@ -73,6 +103,7 @@ export async function bootstrapWBW() {
           root: row.root_word,
           content: row.english_text,
           language: 'ENGLISH',
+          versesUuid: ENGLISH_verse.uuid,
         },
         {
           global_index: row.global_index,
@@ -82,6 +113,7 @@ export async function bootstrapWBW() {
           root: row.root_word,
           content: row.transliterated_text,
           language: 'TRANSLITERATED',
+          versesUuid: TRANSLITERATED_verse.uuid,
         },
       ]);
 

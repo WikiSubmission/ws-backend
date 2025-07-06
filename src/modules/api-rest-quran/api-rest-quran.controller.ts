@@ -1,6 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
+  Param,
+  Post,
   Query,
   UsePipes,
   ValidationPipe,
@@ -9,7 +12,9 @@ import { ApiRestQuranService } from './api-rest-quran.service';
 import {
   ApiExtraModels,
   ApiOkResponse,
+  ApiOperation,
   ApiQuery,
+  ApiResponse,
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
@@ -23,6 +28,8 @@ import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
 import { AudioResponseDto } from './dto/audio-response.dto';
 import { QuranQueryParamsDto } from './dto/quran-query.dto';
 import { performance } from 'perf_hooks';
+import { ChapterPreferencesDto } from './dto/quran-chapters.dto';
+import { ChapterControllerResponesType } from './types';
 
 @ApiTags('quran')
 @Controller('api-rest-quran')
@@ -38,7 +45,7 @@ export class ApiRestQuranController {
     name: 'query',
     type: String || Number,
     required: true,
-    description: 'Quran query: 1:1 or 1:1-7 or 1:2, 1:3-4',
+    description: 'Quran query: 1 or 7',
   })
   @ApiOkResponse({
     description: 'Returns a list of chapters, verses, or verse ranges',
@@ -75,6 +82,34 @@ export class ApiRestQuranController {
     //     return result;
     //   },
     // );
+  }
+
+  // @UsePipes(new ValidationPipe({ transform: true }))
+  @Get('chapter/:index')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @ApiOperation({ summary: 'Fetch a Quran chapter with custom preferences' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched chapter' })
+  getChapterData(
+    @Param('index') index: number,
+    @Query()
+    preferences: ChapterPreferencesDto,
+  ): ChapterControllerResponesType | Promise<ChapterControllerResponesType> {
+    this.Logger.log(
+      `includeWordByWord: ${typeof preferences.includeWordByWord}`,
+    );
+    if (index <= 0 || index > 114) {
+      return {
+        success: false,
+        message: 'Chapter number must be between 1-114',
+      };
+    }
+
+    this.Logger.log(`Fetching this chapter: ${index}`);
+    this.Logger.log(`With these parameters: ${JSON.stringify(preferences)}`);
+    return this.Utilities.getChapter({
+      index: Number(index),
+      preferences: preferences,
+    });
   }
 
   @ApiOkResponse({ type: QuranResponseVerse })

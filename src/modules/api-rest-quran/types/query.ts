@@ -1,5 +1,3 @@
-import { Chapter, Quran, Verse, Word } from '@prisma/client';
-
 export type ParsedQueryItem =
   | {
       type: 'valid';
@@ -45,32 +43,3 @@ export type EnrichedQueryItem = ValidParsedQueryItem & {
 };
 
 export type ProcessedQueryItem = EnrichedQueryItem | InvalidParsedQueryItem;
-
-export type VerseWithRelations = Verse & {
-  chapter: Chapter & {
-    quran: Quran;
-  };
-  words?: Word[];
-};
-
-type ItemWithData = {
-  chapterNum: number;
-  verseNum?: number;
-  startingVerseNum?: number;
-  endingVerseNum?: number;
-  data?:
-    | {
-        type: 'chapter';
-        chapter: string;
-      }
-    | {
-        type: 'versebyverse';
-        verse: Omit<Verse, 'id' | 'chapterId'>;
-      }
-    | {
-        type: 'versebychapter';
-        words: Word[];
-      };
-};
-
-export type ItemsWithData = ItemWithData[];
