@@ -1,2 +1,0 @@
-- [ ] main and secondary language support
-- [ ] different type of output: chapter - verse by verse - word by word

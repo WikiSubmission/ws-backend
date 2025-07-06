@@ -8,9 +8,12 @@ import {
 } from '@prisma/client';
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
-import { ChapterResponseType, ParsedQueryList } from './types';
+import { ChapterResponseType, ParsedQueryList, VerseWithWords } from './types';
 
-import { QuranQueryParams } from './dto/quran-query.dto';
+import {
+  QuranFetchPreferences,
+  QuranFetchPreferencesDto,
+} from './dto/quran-query.dto';
 import { ChapterPreferences } from './dto/quran-chapters.dto';
 
 @Injectable()
@@ -138,41 +141,6 @@ export class ApiRestQuranService {
     114: 6,
   };
 
-  private getTraditionalVerseIndex({
-    chapterNumber,
-    verseNumber,
-  }: {
-    chapterNumber: number;
-    verseNumber: number;
-  }): number {
-    if (!this.verseCounts[chapterNumber]) {
-      throw new Error(`Invalid chapter number: ${chapterNumber}`);
-    }
-    if (chapterNumber === 9 && (verseNumber === 128 || verseNumber === 129)) {
-      throw new Error('Invalid verse number: 9:128 or 9:129');
-    }
-    if (verseNumber > this.verseCounts[chapterNumber]) {
-      if (
-        !(chapterNumber === 9 && (verseNumber === 128 || verseNumber === 129))
-      )
-        throw new Error(
-          `Invalid verse number: ${chapterNumber}:${verseNumber}`,
-        );
-    }
-
-    let index = 0;
-    for (let i = 0; i < chapterNumber; i++) {
-      index += this.verseCounts[i];
-      if (i === 9) {
-        index += 2;
-      }
-    }
-
-    index += verseNumber;
-
-    return index;
-  }
-
   /**
    * Parses a Quran query string (e.g., "2:3-5,3:1") into a structured format.
    *
@@ -187,6 +155,7 @@ export class ApiRestQuranService {
    */
   private parseQuranQuery(input: string): ParsedQueryList {
     let rest_parsed = undefined;
+    input = input.replace(' ', '');
     if (input.includes(',')) {
       const [first, rest] = input.split(',');
       rest_parsed = this.parseQuranQuery(rest);
@@ -300,66 +269,143 @@ export class ApiRestQuranService {
     }
   }
 
+  private async injectVerseData({
+    parsedRequest,
+    preferences,
+  }: {
+    parsedRequest: ParsedQueryList;
+    preferences: QuranFetchPreferences;
+  }) {
+    // Implementation of injectVerseData method
+  }
+
   public async getChapter({
     index,
     preferences,
   }: {
     index: number;
-    preferences: ChapterPreferences;
+    preferences: QuranFetchPreferences;
   }): Promise<ChapterResponseType> {
-    this.logger.log({
-      message: `preferences: ${JSON.stringify(preferences)}`,
-      context: 'ApiRestQuranService.getChapter',
-    });
-    const verses = await this.prisma.verses.findMany({
-      where: {
-        chapter_index: index,
-        language: preferences.language,
-      },
-      select: {
-        global_index: true,
-        verse_index: true,
-        subtitle: true,
-        content: true,
-        footer: true,
-        language: true,
+    // SQL does something like this, i'm using it over this because i can't order by language (main > secondary) in prisma orm
+    // const __verses = await this.prisma.verses.findMany({
+    //   where: {
+    //     chapter_index: index,
+    //     ...(preferences.includeSecondaryLanguage
+    //       ? {
+    //           OR: [
+    //             { language: preferences.mainLanguage },
+    //             { language: preferences.secondaryLanguage },
+    //           ],
+    //         }
+    //       : {
+    //           language: preferences.mainLanguage,
+    //         }),
+    //   },
+    //   select: {
+    //     global_index: true,
+    //     verse_index: true,
+    //     subtitle: true,
+    //     content: true,
+    //     footer: true,
+    //     language: true,
 
-        chapter_index: false,
-        chapter_title: false,
-        uuid: false,
-        ...((preferences.includeWordByWord || preferences.includeRootWord) && {
-          Words: {
-            select: {
-              global_index: true,
-              verse_index: true,
-              word_index: true,
-              content: preferences.includeWordByWord,
-              root: preferences.includeRootWord,
-            },
-            orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
-          },
-        }),
-      },
-      orderBy: {
-        verse_index: 'asc',
-      },
-    });
+    //     chapter_index: false,
+    //     chapter_title: false,
+    //     uuid: false,
+    //     ...((preferences.mainLanguageIncludeWordByWord ||
+    //       preferences.mainLanguageIncludeRootWord) && {
+    //       Words: {
+    //         select: {
+    //           global_index: true,
+    //           verse_index: true,
+    //           word_index: true,
+    //           content: preferences.mainLanguageIncludeWordByWord,
+    //           root: preferences.mainLanguageIncludeRootWord,
+    //         },
+    //         orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
+    //       },
+    //     }),
+    //   },
+    //   orderBy: {
+    //     ...(preferences.includeSecondaryLanguage
+    //       ? [{ verse_index: 'asc' }, { language: 'asc' }]
+    //       : { verse_index: 'asc' }),
+    //   },
+    // });
+
+    const includeWords =
+      preferences.mainLanguageIncludeWordByWord ||
+      preferences.mainLanguageIncludeRootWord;
+
+    const baseSelect = `
+      v.global_index,
+      v.verse_index,
+      v.subtitle,
+      v.content,
+      v.footer,
+      v.language
+    `;
+
+    const wordSelect = `
+      , COALESCE(
+          json_agg(
+            json_build_object(
+              'verse_index', w.verse_index,
+              'word_index', w.word_index
+              ${preferences.mainLanguageIncludeWordByWord ? `, 'content', w.content` : ''}
+              ${preferences.mainLanguageIncludeRootWord ? `, 'root', w.root` : ''}
+            )
+            ORDER BY w.word_index
+          ) FILTER (WHERE w.word_index IS NOT NULL),
+          '[]'
+        ) AS words
+    `;
+
+    const query = `
+      SELECT
+        ${baseSelect}
+        ${includeWords ? wordSelect : ''}
+      FROM "Verses" v
+      ${includeWords ? `LEFT JOIN "Words" w ON v.uuid = w."versesUuid" AND w.language = '${preferences.mainLanguage}'` : ''}
+      WHERE
+        v.chapter_index = ${index}
+        ${
+          preferences.includeSecondaryLanguage
+            ? `AND v.language IN ('${preferences.mainLanguage}', '${preferences.secondaryLanguage}')`
+            : `AND v.language = '${preferences.mainLanguage}'`
+        }
+      GROUP BY ${includeWords ? 'v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language' : 'v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language'}
+      ORDER BY
+        v.verse_index ASC,
+        CASE
+          WHEN v.language = '${preferences.mainLanguage}' THEN 0
+          ${
+            preferences.includeSecondaryLanguage
+              ? `WHEN v.language = '${preferences.secondaryLanguage}' THEN 1`
+              : ''
+          }
+          ELSE 2
+        END
+    `;
+
+    const verses: VerseWithWords[] = await this.prisma.$queryRawUnsafe(query);
 
     const ans = {
-      ...(preferences.includeChapterAudio && {
+      ...(preferences.mainLanguageIncludeChapterAudio && {
         chapterAudio: this.audio.buildChapterAudioUrl({
-          bitrate: preferences.bitrate!,
-          edition: preferences.edition!,
+          bitrate: preferences.mainLanguageAudioBitrate,
+          edition: preferences.mainLanguageAudioIdentifier,
           number: index,
         }),
       }),
-      verses: preferences.includeVerseAudio
+      verses: preferences.mainLanguageIncludeVerseAudio
         ? verses.map((v) => ({
             ...v,
             verseAudio: this.audio.buildVerseByVerseAudioUrl({
-              bitrate: preferences.bitrate!,
-              edition: preferences.edition!,
-              number: index,
+              bitrate: preferences.mainLanguageAudioBitrate,
+              edition: preferences.mainLanguageAudioIdentifier,
+              chapterNumber: index,
+              verseNumber: v.verse_index,
             }),
           }))
         : verses,
@@ -368,14 +414,21 @@ export class ApiRestQuranService {
     return ans;
   }
 
-  public getQuranFromQuery({ query }: { query: QuranQueryParams }) {
+  public async getQuranFromQuery({
+    query,
+    preferences,
+  }: {
+    query: string;
+    preferences: QuranFetchPreferences;
+  }) {
     const t0 = performance.now();
     // Convert string query to machine readable list of Quran references
-    const parsedRequest = this.parseQuranQuery(query.query);
+    const parsedRequest = this.parseQuranQuery(query);
 
     const t1 = performance.now();
 
     // inject language
+    const response = await this.injectVerseData({ parsedRequest, preferences });
 
     const t2 = performance.now();
     this.logger.log(`parsing: ${t1 - t0}ms`);

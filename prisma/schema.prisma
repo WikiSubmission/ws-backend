@@ -26,6 +26,7 @@ model Verses {
   Words         Words[]
 
   @@unique([global_index, chapter_index, verse_index, language])
+  @@index([chapter_index, verse_index, language])
 }
 
 model Words {
@@ -37,11 +38,12 @@ model Words {
   content       String
   root          String
   language      Languages
-  
-  verse         Verses    @relation(fields: [versesUuid], references: [uuid])
-  versesUuid    String
+
+  verse      Verses @relation(fields: [versesUuid], references: [uuid])
+  versesUuid String
 
   @@unique([global_index, chapter_index, verse_index, word_index, language])
+  @@index([chapter_index, verse_index, versesUuid, language])
 }
 
 model ChapterMetadata {

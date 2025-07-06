@@ -10,7 +10,6 @@ export class ChapterPreferencesDto {
     default: false,
   })
   @Transform(({ value }) => {
-    console.log('Value:', value, ' | ', typeof value);
     return value === 'true' || value === true;
   })
   @IsBoolean()
