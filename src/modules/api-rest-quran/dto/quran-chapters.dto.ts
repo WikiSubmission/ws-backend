@@ -6,6 +6,8 @@ import { Transform } from 'class-transformer';
 export class ChapterPreferencesDto {
   @ApiProperty({
     description: 'Include word-by-word breakdown',
+    example: false,
+    default: false,
   })
   @Transform(({ value }) => {
     console.log('Value:', value, ' | ', typeof value);

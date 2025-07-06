@@ -21,6 +21,7 @@ export async function bootstrapWBW() {
   const prisma = app.get(PrismaService);
 
   try {
+    await prisma.words.deleteMany({});
     console.log('Starting Quran words CSV import...');
     const csvFilePath = 'prisma/seeds/data/ws-quran-word-by-word_rows.csv';
 
@@ -49,6 +50,7 @@ export async function bootstrapWBW() {
       const ARABIC_NON_TASHKEEL_verse = await prisma.verses.findFirstOrThrow({
         where: {
           chapter_index: chapter,
+          verse_index: verse,
           language: 'ARABIC_NON_TASHKEEL',
         },
       });
@@ -56,6 +58,7 @@ export async function bootstrapWBW() {
       const ARABIC_TASHKEEL_verse = await prisma.verses.findFirstOrThrow({
         where: {
           chapter_index: chapter,
+          verse_index: verse,
           language: 'ARABIC_TASHKEEL',
         },
       });
@@ -63,6 +66,7 @@ export async function bootstrapWBW() {
       const ENGLISH_verse = await prisma.verses.findFirstOrThrow({
         where: {
           chapter_index: chapter,
+          verse_index: verse,
           language: 'ENGLISH',
         },
       });
@@ -70,6 +74,7 @@ export async function bootstrapWBW() {
       const TRANSLITERATED_verse = await prisma.verses.findFirstOrThrow({
         where: {
           chapter_index: chapter,
+          verse_index: verse,
           language: 'TRANSLITERATED',
         },
       });
@@ -120,11 +125,15 @@ export async function bootstrapWBW() {
       processedRows += 1;
       progressBar.update(processedRows);
     }
-    prisma.words.createMany({
-      data: WordList,
-    });
+    try {
+      await prisma.words.createMany({
+        data: WordList,
+      });
+    } catch (err) {
+      console.error('Failed to insert words', err);
+    }
     progressBar.stop();
-    console.log('Finished import');
+    console.log(`Finished import ${WordList.length} words`);
     await app.close();
   } catch (error) {
     console.error('Error while importing.');

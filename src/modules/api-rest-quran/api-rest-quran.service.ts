@@ -327,35 +327,25 @@ export class ApiRestQuranService {
         chapter_index: false,
         chapter_title: false,
         uuid: false,
+        ...((preferences.includeWordByWord || preferences.includeRootWord) && {
+          Words: {
+            select: {
+              global_index: true,
+              verse_index: true,
+              word_index: true,
+              content: preferences.includeWordByWord,
+              root: preferences.includeRootWord,
+            },
+            orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
+          },
+        }),
       },
       orderBy: {
         verse_index: 'asc',
       },
     });
-    let words = null;
-    if (preferences.includeWordByWord || preferences.includeRootWord) {
-      words = await this.prisma.words.findMany({
-        where: {
-          chapter_index: index,
-          language: preferences.language,
-        },
-        select: {
-          global_index: true,
-          verse_index: true,
-          word_index: true,
-          content: preferences.includeWordByWord,
-          root: preferences.includeRootWord,
-        },
-        orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
-      });
 
-      this.logger.log({
-        message: `Doing word by word: ${preferences.includeWordByWord} || ${preferences.includeRootWord}: ${JSON.stringify(words.at(0))}`,
-        context: 'ApiRestQuranService.getChapter',
-      });
-    }
-
-    return {
+    const ans = {
       ...(preferences.includeChapterAudio && {
         chapterAudio: this.audio.buildChapterAudioUrl({
           bitrate: preferences.bitrate!,
@@ -373,8 +363,9 @@ export class ApiRestQuranService {
             }),
           }))
         : verses,
-      words: preferences.includeWordByWord && words ? words : [],
     };
+
+    return ans;
   }
 
   public getQuranFromQuery({ query }: { query: QuranQueryParams }) {

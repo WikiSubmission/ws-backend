@@ -3,8 +3,8 @@ import { bootstrapW } from './seeds/load-quran-ws';
 import { bootstrapWBW } from './seeds/load-quran-word-by-word';
 
 async function main() {
-  await bootstrapW();
-  await bootstrapQT();
+  // await bootstrapW();
+  // await bootstrapQT();
   await bootstrapWBW();
 }
 

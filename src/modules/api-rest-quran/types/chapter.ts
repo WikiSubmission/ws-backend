@@ -1,8 +1,14 @@
 import { Verses, Words } from '@prisma/client';
 
+export type VerseWithWords = Omit<
+  Verses,
+  'uuid' | 'chapter_index' | 'chapter_title'
+> & {
+  Words?: Words[];
+};
+
 export type ChapterResponseType = {
-  verses: Omit<Verses, 'uuid' | 'chapter_index' | 'chapter_title'>[];
-  words: Omit<Words, 'uuid' | 'language' | 'chapter_index' | 'versesUuid'>[];
+  verses: VerseWithWords[];
   chapterAudio?: string;
 };
 
