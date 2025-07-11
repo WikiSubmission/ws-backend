@@ -14,7 +14,7 @@ export type VerseWithWords = {
   content: string;
   footer: string | null;
   language: string;
-  words: {
+  Words: {
     verse_index: number;
     word_index: number;
     content: string | null;

@@ -29,6 +29,7 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { QuranFetchPreferencesDto } from './dto/quran-query.dto';
 import { performance } from 'perf_hooks';
 import { ChapterControllerResponesType } from './types';
+import { Pipeline } from 'ioredis';
 
 @ApiTags('quran')
 @Controller('api-rest-quran')
@@ -99,19 +100,59 @@ export class ApiRestQuranController {
 
   @ApiOkResponse({ type: QuranResponseVerse })
   @Get('random-verse')
-  getRandomVerse() {
+  @ApiOperation({
+    summary:
+      'Fetch a random Quran verse with custom preferences as well as an option to get the daily verse',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'ISO date string (e.g., 2025-07-11)',
+  })
+  @ApiQuery({
+    name: 'preferences',
+    required: false,
+    type: QuranFetchPreferencesDto,
+    description: 'Custom preferences for fetching a Quran verse',
+  })
+  getRandomVerse(
+    @Query() preferences: QuranFetchPreferencesDto,
+    @Query('date') date?: string,
+  ) {
     this.Logger.log({
       message: `getRandomVerse`,
       context: 'ApiRestQuranController.getRandomVerse',
+    });
+    this.Utilities.getRandomVerse({
+      ...(date && { date: new Date(date) }),
+      preferences: preferences,
     });
   }
 
   @ApiOkResponse({ type: QuranResponseChapter })
   @Get('random-chapter')
-  getRandomChapter() {
+  @ApiOperation({
+    summary:
+      'Fetch a random Quran chapter with custom preferences as well as an option to get the daily chapter',
+  })
+  @ApiQuery({
+    name: 'preferences',
+    required: false,
+    type: QuranFetchPreferencesDto,
+    description: 'Custom preferences for fetching a Quran verse',
+  })
+  getRandomChapter(
+    @Query() preferences: QuranFetchPreferencesDto,
+    @Query('date') date?: string,
+  ) {
     this.Logger.log({
       message: `getRandomChapter`,
       context: 'ApiRestQuranController.getRandomChapter',
+    });
+    this.Utilities.getRandomChapter({
+      ...(date && { date: new Date(date) }),
+      preferences: preferences,
     });
   }
 

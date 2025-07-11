@@ -14,7 +14,7 @@ import {
   QuranFetchPreferences,
   QuranFetchPreferencesDto,
 } from './dto/quran-query.dto';
-import { ChapterPreferences } from './dto/quran-chapters.dto';
+import seedrandom from 'seedrandom';
 
 @Injectable()
 export class ApiRestQuranService {
@@ -23,6 +23,82 @@ export class ApiRestQuranService {
     private readonly logger: LoggerService,
     private readonly audio: ApiRestaudioService,
   ) {}
+
+  public async getRandomChapter({
+    preferences,
+    date,
+  }: {
+    preferences: QuranFetchPreferences;
+    date?: Date;
+  }) {
+    let chapter_index: number;
+    if (date) {
+      const seed: string = date.toISOString().slice(0, 10);
+      const rng: () => number = seedrandom(seed);
+      chapter_index = Math.floor(rng() * 114) + 1;
+    } else {
+      chapter_index = randomInt(1, 115);
+    }
+    return this.getChapter({
+      index: chapter_index,
+      preferences: preferences,
+    });
+  }
+
+  public async getRandomVerse({
+    preferences,
+    date,
+  }: {
+    preferences: QuranFetchPreferences;
+    date?: Date;
+  }): Promise<VerseWithWords> {
+    let chapter_index: number;
+    let verse_index: number;
+    if (date) {
+      const seed: string = date.toISOString().slice(0, 10);
+      const rng: () => number = seedrandom(seed);
+      chapter_index = Math.floor(rng() * 114) + 1;
+      verse_index = Math.floor(rng() * this.verseCounts[chapter_index]) + 1;
+    } else {
+      chapter_index = randomInt(1, 115);
+      verse_index = randomInt(1, this.verseCounts[chapter_index]);
+    }
+    const verse = await this.prisma.verses.findFirstOrThrow({
+      where: {
+        chapter_index: chapter_index,
+        verse_index: verse_index,
+        ...(preferences.includeSecondaryLanguage
+          ? {
+              OR: [
+                { language: preferences.mainLanguage },
+                { language: preferences.secondaryLanguage },
+              ],
+            }
+          : {
+              language: preferences.mainLanguage,
+            }),
+      },
+      select: {
+        global_index: true,
+        chapter_index: true,
+        verse_index: true,
+        subtitle: true,
+        content: true,
+        footer: true,
+        language: true,
+        Words: {
+          select: {
+            chapter_index: true,
+            verse_index: true,
+            word_index: true,
+            content: true,
+            root: true,
+          },
+        },
+      },
+    });
+    return verse;
+  }
 
   private readonly verseCounts: Record<number, number> = {
     1: 7,
