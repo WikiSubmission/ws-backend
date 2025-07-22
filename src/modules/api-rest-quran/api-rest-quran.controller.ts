@@ -47,6 +47,10 @@ export class ApiRestQuranController {
     description: 'Quran verse/chapter query. Example: 1:1,1:2-7',
     example: '1:1-7',
   })
+  @ApiOperation({
+    summary:
+      'Queries the quran using shorthand notation (1:1,1:2-7), with preferences.',
+  })
   @ApiOkResponse({
     description: 'Returns a list of chapters, verses, or verse ranges',
   })
@@ -98,8 +102,8 @@ export class ApiRestQuranController {
     return result;
   }
 
-  @ApiOkResponse({ type: QuranResponseVerse })
   @Get('random-verse')
+  @ApiOkResponse({ type: QuranResponseVerse })
   @ApiOperation({
     summary:
       'Fetch a random Quran verse with custom preferences as well as an option to get the daily verse',
