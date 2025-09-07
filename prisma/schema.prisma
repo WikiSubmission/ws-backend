@@ -25,6 +25,11 @@ model Verses {
   chapter_title String
   Words         Words[]
 
+  // FTS columns (ignored by Prisma)
+  content_tsv  Unsupported("tsvector")?
+  subtitle_tsv Unsupported("tsvector")?
+  combined_tsv Unsupported("tsvector")?
+
   @@unique([global_index, chapter_index, verse_index, language])
   @@index([chapter_index, verse_index, language])
 }
@@ -42,6 +47,9 @@ model Words {
   verse      Verses @relation(fields: [versesUuid], references: [uuid])
   versesUuid String
 
+  // FTS column (ignored by Prisma)
+  content_tsv Unsupported("tsvector")?
+
   @@unique([global_index, chapter_index, verse_index, word_index, language])
   @@index([chapter_index, verse_index, versesUuid, language])
 }
@@ -54,6 +62,12 @@ model ChapterMetadata {
   title_transliterated String
   verse_count          Int
   revelation_order     Int
+
+  // FTS columns (ignored by Prisma)
+  title_english_tsv        Unsupported("tsvector")?
+  title_arabic_tsv         Unsupported("tsvector")?
+  title_transliterated_tsv Unsupported("tsvector")?
+  combined_tsv             Unsupported("tsvector")?
 }
 
 model Gematria {

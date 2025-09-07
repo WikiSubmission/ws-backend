@@ -66,3 +66,9 @@ CREATE UNIQUE INDEX "Words_global_index_chapter_index_verse_index_word_index_lan
 
 -- AddForeignKey
 ALTER TABLE "Words" ADD CONSTRAINT "Words_versesUuid_fkey" FOREIGN KEY ("versesUuid") REFERENCES "Verses"("uuid") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- CreateIndex
+CREATE INDEX "Verses_chapter_index_verse_index_language_idx" ON "Verses"("chapter_index", "verse_index", "language");
+
+-- CreateIndex
+CREATE INDEX "Words_chapter_index_verse_index_versesUuid_language_idx" ON "Words"("chapter_index", "verse_index", "versesUuid", "language");
