@@ -1,23 +1,19 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
-  Post,
   Query,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiRestQuranService } from './api-rest-quran.service';
 import {
-  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import { LoggerService } from '../logger/logger.service';
 import {
@@ -29,7 +25,6 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { QuranFetchPreferencesDto } from './dto/quran-query.dto';
 import { performance } from 'perf_hooks';
 import { ChapterControllerResponesType } from './types';
-import { Pipeline } from 'ioredis';
 
 @ApiTags('quran')
 @Controller('api-rest-quran')
