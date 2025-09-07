@@ -7,6 +7,10 @@ export type ParsedQueryItem =
       endingVerseNum?: number;
     }
   | {
+      type: 'text';
+      text: string;
+    }
+  | {
       type: 'invalid';
       errors: string[];
       queryWithError: string;

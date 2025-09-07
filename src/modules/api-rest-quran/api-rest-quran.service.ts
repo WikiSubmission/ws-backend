@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  Languages,
   Verses, // Chapter,
   // Verse,
   // Word,
@@ -218,20 +219,21 @@ export class ApiRestQuranService {
   };
 
   /**
-   * Parses a Quran query string (e.g., "2:3-5,3:1") into a structured format.
+   * Parses a Quran query string (e.g., "2:3-5,3:1,text") into a structured format.
    *
    * Supported formats:
    * - "2" → chapter only
    * - "2:3" → single verse
    * - "2:3-5" → verse range
-   * - Comma-separated values like "2,3:1,4:2-4"
+   * - Any text (e.g. "test", "this is text") → treated as a text search
+   * - Comma-separated values like "2,3:1,word,4:2-4"
    *
    * @param {string} input - The Quran query string to parse.
    * @returns {ParsedQueryList} An array of parsed query objects or error descriptions.
    */
   private parseQuranQuery(input: string): ParsedQueryList {
     const results: ParsedQueryList = [];
-    const parts = input.replace(/\s+/g, '').split(',');
+    const parts = input.split(',').map((p) => p.trim()); // keep spaces inside text
     const regex = /^(\d+)(?::(\d+)(?:-(\d*))?)?$/;
 
     for (const part of parts) {
@@ -246,10 +248,10 @@ export class ApiRestQuranService {
 
       const match = part.match(regex);
       if (!match) {
+        // fallback: treat as text search instead of invalid
         results.push({
-          type: 'invalid',
-          queryWithError: part,
-          errors: ['Invalid format. Use e.g. 2, 2:3, or 2:3-5'],
+          type: 'text',
+          text: part,
         });
         continue;
       }
