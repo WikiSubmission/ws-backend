@@ -6,3 +6,6 @@ onlyBuiltDependencies:
   - '@swc/core'
   - aws-sdk
   - prisma
+
+overrides:
+  wikisubmission-sdk: link:../wikisubmission-sdk

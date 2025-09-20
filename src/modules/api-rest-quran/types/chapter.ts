@@ -1,5 +1,3 @@
-import { Verses, Words } from '@prisma/client';
-
 // export type VerseWithWords = Omit<
 //   Verses,
 //   'uuid' | 'chapter_index' | 'chapter_title'
@@ -10,6 +8,7 @@ import { Verses, Words } from '@prisma/client';
 export type VerseWithWords = {
   global_index: number;
   verse_index: number;
+  chapter_index: number;
   subtitle: string | null;
   content: string;
   footer: string | null;

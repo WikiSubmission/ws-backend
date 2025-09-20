@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  wikisubmission-sdk: link:../wikisubmission-sdk
+
 importers:
 
   .:
@@ -74,6 +77,9 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@5.1.0)
+      wikisubmission-sdk:
+        specifier: link:../wikisubmission-sdk
+        version: link:../wikisubmission-sdk
       winston:
         specifier: ^3.17.0
         version: 3.17.0

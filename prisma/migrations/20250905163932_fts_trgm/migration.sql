@@ -83,15 +83,18 @@ RETURNS trigger AS $$
 BEGIN
   NEW.content_tsv := language_to_tsvector(NEW.language, NEW.content);
   NEW.subtitle_tsv := language_to_tsvector(NEW.language, NEW.subtitle);
+  NEW.footer_tsv := language_to_tsvector(NEW.language, NEW.footer);
 
-  -- Combined with weights: content = A (highest), subtitle = B
+  -- Give them all equal weight
   NEW.combined_tsv :=
     setweight(language_to_tsvector(NEW.language, NEW.content), 'A') ||
-    setweight(language_to_tsvector(NEW.language, coalesce(NEW.subtitle, '')), 'B');
+    setweight(language_to_tsvector(NEW.language, coalesce(NEW.subtitle, '')), 'A') ||
+    setweight(language_to_tsvector(NEW.language, coalesce(NEW.footer, '')), 'A');
 
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
+
 
 -- Words trigger
 CREATE OR REPLACE FUNCTION words_tsv_trigger()
@@ -124,9 +127,10 @@ BEGIN
 
   -- Combined with weights
   NEW.combined_tsv :=
-    setweight(to_tsvector('english', unaccent(coalesce(NEW.title_english, ''))), 'A') ||
-    setweight(to_tsvector('arabic', coalesce(NEW.title_arabic, '')), 'B') ||
-    setweight(to_tsvector('english', unaccent(coalesce(NEW.title_transliterated, ''))), 'C');
+      setweight(NEW.title_english_tsv, 'A') ||
+      setweight(NEW.title_arabic_tsv, 'A') ||
+      setweight(NEW.title_transliterated_tsv, 'A');
+
 
   RETURN NEW;
 END
@@ -193,6 +197,7 @@ UPDATE "ChapterMetadata" SET title_english = title_english;
 -- FTS Indexes (GIN)
 CREATE INDEX IF NOT EXISTS verses_content_tsv_idx ON "Verses" USING GIN (content_tsv);
 CREATE INDEX IF NOT EXISTS verses_subtitle_tsv_idx ON "Verses" USING GIN (subtitle_tsv);
+CREATE INDEX IF NOT EXISTS verses_footer_tsv_idx ON "Verses" USING GIN (footer_tsv);
 CREATE INDEX IF NOT EXISTS verses_combined_tsv_idx ON "Verses" USING GIN (combined_tsv);
 
 CREATE INDEX IF NOT EXISTS words_content_tsv_idx ON "Words" USING GIN (content_tsv);
@@ -206,6 +211,7 @@ CREATE INDEX IF NOT EXISTS chaptermetadata_combined_tsv_idx ON "ChapterMetadata"
 -- Trigram Indexes (GIN)
 CREATE INDEX IF NOT EXISTS verses_content_trgm_idx ON "Verses" USING GIN (content gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS verses_subtitle_trgm_idx ON "Verses" USING GIN (subtitle gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS verses_footer_trgm_idx ON "Verses" USING GIN (footer gin_trgm_ops);
 
 CREATE INDEX IF NOT EXISTS words_content_trgm_idx ON "Words" USING GIN (content gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS words_root_trgm_idx ON "Words" USING GIN (root gin_trgm_ops);
@@ -405,3 +411,33 @@ CREATE INDEX IF NOT EXISTS words_versesuuid_contenttsv_idx
 
   CREATE INDEX IF NOT EXISTS words_root_trgm_idx
     ON "Words" USING GIN (root gin_trgm_ops);
+
+-- ========================================
+-- Per language indices for better performance
+-- ========================================
+
+-- English
+CREATE INDEX IF NOT EXISTS verses_content_trgm_en_idx
+    ON "Verses" USING GIN (content gin_trgm_ops)
+    WHERE language = 'ENGLISH';
+
+CREATE INDEX IF NOT EXISTS words_content_trgm_en_idx
+    ON "Words" USING GIN (content gin_trgm_ops)
+    WHERE language = 'ENGLISH';
+
+CREATE INDEX IF NOT EXISTS words_root_trgm_en_idx
+    ON "Words" USING GIN (root gin_trgm_ops)
+    WHERE language = 'ENGLISH';
+
+-- French
+CREATE INDEX IF NOT EXISTS verses_content_trgm_fr_idx
+    ON "Verses" USING GIN (content gin_trgm_ops)
+    WHERE language = 'FRENCH';
+
+CREATE INDEX IF NOT EXISTS words_content_trgm_fr_idx
+    ON "Words" USING GIN (content gin_trgm_ops)
+    WHERE language = 'FRENCH';
+
+CREATE INDEX IF NOT EXISTS words_root_trgm_fr_idx
+    ON "Words" USING GIN (root gin_trgm_ops)
+    WHERE language = 'FRENCH';
