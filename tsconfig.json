@@ -14,7 +14,8 @@
       "src/*": ["src/*"],
       "@logger/*": ["src/modules/logger/*"],
       "@modules": ["src/modules/index"],
-      "@m/*": ["src/modules/*"]
+      "@m/*": ["src/modules/*"],
+      "@wikisubmission-sdk": ["../wikisubmission-sdk/dist/src/index"]
     },
     "incremental": true,
     "skipLibCheck": true,

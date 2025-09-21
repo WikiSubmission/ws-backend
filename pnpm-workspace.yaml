@@ -8,4 +8,4 @@ onlyBuiltDependencies:
   - prisma
 
 overrides:
-  wikisubmission-sdk: link:../wikisubmission-sdk
+  wikisubmission-sdk: link:../../.local/share/pnpm/global/5/node_modules/wikisubmission-sdk

@@ -1,21 +1,64 @@
 import { Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
+import seedrandom from 'seedrandom';
+import { z } from 'zod';
+
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  Languages,
-  Verses, // Chapter,
-  // Verse,
-  // Word,
-} from '@prisma/client';
 import { LoggerService } from '../logger/logger.service';
 import { ApiRestaudioService } from './api-restaudio/api-restaudio.service';
-import { ChapterResponseType, ParsedQueryList, VerseWithWords } from './types';
 
+// Import Zod schemas and types
 import {
-  QuranFetchPreferences,
-  QuranFetchPreferencesDto,
-} from './dto/quran-query.dto';
-import seedrandom from 'seedrandom';
+  SCHEMA_REQUEST,
+  SCHEMA_RESPONSE,
+  SCHEMA_CLIENT_PREFERENCES,
+  SCHEMA_PAGINATION_CLIENT,
+  SCHEMA_PAGINATION_SERVER,
+  SCHEMA_CHAPTER_RESPONSE,
+  SCHEMA_VERSE_LIST_RESPONSE,
+  SCHEMA_LANGUAGES,
+} from 'wikisubmission-sdk';
+
+// Define types from schemas
+type RequestDto = z.infer<typeof SCHEMA_REQUEST>;
+type ResponseDto = z.infer<typeof SCHEMA_RESPONSE>;
+type ClientPreferencesType = z.infer<typeof SCHEMA_CLIENT_PREFERENCES>;
+type PaginationClientType = z.infer<typeof SCHEMA_PAGINATION_CLIENT>;
+type PaginationServerType = z.infer<typeof SCHEMA_PAGINATION_SERVER>;
+type LanguageType = z.infer<typeof SCHEMA_LANGUAGES>;
+
+// Internal types for query parsing
+type ParsedQuery =
+  | {
+      type: 'valid';
+      chapterNum: number;
+      verseNum?: number;
+      startingVerseNum?: number;
+      endingVerseNum?: number;
+    }
+  | { type: 'text'; text: string }
+  | { type: 'invalid'; queryWithError: string; errors: string[] };
+
+type ParsedQueryList = ParsedQuery[];
+
+// Database result types
+interface VerseDbResult {
+  idx?: number;
+  globalIndex: number;
+  verseIndex: number;
+  chapterIndex: number;
+  title?: string;
+  subtitle?: string;
+  content: string;
+  footer?: string;
+  language: string;
+  words?: Array<{
+    verseIndex: number;
+    wordIndex: number;
+    content?: string;
+    root?: string;
+  }>;
+}
 
 @Injectable()
 export class ApiRestQuranService {
@@ -25,82 +68,7 @@ export class ApiRestQuranService {
     private readonly audio: ApiRestaudioService,
   ) {}
 
-  public async getRandomChapter({
-    preferences,
-    date,
-  }: {
-    preferences: QuranFetchPreferences;
-    date?: Date;
-  }) {
-    let chapter_index: number;
-    if (date) {
-      const seed: string = date.toISOString().slice(0, 10);
-      const rng: () => number = seedrandom(seed);
-      chapter_index = Math.floor(rng() * 114) + 1;
-    } else {
-      chapter_index = randomInt(1, 115);
-    }
-    return this.getChapter({
-      index: chapter_index,
-      preferences: preferences,
-    });
-  }
-
-  public async getRandomVerse({
-    preferences,
-    date,
-  }: {
-    preferences: QuranFetchPreferences;
-    date?: Date;
-  }): Promise<VerseWithWords> {
-    let chapter_index: number;
-    let verse_index: number;
-    if (date) {
-      const seed: string = date.toISOString().slice(0, 10);
-      const rng: () => number = seedrandom(seed);
-      chapter_index = Math.floor(rng() * 114) + 1;
-      verse_index = Math.floor(rng() * this.verseCounts[chapter_index]) + 1;
-    } else {
-      chapter_index = randomInt(1, 115);
-      verse_index = randomInt(1, this.verseCounts[chapter_index]);
-    }
-    const verse = await this.prisma.verses.findFirstOrThrow({
-      where: {
-        chapter_index: chapter_index,
-        verse_index: verse_index,
-        ...(preferences.includeSecondaryLanguage
-          ? {
-              OR: [
-                { language: preferences.mainLanguage },
-                { language: preferences.secondaryLanguage },
-              ],
-            }
-          : {
-              language: preferences.mainLanguage,
-            }),
-      },
-      select: {
-        global_index: true,
-        chapter_index: true,
-        verse_index: true,
-        subtitle: true,
-        content: true,
-        footer: true,
-        language: true,
-        Words: {
-          select: {
-            chapter_index: true,
-            verse_index: true,
-            word_index: true,
-            content: true,
-            root: true,
-          },
-        },
-      },
-    });
-    return verse;
-  }
-
+  // Chapter verse counts lookup
   private readonly verseCounts: Record<number, number> = {
     1: 7,
     2: 286,
@@ -219,21 +187,126 @@ export class ApiRestQuranService {
   };
 
   /**
-   * Parses a Quran query string (e.g., "2:3-5,3:1,text") into a structured format.
-   *
-   * Supported formats:
-   * - "2" → chapter only
-   * - "2:3" → single verse
-   * - "2:3-5" → verse range
-   * - Any text (e.g. "test", "this is text") → treated as a text search
-   * - Comma-separated values like "2,3:1,word,4:2-4"
-   *
-   * @param {string} input - The Quran query string to parse.
-   * @returns {ParsedQueryList} An array of parsed query objects or error descriptions.
+   * Main entry point for Quran queries
+   */
+  public async getQuranFromQuery(request: RequestDto): Promise<ResponseDto> {
+    const t0 = performance.now();
+
+    this.logger.log({
+      message: 'Started parsing Quran query',
+      context: 'ApiRestQuranService.getQuranFromQuery',
+      query: request.query,
+    });
+
+    // Parse the query string
+    const parsedRequest = this.parseQuranQuery(request.query);
+
+    const t1 = performance.now();
+    this.logger.log({
+      message: 'Finished parsing query',
+      context: 'ApiRestQuranService.getQuranFromQuery',
+      durationMs: (t1 - t0).toFixed(2),
+      parsedCount: parsedRequest.length,
+    });
+
+    // Check for invalid queries
+    const invalidQueries = parsedRequest.filter((q) => q.type === 'invalid');
+    if (invalidQueries.length > 0) {
+      const errors = invalidQueries.flatMap((q) =>
+        q.type === 'invalid' ? q.errors : [],
+      );
+      throw new Error(`Invalid query: ${errors.join(', ')}`);
+    }
+
+    // Inject verse data with preferences and pagination
+    const response = await this.injectVerseData({
+      parsedRequest,
+      preferences: request.preferences,
+      pagination: request.pagination,
+    });
+
+    const t2 = performance.now();
+    this.logger.log({
+      message: 'Completed Quran query',
+      context: 'ApiRestQuranService.getQuranFromQuery',
+      durationMs: (t2 - t0).toFixed(2),
+      responseType: response.type,
+    });
+
+    return response;
+  }
+
+  /**
+   * Get a random verse (or daily verse if date provided)
+   */
+  public async getRandomVerse({
+    preferences,
+    pagination,
+    date,
+  }: {
+    preferences: ClientPreferencesType;
+    pagination: PaginationClientType;
+    date?: Date;
+  }): Promise<ResponseDto> {
+    let chapterIndex: number;
+    let verseIndex: number;
+
+    if (date) {
+      const seed = date.toISOString().slice(0, 10);
+      const rng = seedrandom(seed);
+      chapterIndex = Math.floor(rng() * 114) + 1;
+      verseIndex = Math.floor(rng() * this.verseCounts[chapterIndex]) + 1;
+    } else {
+      chapterIndex = randomInt(1, 115);
+      verseIndex = randomInt(1, this.verseCounts[chapterIndex] + 1);
+    }
+
+    const request: RequestDto = {
+      query: `${chapterIndex}:${verseIndex}`,
+      preferences,
+      pagination,
+    };
+
+    return this.getQuranFromQuery(request);
+  }
+
+  /**
+   * Get a random chapter (or daily chapter if date provided)
+   */
+  public async getRandomChapter({
+    preferences,
+    pagination,
+    date,
+  }: {
+    preferences: ClientPreferencesType;
+    pagination: PaginationClientType;
+    date?: Date;
+  }): Promise<ResponseDto> {
+    let chapterIndex: number;
+
+    if (date) {
+      const seed = date.toISOString().slice(0, 10);
+      const rng = seedrandom(seed);
+      chapterIndex = Math.floor(rng() * 114) + 1;
+    } else {
+      chapterIndex = randomInt(1, 115);
+    }
+
+    const request: RequestDto = {
+      query: chapterIndex.toString(),
+      preferences,
+      pagination,
+    };
+
+    return this.getQuranFromQuery(request);
+  }
+
+  /**
+   * Parse query string into structured format
    */
   private parseQuranQuery(input: string): ParsedQueryList {
     const results: ParsedQueryList = [];
-    const parts = input.split(',').map((p) => p.trim()); // keep spaces inside text
+    const parts = input.split(',').map((p) => p.trim());
     const regex = /^(\d+)(?::(\d+)(?:-(\d*))?)?$/;
 
     for (const part of parts) {
@@ -248,7 +321,7 @@ export class ApiRestQuranService {
 
       const match = part.match(regex);
       if (!match) {
-        // fallback: treat as text search instead of invalid
+        // Treat as text search
         results.push({
           type: 'text',
           text: part,
@@ -272,8 +345,10 @@ export class ApiRestQuranService {
       const maxVerse = this.verseCounts[chapterNum];
 
       if (!verseNum) {
+        // Whole chapter
         results.push({ type: 'valid', chapterNum });
       } else if (!endVerseStr) {
+        // Single verse
         if (verseNum <= maxVerse) {
           results.push({ type: 'valid', chapterNum, verseNum });
         } else {
@@ -286,6 +361,7 @@ export class ApiRestQuranService {
           });
         }
       } else {
+        // Verse range
         const endVerse = endVerseStr === '' ? maxVerse : parseInt(endVerseStr);
         if (
           verseNum <= endVerse &&
@@ -314,36 +390,53 @@ export class ApiRestQuranService {
     return results;
   }
 
+  /**
+   * Fetch verse data from database based on parsed query
+   */
   private async injectVerseData({
     parsedRequest,
     preferences,
+    pagination,
   }: {
     parsedRequest: ParsedQueryList;
-    preferences: QuranFetchPreferences;
-  }): Promise<VerseWithWords[]> {
-    const includeWords =
-      preferences.mainLanguageIncludeWordByWord ||
-      preferences.mainLanguageIncludeRootWord;
+    preferences: ClientPreferencesType;
+    pagination?: PaginationClientType;
+  }): Promise<ResponseDto> {
+    // Filter out text queries for now (TODO: implement text search)
+    const validQueries = parsedRequest.filter(
+      (q) => q.type === 'valid',
+    ) as Array<ParsedQuery & { type: 'valid' }>;
 
+    if (validQueries.length === 0) {
+      throw new Error('No valid queries found');
+    }
+
+    const includeWords =
+      preferences.main.language.includeWordByWord ||
+      preferences.main.language.includeRootByRoot;
+
+    // Build input tuples for SQL
     const inputTuples: string[] = [];
-    parsedRequest.forEach((item, idx) => {
-      if (item.type === 'valid') {
-        if (item.verseNum !== undefined) {
-          inputTuples.push(
-            `(${idx}, ${item.chapterNum}, ${item.verseNum}, NULL, NULL)`,
-          );
-        } else if (
-          item.startingVerseNum !== undefined &&
-          item.endingVerseNum !== undefined
-        ) {
-          inputTuples.push(
-            `(${idx}, ${item.chapterNum}, NULL, ${item.startingVerseNum}, ${item.endingVerseNum})`,
-          );
-        } else {
-          inputTuples.push(`(${idx}, ${item.chapterNum}, NULL, NULL, NULL)`);
-        }
+    validQueries.forEach((item, idx) => {
+      if (item.verseNum !== undefined) {
+        inputTuples.push(
+          `(${idx}, ${item.chapterNum}, ${item.verseNum}, NULL, NULL)`,
+        );
+      } else if (
+        item.startingVerseNum !== undefined &&
+        item.endingVerseNum !== undefined
+      ) {
+        inputTuples.push(
+          `(${idx}, ${item.chapterNum}, NULL, ${item.startingVerseNum}, ${item.endingVerseNum})`,
+        );
+      } else {
+        inputTuples.push(`(${idx}, ${item.chapterNum}, NULL, NULL, NULL)`);
       }
     });
+
+    if (inputTuples.length === 0) {
+      throw new Error('No valid input tuples generated');
+    }
 
     const inputCTE = `
       WITH input_order (idx, chapter, verse, start, "end") AS (
@@ -360,19 +453,22 @@ export class ApiRestQuranService {
       )
     `;
 
-    const languageFilter = preferences.includeSecondaryLanguage
-      ? `v.language IN ('${preferences.mainLanguage}', '${preferences.secondaryLanguage}')`
-      : `v.language = '${preferences.mainLanguage}'`;
+    const mainLang = preferences.main.language.language;
+    const secondaryLang = preferences?.secondary?.language?.language;
+
+    const languageFilter = secondaryLang
+      ? `v.language IN ('${mainLang}', '${secondaryLang}')`
+      : `v.language = '${mainLang}'`;
 
     const joinWordsSQL = includeWords
       ? `
         , COALESCE(
             json_agg(
               json_build_object(
-                'verse_index', w.verse_index,
-                'word_index', w.word_index
-                ${preferences.mainLanguageIncludeWordByWord ? `, 'content', w.content` : ''}
-                ${preferences.mainLanguageIncludeRootWord ? `, 'root', w.root` : ''}
+                'verseIndex', w.verse_index,
+                'wordIndex', w.word_index
+                ${preferences.main.language.includeWordByWord ? `, 'content', w.content` : ''}
+                ${preferences.main.language.includeRootByRoot ? `, 'root', w.root` : ''}
               )
               ORDER BY w.word_index
             ) FILTER (WHERE w.word_index IS NOT NULL),
@@ -382,21 +478,21 @@ export class ApiRestQuranService {
       : '';
 
     const wordJoinSQL = includeWords
-      ? `LEFT JOIN "Words" w ON w."versesUuid" = v.uuid AND w.language = '${preferences.mainLanguage}'`
+      ? `LEFT JOIN "Words" w ON w."versesUuid" = v.uuid AND w.language = '${mainLang}'`
       : '';
 
     const sql = `
       ${inputCTE}
       SELECT
         io.idx,
-        v.global_index,
-        v.verse_index,
+        v.global_index AS "globalIndex",
+        v.verse_index AS "verseIndex",
+        v.chapter_index AS "chapterIndex",
+        v.chapter_title AS title,
         v.subtitle,
         v.content,
         v.footer,
-        v.language,
-        v.chapter_index,
-        v.chapter_title
+        v.language
         ${joinWordsSQL}
       FROM input_order io
       JOIN "Verses" v
@@ -408,205 +504,256 @@ export class ApiRestQuranService {
         )
         AND ${languageFilter}
       ${wordJoinSQL}
-      GROUP BY io.idx, v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language, v.chapter_index, v.chapter_title
+      GROUP BY io.idx, v.global_index, v.verse_index, v.chapter_index, v.chapter_title, v.subtitle, v.content, v.footer, v.language
       ORDER BY io.idx, v.verse_index,
         CASE
-          WHEN v.language = '${preferences.mainLanguage}' THEN 0
-          ${
-            preferences.includeSecondaryLanguage
-              ? `WHEN v.language = '${preferences.secondaryLanguage}' THEN 1`
-              : ''
-          }
+          WHEN v.language = '${mainLang}' THEN 0
+          ${secondaryLang ? `WHEN v.language = '${secondaryLang}' THEN 1` : ''}
           ELSE 2
         END
     `;
 
-    return this.prisma.$queryRawUnsafe<VerseWithWords[]>(sql);
+    const verses: VerseDbResult[] = await this.prisma.$queryRawUnsafe(sql);
+
+    // Transform database results to Zod schema format
+    const transformedVerses = verses.map((v) => ({
+      globalIndex: v.globalIndex,
+      chapterIndex: v.chapterIndex,
+      verseIndex: v.verseIndex,
+      subtitle: v.subtitle || undefined,
+      content: v.content,
+      footer: v.footer || undefined,
+      // Add audio if requested
+      ...(preferences.main.audioSettings.includeVerseAudio && {
+        audio: {
+          link: this.audio.buildVerseByVerseAudioUrl({
+            bitrate: parseInt(preferences.main.audioSettings.bitrate),
+            edition: preferences.main.audioSettings.identifier,
+            chapterNumber: v.chapterIndex,
+            verseNumber: v.verseIndex,
+          }),
+          lengthSeconds: 0, // TODO: Get actual length
+          reciterName: '', // TODO: Get reciter name
+          identifier: preferences.main.audioSettings.identifier,
+        },
+      }),
+    }));
+
+    // Create pagination response
+    // const paginationResponse: PaginationServerType | null = {
+    //   startCursor: pagination.startCursor,
+    //   endCursor: pagination.endCursor,
+    //   pageSize: pagination.pageSize,
+    //   hasNextPage: false, // TODO: Implement actual pagination logic
+    //   hasPreviousPage: false, // TODO: Implement actual pagination logic
+    // };
+
+    // Determine if this is a single chapter or verse list
+    const isSingleChapter =
+      validQueries.length === 1 &&
+      validQueries[0].verseNum === undefined &&
+      validQueries[0].startingVerseNum === undefined;
+
+    if (isSingleChapter && verses.length > 0) {
+      const chapterIndex = validQueries[0].chapterNum;
+      const chapterTitle = verses[0].title || `Chapter ${chapterIndex}`;
+
+      return SCHEMA_CHAPTER_RESPONSE.parse({
+        type: 'CHAPTER',
+        data: {
+          chapterIndex,
+          title: chapterTitle,
+          verses: transformedVerses,
+          // Add chapter audio if requested
+          ...(preferences.main.audioSettings.includeChapterAudio && {
+            audio: {
+              link: this.audio.buildChapterAudioUrl({
+                bitrate: parseInt(preferences.main.audioSettings.bitrate),
+                edition: preferences.main.audioSettings.identifier,
+                number: chapterIndex,
+              }),
+              lengthSeconds: 0, // TODO: Get actual length
+              reciterName: '', // TODO: Get reciter name
+              identifier: preferences.main.audioSettings.identifier,
+            },
+          }),
+        },
+        // pagination: paginationResponse,
+      });
+    } else {
+      // Return as verse list
+      return SCHEMA_VERSE_LIST_RESPONSE.parse({
+        type: 'VERSE_LIST',
+        data: transformedVerses,
+        // pagination: paginationResponse,
+      });
+    }
   }
 
-  public async getChapter({
-    index,
-    preferences,
-  }: {
-    index: number;
-    preferences: QuranFetchPreferences;
-  }): Promise<ChapterResponseType> {
-    // SQL does something like this, i'm using it over this because i can't order by language (main > secondary) in prisma orm
-    // const __verses = await this.prisma.verses.findMany({
-    //   where: {
-    //     chapter_index: index,
-    //     ...(preferences.includeSecondaryLanguage
-    //       ? {
-    //           OR: [
-    //             { language: preferences.mainLanguage },
-    //             { language: preferences.secondaryLanguage },
-    //           ],
-    //         }
-    //       : {
-    //           language: preferences.mainLanguage,
-    //         }),
-    //   },
-    //   select: {
-    //     global_index: true,
-    //     verse_index: true,
-    //     subtitle: true,
-    //     content: true,
-    //     footer: true,
-    //     language: true,
-
-    //     chapter_index: false,
-    //     chapter_title: false,
-    //     uuid: false,
-    //     ...((preferences.mainLanguageIncludeWordByWord ||
-    //       preferences.mainLanguageIncludeRootWord) && {
-    //       Words: {
-    //         select: {
-    //           global_index: true,
-    //           verse_index: true,
-    //           word_index: true,
-    //           content: preferences.mainLanguageIncludeWordByWord,
-    //           root: preferences.mainLanguageIncludeRootWord,
-    //         },
-    //         orderBy: [{ verse_index: 'asc' }, { word_index: 'asc' }],
-    //       },
-    //     }),
-    //   },
-    //   orderBy: {
-    //     ...(preferences.includeSecondaryLanguage
-    //       ? [{ verse_index: 'asc' }, { language: 'asc' }]
-    //       : { verse_index: 'asc' }),
-    //   },
-    // });
-
-    const includeWords =
-      preferences.mainLanguageIncludeWordByWord ||
-      preferences.mainLanguageIncludeRootWord;
-
-    const baseSelect = `
-      v.global_index,
-      v.verse_index,
-      v.subtitle,
-      v.content,
-      v.footer,
-      v.language
-    `;
-
-    const wordSelect = `
-      , COALESCE(
-          json_agg(
-            json_build_object(
-              'verse_index', w.verse_index,
-              'word_index', w.word_index
-              ${preferences.mainLanguageIncludeWordByWord ? `, 'content', w.content` : ''}
-              ${preferences.mainLanguageIncludeRootWord ? `, 'root', w.root` : ''}
-            )
-            ORDER BY w.word_index
-          ) FILTER (WHERE w.word_index IS NOT NULL),
-          '[]'
-        ) AS words
-    `;
-
-    const query = `
-      SELECT
-        ${baseSelect}
-        ${includeWords ? wordSelect : ''}
-      FROM "Verses" v
-      ${includeWords ? `LEFT JOIN "Words" w ON v.uuid = w."versesUuid" AND w.language = '${preferences.mainLanguage}'` : ''}
-      WHERE
-        v.chapter_index = ${index}
-        ${
-          preferences.includeSecondaryLanguage
-            ? `AND v.language IN ('${preferences.mainLanguage}', '${preferences.secondaryLanguage}')`
-            : `AND v.language = '${preferences.mainLanguage}'`
-        }
-      GROUP BY ${includeWords ? 'v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language' : 'v.global_index, v.verse_index, v.subtitle, v.content, v.footer, v.language'}
-      ORDER BY
-        v.verse_index ASC,
-        CASE
-          WHEN v.language = '${preferences.mainLanguage}' THEN 0
-          ${
-            preferences.includeSecondaryLanguage
-              ? `WHEN v.language = '${preferences.secondaryLanguage}' THEN 1`
-              : ''
-          }
-          ELSE 2
-        END
-    `;
-
-    const verses: VerseWithWords[] = await this.prisma.$queryRawUnsafe(query);
-
-    const ans = {
-      ...(preferences.mainLanguageIncludeChapterAudio && {
-        chapterAudio: this.audio.buildChapterAudioUrl({
-          bitrate: preferences.mainLanguageAudioBitrate,
-          edition: preferences.mainLanguageAudioIdentifier,
-          number: index,
-        }),
-      }),
-      verses: preferences.mainLanguageIncludeVerseAudio
-        ? verses.map((v) => ({
-            ...v,
-            verseAudio: this.audio.buildVerseByVerseAudioUrl({
-              bitrate: preferences.mainLanguageAudioBitrate,
-              edition: preferences.mainLanguageAudioIdentifier,
-              chapterNumber: index,
-              verseNumber: v.verse_index,
-            }),
-          }))
-        : verses,
+  /**
+   * Convert database language codes to Zod enum values
+   */
+  private mapDatabaseLanguageToZod(dbLanguage: string): LanguageType {
+    const languageMap: Record<string, LanguageType> = {
+      en: 'ENGLISH',
+      ar: 'ARABIC',
+      fr: 'FRENCH',
+      es: 'SPANISH',
+      ta: 'TAMIL',
+      ms: 'BAHASA',
+      fa: 'PERSIAN',
+      tr: 'TURKISH',
+      de: 'GERMAN',
+      sv: 'SWEDISH',
+      ru: 'RUSSIAN',
+      transliterated: 'TRANSLITERATED',
     };
 
-    return ans;
+    return languageMap[dbLanguage] || 'ENGLISH';
   }
 
-  public async getQuranFromQuery({
+  /**
+   * Convert Zod language enum to database language code
+   */
+  private mapZodLanguageToDatabase(zodLanguage: LanguageType): string {
+    const languageMap: Record<LanguageType, string> = {
+      ENGLISH: 'en',
+      ARABIC: 'ar',
+      FRENCH: 'fr',
+      SPANISH: 'es',
+      TAMIL: 'ta',
+      BAHASA: 'ms',
+      PERSIAN: 'fa',
+      TURKISH: 'tr',
+      GERMAN: 'de',
+      SWEDISH: 'sv',
+      RUSSIAN: 'ru',
+      TRANSLITERATED: 'transliterated',
+    };
+
+    return languageMap[zodLanguage] || 'en';
+  }
+
+  /**
+   * Handle text search queries (TODO: Implement full-text search)
+   */
+  private async handleTextSearch({
+    searchText,
+    preferences,
+    pagination,
+  }: {
+    searchText: string;
+    preferences: ClientPreferencesType;
+    pagination: PaginationClientType;
+  }): Promise<ResponseDto> {
+    // TODO: Implement text search based on preferences.main.language.searchStrategy
+    // For now, throw an error
+    throw new Error('Text search not yet implemented');
+  }
+
+  /**
+   * Validate chapter and verse ranges
+   */
+  private validateChapterVerse(chapterNum: number, verseNum?: number): boolean {
+    if (chapterNum < 1 || chapterNum > 114) {
+      return false;
+    }
+
+    if (verseNum !== undefined) {
+      const maxVerse = this.verseCounts[chapterNum];
+      return verseNum >= 1 && verseNum <= maxVerse;
+    }
+
+    return true;
+  }
+
+  /**
+   * Get chapter metadata
+   */
+  public async getChapterMetadata(chapterIndex: number) {
+    if (chapterIndex < 1 || chapterIndex > 114) {
+      throw new Error('Invalid chapter index');
+    }
+
+    // TODO: Implement chapter metadata retrieval
+    return {
+      chapterIndex,
+      verseCount: this.verseCounts[chapterIndex],
+      // Add more metadata as needed
+    };
+  }
+
+  /**
+   * Search verses by content (TODO: Implement)
+   */
+  public async searchVerses({
     query,
     preferences,
+    pagination,
   }: {
     query: string;
-    preferences: QuranFetchPreferences;
+    preferences: ClientPreferencesType;
+    pagination: PaginationClientType;
+  }): Promise<ResponseDto> {
+    // TODO: Implement verse search with different strategies:
+    // - FULL_TEXT_SEARCH
+    // - FUZZY
+    // - HYBRID
+
+    throw new Error('Verse search not yet implemented');
+  }
+
+  /**
+   * Get bookmarked verses for a user
+   */
+  public async getBookmarkedVerses({
+    userId,
+    preferences,
+    pagination,
+  }: {
+    userId: string;
+    preferences: ClientPreferencesType;
+    pagination: PaginationClientType;
+  }): Promise<ResponseDto> {
+    // TODO: Implement bookmark retrieval
+    throw new Error('Bookmark retrieval not yet implemented');
+  }
+
+  /**
+   * Add verse bookmark
+   */
+  public async addBookmark({
+    userId,
+    chapterIndex,
+    verseIndex,
+    content,
+  }: {
+    userId: string;
+    chapterIndex: number;
+    verseIndex: number;
+    content: string;
   }) {
-    const t0 = performance.now();
+    if (!this.validateChapterVerse(chapterIndex, verseIndex)) {
+      throw new Error('Invalid chapter or verse index');
+    }
 
-    this.logger.log({
-      message: 'Started parsing Quran query',
-      context: 'getQuran',
-      query,
-    });
+    // TODO: Implement bookmark creation
+    throw new Error('Bookmark creation not yet implemented');
+  }
 
-    const parsedRequest = this.parseQuranQuery(query);
-
-    const t1 = performance.now();
-
-    this.logger.log({
-      message: 'Finished parsing query',
-      context: 'getQuran',
-      durationMs: (t1 - t0).toFixed(2),
-      parsedCount: parsedRequest.length,
-    });
-
-    const response = await this.injectVerseData({ parsedRequest, preferences });
-
-    const t2 = performance.now();
-
-    this.logger.log({
-      message: 'Fetched verses with preferences',
-      context: 'getQuran',
-      durationMs: (t2 - t1).toFixed(2),
-      preferences,
-    });
-
-    this.logger.log({
-      message: 'Total time for getQuran',
-      context: 'getQuran',
-      durationMs: (t2 - t0).toFixed(2),
-    });
-
-    return response;
+  /**
+   * Remove verse bookmark
+   */
+  public removeBookmark({
+    userId,
+    chapterIndex,
+    verseIndex,
+  }: {
+    userId: string;
+    chapterIndex: number;
+    verseIndex: number;
+  }) {
+    // TODO: Implement bookmark removal
+    throw new Error('Bookmark removal not yet implemented');
   }
 }
-
-type QuranRef =
-  | { chapterNum: number; type: 'chapter' }
-  | { chapterNum: number; verse: number; type: 'verse' }
-  | { chapterNum: number; start: number; end: number; type: 'range' };
