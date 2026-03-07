@@ -1,0 +1,432 @@
+openapi: '3.0.3'
+info:
+  title: WikiSubmission Quran Backend
+  description: >
+    A dual-purpose API serving as a high-performance multilingual Quran reader 
+    and a staging ground for the translation editorial workflow.
+  version: '1.0'
+  contact: 
+    email: contact@wikisubmission.org
+
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Production server
+  - url: https://api.wikisubmission.org/v1
+    description: Production Server
+  - url: https://staging.wikisubmission.org/v1
+    description: Staging Server
+
+tags:
+  - name: Reader
+    description: Public endpoints for the Quran
+  - name: Editor
+    description: Content creation workflow
+  - name: History
+    description: Audit logs and version tracking
+
+paths:
+  /quran:
+    get:
+      tags: [Reader]
+      operationId: getQuran
+      summary: Fetch a range of verses
+      description: > 
+        Returns a range of verses. Supports multiple languages simultaneously 
+          and optional word-by-word or root data.
+      parameters:
+        - name: chapter_number_start
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: chapter_number_end
+          in: query
+          schema:
+            type: integer
+        - name: verse_start
+          in: query
+          schema:
+            type: integer
+        - name: verse_end
+          in: query
+          schema:
+            type: integer
+        - name: langs
+          in: query
+          required: true
+          explode: true 
+          schema:
+            type: array
+            items:
+              type: string
+          description: List of language IDs to include in the response.
+        - name: include_words
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: include_root 
+          in: query 
+          schema: 
+            type: boolean
+            default: false 
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuranResponse'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'
+
+  # --- EDITOR API ---
+  /editor/drafts/verse-text:
+    get:
+      tags: [Editor]
+      operationId: listVerseDrafts
+      summary: List all verse drafts
+      description: Retrieve a list of drafts filtered by status.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TranslationStatus'
+      responses:
+        '200':
+          description: OK
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'
+    post:
+      tags: [Editor]
+      operationId: createVerseDraft
+      summary: Create a new translation draft
+      description: Initial creation of a draft for a specific verse and language.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerseTextDraft'
+      responses:
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+
+  /editor/drafts/verse-text/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The ID of the draft
+        schema:
+          type: integer
+    get:
+      tags: [Editor]
+      operationId: getVerseDraft
+      summary: Get a specific draft
+      description: Retrieve the full details of a single draft by its ID.
+      responses:
+        '200':
+          description: OK
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+
+    patch:
+      tags: [Editor]
+      operationId: updateVerseDraft
+      summary: Update a draft
+      description: Iteratively update draft content.
+      responses:
+        '200':
+          description: Updated
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+    delete:
+      tags: [Editor]
+      operationId: deleteVerseDraft
+      summary: Discard a draft
+      description: Permanent removal of a draft.
+      responses:
+        '204':
+          description: Deleted
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+
+  /editor/publish/verse-text/{id}:
+    post:
+      tags: [Editor]
+      operationId: publishVerseText
+      summary: Publish a draft
+      description: Archives current live text and promotes draft to live status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully published.
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+
+  # --- HISTORY API ---
+  /editor/history/verse-text:
+    get:
+      tags: [History]
+      operationId: getVerseHistory
+      summary: View audit logs
+      description: Chronological list of previous versions for a specific verse.
+      parameters:
+        - name: verse_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: lang_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VerseTextHistory'
+        '201':
+          description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+        '501':
+          $ref: '#/components/responses/NotImplementedError'          
+
+components:
+  schemas:
+    # Top-level response wrapper
+    QuranResponse:
+      type: object
+      properties:
+        info:
+          type: object
+          properties:
+            requested_range: { type: string, example: "1:1-7" }
+            results_count: { type: integer }
+        chapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChapterData'
+
+    ChapterData:
+      type: object
+      properties:
+        chapter_number: { type: integer }
+        # Map of languages for the title (e.g., "en": "The Opening")
+        titles:
+          type: object
+          additionalProperties:
+            type: string
+        verses:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerseData'
+
+    VerseData:
+      type: object
+      properties:
+        verse_index: { type: integer }
+        verse_key: { type: string, example: "1:1" }
+        # Supporting multiple languages at once
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranslationContent'
+        # Optional word-by-word array
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordData'
+
+    TranslationContent:
+      type: object
+      properties:
+        lang_id: { type: integer }
+        lang_code: { type: string }
+        direction: { type: string, enum: [ltr, rtl] }
+        text: { type: string }
+        subtitle: { type: string, nullable: true }
+        footer: { type: string, nullable: true }
+
+    WordData:
+      type: object
+      properties:
+        word_index: { type: integer }
+        global_index: { type: integer }
+        # Map of languages for the word text/root
+        text:
+          type: object
+          additionalProperties:
+            type: string
+        root:
+          type: string
+          nullable: true
+        # Placeholder for future expansion (audio, grammar, etc)
+        metadata:
+          type: object
+          nullable: true
+    TranslationStatus:
+      type: string
+      enum: [draft, published, archived]
+    VerseTextHistory:
+      type: object
+      properties:
+        id: { type: integer }
+        archived_at: { type: string, format: date-time }
+        content: { type: string }
+    VerseTextDraft:
+      type: object
+      properties:
+        verse_id: { type: integer }
+        lang_id: { type: integer }
+        content: { type: string }
+  responses:
+    Conflict:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string
+      description: The request could not be completed due to a conflict with the
+        current state of the resource. Resolve the conflict and try again.
+    NotFound:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string             
+      description: The server cannot find the requested resource. The endpoint may be
+        invalid or the resource may no longer exist.
+    BadRequest:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string
+      description: The server could not understand the request due to invalid syntax.
+        The client should modify the request and try again.
+    InternalServerErrror:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string
+      description: The server encountered an unexpected condition that prevented it
+        from fulfilling the request. Report the issue to the support team if it
+        persists.
+    NotImplementedError:
+      description: The requested operation is not yet implemented.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+              - code
+            properties:
+              message:
+                type: string
+                example: "This endpoint is under development."
+              code:
+                type: string
+                example: "NOT_IMPLEMENTED"
