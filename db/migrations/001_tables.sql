@@ -9,7 +9,12 @@ CREATE TABLE IF NOT EXISTS languages (
     direction VARCHAR(3) DEFAULT 'ltr' -- 'ltr' or 'rtl'
 );
 
-CREATE TYPE translation_status AS ENUM ('draft', 'published', 'archived');
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'translation_status') THEN
+        CREATE TYPE translation_status AS ENUM ('draft', 'published', 'archived');
+    END IF;
+END $$;
 
 -----------------------------------------
 -- Structural tables 
