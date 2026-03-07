@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS word_text (
     lang_id SMALLINT NOT NULL REFERENCES languages(id),
     word TEXT,
     word_root TEXT,
+    meaning TEXT,
 
     -- metadata
     published_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +161,7 @@ CREATE TABLE IF NOT EXISTS word_text_drafts (
     lang_id SMALLINT NOT NULL REFERENCES languages(id),
     word TEXT,
     word_root TEXT,
+    meaning TEXT,
 
     -- Versioning 
     version INT DEFAULT 1,
@@ -230,6 +232,7 @@ CREATE TABLE IF NOT EXISTS word_text_history (
     word_text_id INT NOT NULL,
     word TEXT,
     word_root TEXT,
+    meaning TEXT,
 
     version INT,
     archived_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

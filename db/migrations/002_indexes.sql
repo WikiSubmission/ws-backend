@@ -24,9 +24,9 @@ CREATE INDEX IF NOT EXISTS idx_verse_text_lookup ON verse_text(verse_id, lang_id
 CREATE INDEX IF NOT EXISTS idx_word_text_lookup ON word_text(word_id, lang_id);
 CREATE INDEX IF NOT EXISTS idx_word_root_lookup ON word_text(word_root) WHERE word_root IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS idx_word_meaning_lookup ON word_text(meaning) WHERE meaning IS NOT NULL;
 
 -- searching by root
-CREATE INDEX IF NOT EXISTS idx_word_root_lookup ON word_text(word_root) WHERE word_root IS NOT NULL;
 
 
 -----------------------------------------

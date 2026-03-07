@@ -95,11 +95,20 @@ func StartServer(database *db.DB) {
 		c.String(http.StatusOK, sitemap)
 	})
 
-	apiPrefix := ""
-	if len(swagger.Servers) > 0 {
-		u, _ := url.Parse(swagger.Servers[0].URL)
-		apiPrefix = u.Path
+	serverURL := swagger.Servers[0].URL
+
+	// Example logic to pick the right one:
+	appEnv := os.Getenv("APP_ENV") // e.g., "production" or "development"
+	for _, s := range swagger.Servers {
+		if strings.Contains(strings.ToLower(s.Description), appEnv) {
+			serverURL = s.URL
+			break
+		}
 	}
+
+	// 2. Safely parse the path for Gin
+	u, _ := url.Parse(serverURL)
+	apiPrefix := u.Path
 	apiPrefix = "/" + strings.Trim(apiPrefix, "/")
 
 	slog.Info("Mounting API", "prefix", apiPrefix)

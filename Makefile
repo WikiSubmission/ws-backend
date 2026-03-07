@@ -6,7 +6,7 @@ export
 PSQL=sudo -u postgres psql
 GO_FILES=$(wildcard api/*.go)
 
-.PHONY: db-setup db-drop db-rebuild run tidy clean
+.PHONY: db-setup db-drop db-rebuild run tidy clean seed source-import
 
 ## db-setup: Create user, database, and set permissions
 db-setup:
@@ -16,11 +16,27 @@ db-setup:
 	@echo "Creating database $(DATABASE_NAME)..."
 	@$(PSQL) -c "CREATE DATABASE $(DATABASE_NAME) OWNER $(DATABASE_USER);" || echo "Database already exists."
 	
-	@echo "Granting permissions on database and schema..."
+	@echo "Granting permissions..."
 	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON DATABASE $(DATABASE_NAME) TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL ON SCHEMA public TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER SCHEMA public OWNER TO $(DATABASE_USER);"
+	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT USAGE, CREATE ON SCHEMA public TO $(DATABASE_USER);"
+	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
+	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $(DATABASE_USER);"
+	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $(DATABASE_USER);"
+	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $(DATABASE_USER);"
 	@echo "Database setup complete."
+
+## source-import: Import the raw Supabase dumps into the public schema
+source-import:
+	@echo "Creating temporary source schema..."
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/source_schema.sql
+	@echo "Importing source data from Supabase dumps..."
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_chapters_rows.sql
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_index_rows.sql
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_text_rows.sql
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_subtitles_rows.sql
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_word_by_word_rows.sql
+	@echo "Granting select on source tables to $(DATABASE_USER)..."
+	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
 
 ## db-drop: Remove the database and user
 db-drop:
@@ -31,7 +47,8 @@ db-drop:
 	@echo "Database and user removed."
 
 ## db-rebuild: Drop and setup again
-db-rebuild: db-drop db-setup
+db-rebuild: db-drop db-setup source-import seed
+	@echo "Full rebuild complete. Data migrated and normalized."
 
 tidy:
 	@echo "Tidying modules..."
@@ -57,3 +74,7 @@ clean:
 ## generate: Generate openapi types 
 generate:
 	@oapi-codegen --config=api/oapi-codegen.yaml api/openapi.yaml
+
+## seed: Seed data 
+seed:
+	@go run api/cmd/seed.go
