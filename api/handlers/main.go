@@ -75,12 +75,12 @@ func (s *Server) PublishVerseText(ctx context.Context, request PublishVerseTextR
 	}, nil
 }
 
-// 8. Fetch a range of verses
-func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error) {
-	return GetQuran501JSONResponse{
-		NotImplementedErrorJSONResponse{
-			Message: "GetQuran is not implemented yet",
-			Code:    "NOT_IMPLEMENTED",
-		},
-	}, nil
-}
+// // 8. Fetch a range of verses
+// func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error) {
+// 	return GetQuran501JSONResponse{
+// 		NotImplementedErrorJSONResponse{
+// 			Message: "GetQuran is not implemented yet",
+// 			Code:    "NOT_IMPLEMENTED",
+// 		},
+// 	}, nil
+// }
