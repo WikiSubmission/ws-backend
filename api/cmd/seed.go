@@ -70,16 +70,25 @@ func main() {
 	database.Pool.QueryRow(ctx, "SELECT count(*) FROM public.ws_quran_index").Scan(&totalVerses)
 	fmt.Printf("📖 Migrating %d Verses...\n", totalVerses)
 
-	vRows, _ := database.Pool.Query(ctx, `
-		SELECT i.chapter_number, i.verse_number, i.verse_id, 
-		t.english, t.arabic, t.french, t.turkish, t.german, t.bahasa, t.persian, t.tamil, t.swedish, t.russian, t.bengali, t.urdu, t.spanish, t.transliterated, t.arabic_clean,
-		s.english, s.french, s.turkish, s.german, s.bahasa, s.persian, s.tamil, s.swedish, s.russian, s.bengali, s.urdu, s.spanish,
-		f.english
-		FROM public.ws_quran_index i
-		JOIN public.ws_quran_text t ON i.verse_id = t.verse_id
-		LEFT JOIN public.ws_quran_subtitles s ON i.verse_id = s.verse_id
-		LEFT JOIN public.ws_quran_footnotes f ON i.verse_id = f.verse_id
-	`)
+	vRows, err := database.Pool.Query(ctx, `
+        SELECT 
+            i.chapter_number, 
+            i.verse_number, 
+            i.verse_id, 
+            t.english, t.arabic, t.french, t.turkish, t.german, t.bahasa, t.persian, t.tamil, t.swedish, t.russian, t.bengali, t.urdu, t.spanish, t.transliterated, t.arabic_clean,
+            s.english, s.french, s.turkish, s.german, s.bahasa, s.persian, s.tamil, s.swedish, s.russian, s.bengali, s.urdu, s.spanish,
+            -- ADD THESE COLUMNS TO MATCH YOUR 12 FOOTER SCAN VARIABLES
+            f.english, f.french, f.turkish, f.german, f.bahasa, f.persian, f.tamil, f.swedish, f.russian, f.bengali, f.urdu, f.spanish
+        FROM public.ws_quran_index i
+        JOIN public.ws_quran_text t ON i.verse_id = t.verse_id
+        LEFT JOIN public.ws_quran_subtitles s ON i.chapter_number = s.chapter_number AND i.verse_number = s.verse_number
+        LEFT JOIN public.ws_quran_footnotes f ON i.chapter_number = f.chapter_number AND i.verse_number = f.verse_number
+    `)
+	if err != nil {
+		slog.Error("Query failed", slog.Any("error", err))
+		return
+	}
+	defer vRows.Close()
 
 	count := 0
 	for vRows.Next() {
@@ -90,12 +99,17 @@ func main() {
 		// Subtitle pointers
 		var sEn, sFr, sTr, sDe, sId, sFa, sTa, sSv, sRu, sBn, sUr, sEs *string
 		// Footer pointer
-		var fEn *string
+		var fEn, fFr, fTr, fDe, fId, fFa, fTa, fSv, fRu, fBn, fUr, fEs *string
 
-		vRows.Scan(&chNum, &vNum, &vID,
+		err := vRows.Scan(&chNum, &vNum, &vID,
 			&tEn, &tAr, &tFr, &tTr, &tDe, &tId, &tFa, &tTa, &tSv, &tRu, &tBn, &tUr, &tEs, &tTl, &tAc,
 			&sEn, &sFr, &sTr, &sDe, &sId, &sFa, &sTa, &sSv, &sRu, &sBn, &sUr, &sEs,
-			&fEn)
+			&fEn, &fFr, &fTr, &fDe, &fId, &fFa, &fTa, &fSv, &fRu, &fBn, &fUr, &fEs)
+
+		if err != nil {
+			slog.Error("Scan failed", slog.Any("error", err))
+			break // Stop and tell us why
+		}
 
 		var newVID int
 		database.Pool.QueryRow(ctx, "INSERT INTO verses (chapter_id, verse_index) VALUES ($1, $2) RETURNING id", chapterIDMap[chNum], vNum).Scan(&newVID)
@@ -112,11 +126,11 @@ func main() {
 			code               string
 			content, sub, foot *string
 		}{
-			{"en", tEn, sEn, fEn}, {"ar", tAr, nil, nil}, {"fr", tFr, sFr, nil},
-			{"tr", tTr, sTr, nil}, {"de", tDe, sDe, nil}, {"id", tId, sId, nil},
-			{"fa", tFa, sFa, nil}, {"ta", tTa, sTa, nil}, {"sv", tSv, sSv, nil},
-			{"ru", tRu, sRu, nil}, {"bn", tBn, sBn, nil}, {"ur", tUr, sUr, nil},
-			{"es", tEs, sEs, nil}, {"tl", tTl, nil, nil}, {"ac", tAc, nil, nil},
+			{"en", tEn, sEn, fEn}, {"ar", tAr, nil, nil}, {"fr", tFr, sFr, fFr},
+			{"tr", tTr, sTr, fTr}, {"de", tDe, sDe, fDe}, {"id", tId, sId, fId},
+			{"fa", tFa, sFa, fFa}, {"ta", tTa, sTa, fTa}, {"sv", tSv, sSv, fSv},
+			{"ru", tRu, sRu, fRu}, {"bn", tBn, sBn, fBn}, {"ur", tUr, sUr, fUr},
+			{"es", tEs, sEs, fEs}, {"tl", tTl, nil, nil}, {"ac", tAc, nil, nil},
 		}
 
 		for _, p := range langPivot {

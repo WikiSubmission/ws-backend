@@ -6,7 +6,7 @@ export
 PSQL=sudo -u postgres psql
 GO_FILES=$(wildcard api/*.go)
 
-.PHONY: db-setup db-drop db-rebuild run tidy clean seed source-import
+.PHONY: db-setup db-drop db-rebuild run tidy clean seed source-import source-cleanup
 
 ## db-setup: Create user, database, and set permissions
 db-setup:
@@ -34,9 +34,24 @@ source-import:
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_index_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_text_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_subtitles_rows.sql
+	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_footnotes_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_word_by_word_rows.sql
 	@echo "Granting select on source tables to $(DATABASE_USER)..."
 	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
+
+## source-cleanup: Drop temporary source tables and remove local assets
+source-cleanup:
+	@echo "Dropping temporary source tables from database..."
+	@$(PSQL) -d $(DATABASE_NAME) -c "DROP TABLE IF EXISTS \
+		public.ws_quran_chapters, \
+		public.ws_quran_index, \
+		public.ws_quran_text, \
+		public.ws_quran_subtitles, \
+		public.ws_quran_word_by_word, \
+		public.ws_quran_footnotes CASCADE;"
+	@echo "Removing local source_data files..."
+	@rm -rf assets/source_data
+	@echo "Cleanup complete."
 
 ## db-drop: Remove the database and user
 db-drop:
@@ -47,7 +62,7 @@ db-drop:
 	@echo "Database and user removed."
 
 ## db-rebuild: Drop and setup again
-db-rebuild: db-drop db-setup source-import seed
+db-rebuild: db-drop db-setup source-import seed source-cleanup
 	@echo "Full rebuild complete. Data migrated and normalized."
 
 tidy:

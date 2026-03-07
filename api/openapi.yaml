@@ -59,13 +59,18 @@ paths:
             type: array
             items:
               type: string
-          description: List of language IDs to include in the response.
+          description: List of languages to include in the response.
         - name: include_words
           in: query
           schema:
             type: boolean
             default: false
         - name: include_root 
+          in: query 
+          schema: 
+            type: boolean
+            default: false 
+        - name: include_meaning
           in: query 
           schema: 
             type: boolean
