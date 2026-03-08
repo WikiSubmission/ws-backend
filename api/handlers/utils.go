@@ -12,7 +12,7 @@ func (s *Server) ValidateQuranRange(sCh, eCh, sV, eV int) error {
 	}
 
 	// Validate Verses
-	if sV < 1 || sV > startMeta.VerseCount {
+	if sV < 0 || sV > startMeta.VerseCount {
 		return fmt.Errorf("chapter %d only has %d verses", sCh, startMeta.VerseCount)
 	}
 

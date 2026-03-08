@@ -14,7 +14,7 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 	if p.ChapterNumberEnd != nil {
 		endCh = *p.ChapterNumberEnd
 	}
-	startV, endV := 1, 9999
+	startV, endV := 0, 9999
 	if p.VerseStart != nil {
 		startV = *p.VerseStart
 	}
