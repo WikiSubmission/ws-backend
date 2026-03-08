@@ -34,32 +34,24 @@ type WordRow struct {
 func (db *DB) FetchVersesWithTranslations(ctx context.Context, startCh, endCh, startV, endV int, langs []string) ([]VerseRow, error) {
 	query := `
         SELECT 
-            c.chapter_number, 
-            COALESCE(ct.title, '') as chapter_title,
-            v.verse_index, 
-            l.id as lang_id, 
-            l.code as lang_code, 
-            l.direction,
-            vt.content as verse_content, 
-            vt.subtitle as verse_subtitle, 
-            vt.footer as verse_footer
+            c.chapter_number, COALESCE(ct.title, '') as chapter_title, v.verse_index, 
+            l.id as lang_id, l.code as lang_code, l.direction,
+            vt.content as verse_content, vt.subtitle as verse_subtitle, vt.footer as verse_footer
         FROM verses v
         JOIN chapters c ON v.chapter_id = c.id
         JOIN verse_text vt ON v.id = vt.verse_id
         JOIN languages l ON vt.lang_id = l.id
         LEFT JOIN chapter_text ct ON c.id = ct.chapter_id AND ct.lang_id = l.id
-        WHERE c.chapter_number >= $1 AND c.chapter_number <= $2
-          AND v.verse_index >= $3 AND v.verse_index <= $4
+        WHERE (c.chapter_number, v.verse_index) >= ($1, $3)
+          AND (c.chapter_number, v.verse_index) <= ($2, $4)
           AND l.code = ANY($5)
         ORDER BY c.chapter_number, v.verse_index, l.id;
     `
-
 	rows, err := db.Pool.Query(ctx, query, startCh, endCh, startV, endV, langs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	return pgx.CollectRows(rows, pgx.RowToStructByName[VerseRow])
 }
 
@@ -73,17 +65,15 @@ func (db *DB) FetchWordsForVerses(ctx context.Context, startCh, endCh, startV, e
         JOIN chapters c ON v.chapter_id = c.id
         JOIN word_text wt ON w.id = wt.word_id
         JOIN languages l ON wt.lang_id = l.id
-        WHERE c.chapter_number >= $1 AND c.chapter_number <= $2
-          AND v.verse_index >= $3 AND v.verse_index <= $4
+        WHERE (c.chapter_number, v.verse_index) >= ($1, $3) -- Corrected: Range logic
+          AND (c.chapter_number, v.verse_index) <= ($2, $4) -- Corrected: Range logic
           AND l.code = ANY($5)
         ORDER BY c.chapter_number, v.verse_index, w.word_index;
     `
-
 	rows, err := db.Pool.Query(ctx, query, startCh, endCh, startV, endV, langs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	return pgx.CollectRows(rows, pgx.RowToStructByName[WordRow])
 }

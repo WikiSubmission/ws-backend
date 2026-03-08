@@ -9,99 +9,81 @@ import (
 func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error) {
 	p := request.Params
 
-	// 1. Resolve Parameters
-	startCh := p.ChapterNumberStart
-	endCh := startCh
+	// 1. Parameter Resolution
+	startCh, endCh := p.ChapterNumberStart, p.ChapterNumberStart
 	if p.ChapterNumberEnd != nil {
 		endCh = *p.ChapterNumberEnd
 	}
-
-	startV := 1
+	startV, endV := 1, 9999
 	if p.VerseStart != nil {
 		startV = *p.VerseStart
 	}
-
-	endV := 9999
 	if p.VerseEnd != nil {
 		endV = *p.VerseEnd
 	}
-
 	rangeInfo := fmt.Sprintf("%d:%d - %d:%d", startCh, startV, endCh, endV)
 
-	// 2. Fetch from DB
+	if err := s.ValidateQuranRange(startCh, endCh, startV, endV); err != nil {
+		return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+	}
+
+	for _, l := range p.Langs {
+		if _, exists := s.Languages[l]; !exists {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: "Unsupported language: " + l}}, nil
+		}
+	}
+
+	// 2. Fetch Core Data
 	versesRaw, err := s.DB.FetchVersesWithTranslations(ctx, startCh, endCh, startV, endV, p.Langs)
 	if err != nil {
-		return GetQuran501JSONResponse{ // Using 501 or 500 based on your spec
-			NotImplementedErrorJSONResponse{
-				Message: "Database error: " + err.Error(),
-				Code:    "DATABASE_ERROR",
-			},
-		}, nil
+		return GetQuran501JSONResponse{NotImplementedErrorJSONResponse{Message: err.Error()}}, nil
 	}
 
-	if len(versesRaw) == 0 {
-		return GetQuran404JSONResponse{NotFoundJSONResponse{Message: "No verses found"}}, nil
-	}
-
-	// 3. Assemble Structure
 	chapterMap := make(map[int]*ChapterData)
 	verseRefMap := make(map[string]*VerseData)
 
+	// 3. First Pass: Build Chapters and Verses (Minified Fields)
 	for _, row := range versesRaw {
 		if _, ok := chapterMap[row.ChapterNumber]; !ok {
-			titles := make(map[string]string)
-			verses := []VerseData{}
-			chapterNum := row.ChapterNumber // Local copy to take address
+			chNum := row.ChapterNumber
 			chapterMap[row.ChapterNumber] = &ChapterData{
-				ChapterNumber: &chapterNum,
-				Titles:        &titles, // Corrected: Pointer to map
-				Verses:        &verses, // Corrected: Pointer to slice
+				Cn:     &chNum, // chapter_number -> Cn
+				Titles: &map[string]string{},
+				Verses: &[]VerseData{},
 			}
 		}
-		// Corrected: Dereference pointer to index map
 		(*chapterMap[row.ChapterNumber].Titles)[row.LangCode] = row.ChapterTitle
 
 		vKey := fmt.Sprintf("%d:%d", row.ChapterNumber, row.VerseIndex)
-
 		if _, ok := verseRefMap[vKey]; !ok {
-			vIdx := row.VerseIndex
-			vKeyStr := vKey
-			translations := []TranslationContent{}
-			vData := VerseData{
-				VerseIndex:   &vIdx,
-				VerseKey:     &vKeyStr,
-				Translations: &translations,
+			vIdx, vK := row.VerseIndex, vKey
+			verseRefMap[vKey] = &VerseData{
+				Vi: &vIdx,                            // verse_index -> Vi
+				Vk: &vK,                              // verse_key -> Vk
+				Tr: &map[string]TranslationContent{}, // translations -> Tr
 			}
-			verseRefMap[vKey] = &vData
-
-			// Append the verse to the chapter's slice
-			ch := chapterMap[row.ChapterNumber]
-			*ch.Verses = append(*ch.Verses, vData)
 		}
 
-		// Map translations
-		langID := row.LangID
-		langCode := row.LangCode
-		content := row.VerseContent
-		dir := TranslationContentDirection(row.Direction)
-
-		trans := TranslationContent{
-			LangId:    &langID,
-			LangCode:  &langCode,
-			Direction: &dir,
-			Text:      &content,
-			Subtitle:  row.VerseSubtitle,
-			Footer:    row.VerseFooter,
+		dir := TranslationContentD(row.Direction)
+		lID, lCode, content := row.LangID, row.LangCode, row.VerseContent
+		(*verseRefMap[vKey].Tr)[row.LangCode] = TranslationContent{
+			Li: &lID,              // lang_id -> Li
+			Lc: &lCode,            // lang_code -> Lc
+			D:  &dir,              // direction -> D
+			Tx: &content,          // text -> Tx
+			S:  row.VerseSubtitle, // subtitle -> S
+			F:  row.VerseFooter,   // footer -> F
 		}
-
-		// Corrected: Dereference pointer to append to slice
-		vData := verseRefMap[vKey]
-		*vData.Translations = append(*vData.Translations, trans)
 	}
 
-	// 4. Handle Words
+	// 4. Second Pass: Attach Words (Minified Fields)
 	if p.IncludeWords != nil && *p.IncludeWords {
-		wordsRaw, err := s.DB.FetchWordsForVerses(ctx, startCh, endCh, startV, endV, p.Langs)
+		wordLangs := p.Langs
+		if p.WordLangs != nil && len(*p.WordLangs) > 0 {
+			wordLangs = *p.WordLangs
+		}
+
+		wordsRaw, err := s.DB.FetchWordsForVerses(ctx, startCh, endCh, startV, endV, wordLangs)
 		if err == nil {
 			for _, wRow := range wordsRaw {
 				vKey := fmt.Sprintf("%d:%d", wRow.ChapterNumber, wRow.VerseIndex)
@@ -110,61 +92,69 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 					continue
 				}
 
-				if vData.Words == nil {
-					words := []WordData{}
-					vData.Words = &words
+				if vData.W == nil { // words -> W
+					vData.W = &[]WordData{}
 				}
 
 				var targetWord *WordData
-				for i := range *vData.Words {
-					if *(*vData.Words)[i].WordIndex == wRow.WordIndex {
-						targetWord = &(*vData.Words)[i]
+				for i := range *vData.W {
+					if (*vData.W)[i].Wi != nil && *(*vData.W)[i].Wi == wRow.WordIndex {
+						targetWord = &(*vData.W)[i]
 						break
 					}
 				}
 
 				if targetWord == nil {
-					wIdx := wRow.WordIndex
-					gIdx := wRow.GlobalIndex
-					textMap := make(map[string]string)
+					wIdx, gIdx := wRow.WordIndex, wRow.GlobalIndex
 					newWord := WordData{
-						WordIndex:   &wIdx,
-						GlobalIndex: &gIdx,
-						Text:        &textMap, // Pointer to map
-						Root:        wRow.WordRoot,
+						Wi: &wIdx,                // word_index -> Wi
+						Gi: &gIdx,                // global_index -> Gi
+						Tx: &map[string]string{}, // text -> Tx
 					}
-					*vData.Words = append(*vData.Words, newWord)
-					targetWord = &(*vData.Words)[len(*vData.Words)-1]
-				}
 
-				(*targetWord.Text)[wRow.LangCode] = wRow.WordText
+					if p.IncludeRoot != nil && *p.IncludeRoot {
+						newWord.R = wRow.WordRoot // root -> R
+					}
+
+					if p.IncludeMeaning != nil && *p.IncludeMeaning {
+						newWord.M = wRow.Meaning // meaning -> M
+					}
+
+					*vData.W = append(*vData.W, newWord)
+					targetWord = &(*vData.W)[len(*vData.W)-1]
+				}
+				(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
 			}
 		}
 	}
 
-	// 5. Finalize Response
+	// 5. Final Assembly
+	for vKey, vData := range verseRefMap {
+		var chNum int
+		fmt.Sscanf(vKey, "%d:", &chNum)
+		if ch, ok := chapterMap[chNum]; ok {
+			*ch.Verses = append(*ch.Verses, *vData)
+		}
+	}
+
+	// 6. Final Sort and Return
 	var finalChapters []ChapterData
 	for _, ch := range chapterMap {
-		// Sort verses inside the chapter
 		sort.Slice(*ch.Verses, func(i, j int) bool {
-			return *(*ch.Verses)[i].VerseIndex < *(*ch.Verses)[j].VerseIndex
+			return *(*ch.Verses)[i].Vi < *(*ch.Verses)[j].Vi
 		})
 		finalChapters = append(finalChapters, *ch)
 	}
-
 	sort.Slice(finalChapters, func(i, j int) bool {
-		return *finalChapters[i].ChapterNumber < *finalChapters[j].ChapterNumber
+		return *finalChapters[i].Cn < *finalChapters[j].Cn
 	})
 
 	count := len(verseRefMap)
 	return GetQuran200JSONResponse{
 		Info: &struct {
-			RequestedRange *string `json:"requested_range,omitempty"`
-			ResultsCount   *int    `json:"results_count,omitempty"`
-		}{
-			RequestedRange: &rangeInfo,
-			ResultsCount:   &count,
-		},
+			Rc *int    `json:"rc,omitempty"`
+			Rr *string `json:"rr,omitempty"`
+		}{Rc: &count, Rr: &rangeInfo}, // Note the swapped order
 		Chapters: &finalChapters,
 	}, nil
 }

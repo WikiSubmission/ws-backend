@@ -247,3 +247,9 @@ CREATE TABLE IF NOT EXISTS word_text_history (
         REFERENCES word_text(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS chapters_meta (
+    chapter_number INTEGER PRIMARY KEY,
+    verse_count INTEGER NOT NULL,
+    revelation_order INTEGER NOT NULL
+);

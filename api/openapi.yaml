@@ -60,6 +60,14 @@ paths:
             items:
               type: string
           description: List of languages to include in the response.
+        - name: word_langs
+          in: query
+          explode: true 
+          schema:
+            type: array
+            items:
+              type: string
+          description: Languages for word-level text (e.g., only "ar").
         - name: include_words
           in: query
           schema:
@@ -283,15 +291,14 @@ paths:
 
 components:
   schemas:
-    # Top-level response wrapper
     QuranResponse:
       type: object
       properties:
         info:
           type: object
           properties:
-            requested_range: { type: string, example: "1:1-7" }
-            results_count: { type: integer }
+            rr: { type: string, example: "1:1-7", description: "requested_range" }
+            rc: { type: integer, description: "results_count" }
         chapters:
           type: array
           items:
@@ -300,8 +307,7 @@ components:
     ChapterData:
       type: object
       properties:
-        chapter_number: { type: integer }
-        # Map of languages for the title (e.g., "en": "The Opening")
+        cn: { type: integer, description: "chapter_number" }
         titles:
           type: object
           additionalProperties:
@@ -314,46 +320,44 @@ components:
     VerseData:
       type: object
       properties:
-        verse_index: { type: integer }
-        verse_key: { type: string, example: "1:1" }
-        # Supporting multiple languages at once
-        translations:
-          type: array
-          items:
+        vi: { type: integer, description: "verse_index" }
+        vk: { type: string, example: "1:1", description: "verse_key" }
+        tr:
+          type: object
+          description: "translations"
+          additionalProperties:
             $ref: '#/components/schemas/TranslationContent'
-        # Optional word-by-word array
-        words:
+        w:
           type: array
+          description: "words"
           items:
             $ref: '#/components/schemas/WordData'
 
     TranslationContent:
       type: object
       properties:
-        lang_id: { type: integer }
-        lang_code: { type: string }
-        direction: { type: string, enum: [ltr, rtl] }
-        text: { type: string }
-        subtitle: { type: string, nullable: true }
-        footer: { type: string, nullable: true }
+        li: { type: integer, description: "lang_id" }
+        lc: { type: string, description: "lang_code" }
+        d: { type: string, enum: [ltr, rtl], description: "direction" }
+        tx: { type: string, description: "text" }
+        s: { type: string, nullable: true, description: "subtitle" }
+        f: { type: string, nullable: true, description: "footer" }
 
     WordData:
       type: object
       properties:
-        word_index: { type: integer }
-        global_index: { type: integer }
-        # Map of languages for the word text/root
-        text:
+        wi: { type: integer, description: "word_index" }
+        gi: { type: integer, description: "global_index" }
+        tx:
           type: object
+          description: "text"
           additionalProperties:
             type: string
-        root:
-          type: string
           nullable: true
-        # Placeholder for future expansion (audio, grammar, etc)
-        metadata:
-          type: object
-          nullable: true
+        r: { type: string, nullable: true, description: "root" }
+        m: { type: string, nullable: true, description: "meaning" }
+        meta: { type: object, nullable: true, description: "metadata" }
+
     TranslationStatus:
       type: string
       enum: [draft, published, archived]
@@ -361,14 +365,14 @@ components:
       type: object
       properties:
         id: { type: integer }
-        archived_at: { type: string, format: date-time }
-        content: { type: string }
+        at: { type: string, format: date-time, description: "archived_at" }
+        tx: { type: string, description: "text/content" }
     VerseTextDraft:
       type: object
       properties:
-        verse_id: { type: integer }
-        lang_id: { type: integer }
-        content: { type: string }
+        vi: { type: integer, description: "verse_id" }
+        li: { type: integer, description: "lang_id" }
+        tx: { type: string, description: "text/content" }
   responses:
     Conflict:
       content:

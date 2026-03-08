@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	middleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
@@ -29,6 +30,7 @@ func StartServer(database *db.DB) {
 
 	p := ginprometheus.NewPrometheus("gin")
 	p.Use(r)
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	proxiesEnv := os.Getenv("TRUSTED_PROXIES")
 	if proxiesEnv != "" {
@@ -133,6 +135,8 @@ func StartServer(database *db.DB) {
 	handlers.RegisterHandlersWithOptions(r, strictHandler, handlers.GinServerOptions{
 		BaseURL: apiPrefix,
 	})
+
+	serverImpl.InitializeCaches(context.Background())
 
 	// Debug registered routes
 	for _, route := range r.Routes() {

@@ -2,12 +2,57 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
+type LanguageCache struct {
+	ID        int
+	Code      string
+	Direction string
+}
+
+type ChapterCache struct {
+	VerseCount      int
+	RevelationOrder int
+}
+
 type Server struct {
-	DB *db.DB
+	DB        *db.DB
+	Languages map[string]LanguageCache
+	Chapters  map[int]ChapterCache
+}
+
+func (s *Server) InitializeCaches(ctx context.Context) error {
+	// 1. Load Languages
+	langs, err := s.DB.FetchAllLanguages(ctx)
+	if err != nil {
+		return fmt.Errorf("lang cache: %w", err)
+	}
+
+	s.Languages = make(map[string]LanguageCache)
+	for _, l := range langs {
+		s.Languages[l.Code] = LanguageCache{
+			ID: l.ID, Code: l.Code, Direction: l.Direction,
+		}
+	}
+
+	// 2. Load Chapter Metadata
+	meta, err := s.DB.FetchAllChapterMeta(ctx)
+	if err != nil {
+		return fmt.Errorf("chapter cache: %w", err)
+	}
+
+	s.Chapters = make(map[int]ChapterCache)
+	for _, m := range meta {
+		s.Chapters[m.ChapterNumber] = ChapterCache{
+			VerseCount:      m.VerseCount,
+			RevelationOrder: m.RevelationOrder,
+		}
+	}
+
+	return nil
 }
 
 // 1. List all verse drafts

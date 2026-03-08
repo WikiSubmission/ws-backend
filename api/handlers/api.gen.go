@@ -22,14 +22,14 @@ import (
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
-// Defines values for TranslationContentDirection.
+// Defines values for TranslationContentD.
 const (
-	Ltr TranslationContentDirection = "ltr"
-	Rtl TranslationContentDirection = "rtl"
+	Ltr TranslationContentD = "ltr"
+	Rtl TranslationContentD = "rtl"
 )
 
-// Valid indicates whether the value is a known member of the TranslationContentDirection enum.
-func (e TranslationContentDirection) Valid() bool {
+// Valid indicates whether the value is a known member of the TranslationContentD enum.
+func (e TranslationContentD) Valid() bool {
 	switch e {
 	case Ltr:
 		return true
@@ -63,65 +63,107 @@ func (e TranslationStatus) Valid() bool {
 
 // ChapterData defines model for ChapterData.
 type ChapterData struct {
-	ChapterNumber *int               `json:"chapter_number,omitempty"`
-	Titles        *map[string]string `json:"titles,omitempty"`
-	Verses        *[]VerseData       `json:"verses,omitempty"`
+	// Cn chapter_number
+	Cn     *int               `json:"cn,omitempty"`
+	Titles *map[string]string `json:"titles,omitempty"`
+	Verses *[]VerseData       `json:"verses,omitempty"`
 }
 
 // QuranResponse defines model for QuranResponse.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
 	Info     *struct {
-		RequestedRange *string `json:"requested_range,omitempty"`
-		ResultsCount   *int    `json:"results_count,omitempty"`
+		// Rc results_count
+		Rc *int `json:"rc,omitempty"`
+
+		// Rr requested_range
+		Rr *string `json:"rr,omitempty"`
 	} `json:"info,omitempty"`
 }
 
 // TranslationContent defines model for TranslationContent.
 type TranslationContent struct {
-	Direction *TranslationContentDirection `json:"direction,omitempty"`
-	Footer    *string                      `json:"footer,omitempty"`
-	LangCode  *string                      `json:"lang_code,omitempty"`
-	LangId    *int                         `json:"lang_id,omitempty"`
-	Subtitle  *string                      `json:"subtitle,omitempty"`
-	Text      *string                      `json:"text,omitempty"`
+	// D direction
+	D *TranslationContentD `json:"d,omitempty"`
+
+	// F footer
+	F *string `json:"f,omitempty"`
+
+	// Lc lang_code
+	Lc *string `json:"lc,omitempty"`
+
+	// Li lang_id
+	Li *int `json:"li,omitempty"`
+
+	// S subtitle
+	S *string `json:"s,omitempty"`
+
+	// Tx text
+	Tx *string `json:"tx,omitempty"`
 }
 
-// TranslationContentDirection defines model for TranslationContent.Direction.
-type TranslationContentDirection string
+// TranslationContentD direction
+type TranslationContentD string
 
 // TranslationStatus defines model for TranslationStatus.
 type TranslationStatus string
 
 // VerseData defines model for VerseData.
 type VerseData struct {
-	Translations *[]TranslationContent `json:"translations,omitempty"`
-	VerseIndex   *int                  `json:"verse_index,omitempty"`
-	VerseKey     *string               `json:"verse_key,omitempty"`
-	Words        *[]WordData           `json:"words,omitempty"`
+	// Tr translations
+	Tr *map[string]TranslationContent `json:"tr,omitempty"`
+
+	// Vi verse_index
+	Vi *int `json:"vi,omitempty"`
+
+	// Vk verse_key
+	Vk *string `json:"vk,omitempty"`
+
+	// W words
+	W *[]WordData `json:"w,omitempty"`
 }
 
 // VerseTextDraft defines model for VerseTextDraft.
 type VerseTextDraft struct {
-	Content *string `json:"content,omitempty"`
-	LangId  *int    `json:"lang_id,omitempty"`
-	VerseId *int    `json:"verse_id,omitempty"`
+	// Li lang_id
+	Li *int `json:"li,omitempty"`
+
+	// Tx text/content
+	Tx *string `json:"tx,omitempty"`
+
+	// Vi verse_id
+	Vi *int `json:"vi,omitempty"`
 }
 
 // VerseTextHistory defines model for VerseTextHistory.
 type VerseTextHistory struct {
-	ArchivedAt *time.Time `json:"archived_at,omitempty"`
-	Content    *string    `json:"content,omitempty"`
-	Id         *int       `json:"id,omitempty"`
+	// At archived_at
+	At *time.Time `json:"at,omitempty"`
+	Id *int       `json:"id,omitempty"`
+
+	// Tx text/content
+	Tx *string `json:"tx,omitempty"`
 }
 
 // WordData defines model for WordData.
 type WordData struct {
-	GlobalIndex *int                    `json:"global_index,omitempty"`
-	Metadata    *map[string]interface{} `json:"metadata,omitempty"`
-	Root        *string                 `json:"root,omitempty"`
-	Text        *map[string]string      `json:"text,omitempty"`
-	WordIndex   *int                    `json:"word_index,omitempty"`
+	// Gi global_index
+	Gi *int `json:"gi,omitempty"`
+
+	// M meaning
+	M *string `json:"m,omitempty"`
+
+	// Meta metadata
+	Meta *map[string]interface{} `json:"meta,omitempty"`
+
+	// R root
+	R *string `json:"r,omitempty"`
+
+	// Tx text
+	Tx *map[string]string `json:"tx,omitempty"`
+
+	// Wi word_index
+	Wi *int `json:"wi,omitempty"`
 }
 
 // BadRequest defines model for BadRequest.
@@ -168,10 +210,14 @@ type GetQuranParams struct {
 	VerseStart         *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
 	VerseEnd           *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Langs List of language IDs to include in the response.
-	Langs        []string `form:"langs" json:"langs"`
-	IncludeWords *bool    `form:"include_words,omitempty" json:"include_words,omitempty"`
-	IncludeRoot  *bool    `form:"include_root,omitempty" json:"include_root,omitempty"`
+	// Langs List of languages to include in the response.
+	Langs []string `form:"langs" json:"langs"`
+
+	// WordLangs Languages for word-level text (e.g., only "ar").
+	WordLangs      *[]string `form:"word_langs,omitempty" json:"word_langs,omitempty"`
+	IncludeWords   *bool     `form:"include_words,omitempty" json:"include_words,omitempty"`
+	IncludeRoot    *bool     `form:"include_root,omitempty" json:"include_root,omitempty"`
+	IncludeMeaning *bool     `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
 }
 
 // CreateVerseDraftJSONRequestBody defines body for CreateVerseDraft for application/json ContentType.
@@ -459,6 +505,14 @@ func (siw *ServerInterfaceWrapper) GetQuran(c *gin.Context) {
 		return
 	}
 
+	// ------------- Optional query parameter "word_langs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "word_langs", c.Request.URL.Query(), &params.WordLangs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter word_langs: %w", err), http.StatusBadRequest)
+		return
+	}
+
 	// ------------- Optional query parameter "include_words" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_words", c.Request.URL.Query(), &params.IncludeWords, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
@@ -472,6 +526,14 @@ func (siw *ServerInterfaceWrapper) GetQuran(c *gin.Context) {
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_root", c.Request.URL.Query(), &params.IncludeRoot, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter include_root: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "include_meaning" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_meaning", c.Request.URL.Query(), &params.IncludeMeaning, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter include_meaning: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -1370,40 +1432,42 @@ func (sh *strictHandler) GetQuran(ctx *gin.Context, params GetQuranParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+xZUXPjthH+Kxi0j7R0vqTTVE+9Ozupp5eLe3aTh8TjWRFLETEI8ICFbI1H/70DgKQo",
-	"k5Klcx/uwU+mRWKx+PbD7ofFI89NVRuNmhyfPXKLrjbaYfznPYjP+MWjo/BfbjShjo9Q10rmQNLo6Z/O",
-	"6PCby0usIDzV1tRoSSYjFToHCwyPtKqRz7gjK/WCr9cZt/jFS4uCz37vPrzJ2g/N/E/Mia/DlwJdbmUd",
-	"puQzfl0ic2iXaFluvBJMG2JeC7SOQAtGJTKbXGfCIyPDpF6CkoK5lSZ4mLBgIlcSNTFXRhuVEbJYbY2N",
-	"tuyKwQKknvB1xj8YXSiZf5OItF5vIJkjC/FVSChaIIDlzRrYvaQyrjf31kYkCAiZKRoQnPE2xwn7jM6o",
-	"JaZP28FDbC40odWgrmJkzq21xn7DzEGdGx9cRsFAM6/xocY8IJUbLWQYwKgEYrXFJerwQhIrrKlY4VUh",
-	"lZJ60adLAKo2luJv0rmEd/jH+Tq9QKiYLIKdGq2TjlxE7pOhH43X4lveZ6ADowq5vb1Q9HgSPkctaiM1",
-	"sQpWgX/tvjN2i1TxtTZMGb0IsXiQjlooLgJjq4j4+Qs5lBsRIcEHCEb5jH/65fr24ufLj+c/n3+6Pj/j",
-	"2VO4sj6Um3HXpXSbxUmX0g0TuERl6uDtZGhrB/RZ8uvIfY2ChaXFhQcHQjhWSExu4JrEKRMYcf0fSqgJ",
-	"7RnQGDjp5a321RxtjzlSEy7QBixIkkpfg0h7AtTllpUBfE/WlPEl2qaiSMIqPvzVYsFn/C/TTfmZNm5P",
-	"fw2fR483xsBaWMXFDaz/x1vQn5u6tXORh0/fh2zgQMalLsxwli5Etxb0U+qczk5P/j5GNIvOK3K3MQ+N",
-	"4T9c7xgC1xa0U5EXHzbbZNtBIS3miVOPHLWvAh8VWZ5xS6pHxY13hTGUaKG9UjAPayHrceRTBXpx2+61",
-	"8bdSjBPM+Xnk2EHzED7QeIbbB8oVAXnXX7iwUBDPeO3nSroSBc842LyUSxSjWGw4OUCWNhMdTrKRkI1w",
-	"LW6cW6kFPoyDlz64w9WAcGN0uzdWHO7ib8aKw3dhBOgaH+gsQjuSiDtiHsePBgNx2PboOfIv6cjY1dCV",
-	"NtC3EN0pjK3CExdAeEKywjHs9vl/uHMdpgOnFsrMQe2LdYUEohm7Y6NsJrLG0FE76uuze2DVbr/XozWu",
-	"TaIBVUhiGiuQis/an/55L++k8/NKOieNnhgbZ98uju+Y8KBOam9r45C9u7yIaiXIMnAMWCkX5UmNNoZY",
-	"B9HhFckg2zwoFgsHswihjkc5C0EAL8LwhQ1yjBWNauntcYZCkrESFLs39q5Q5n7yh+ZNpeQz/pu8k1ed",
-	"480s7yG/Qx3STOBz8v508iYsydSooZZ8xr+bvJl8F7ISUBnBn6a5pjFduWncCidtxBYY/2wj8hnJSlwi",
-	"A6akoyDl02BWSJWk7nwVZb53Qa90guJC8Bn/KB2lTBfHRFcsVJjq5++PXIY5vni0K55xDVWiRsyuWU+D",
-	"HZj5mry8Xt9k2wfPt2/eDJf2y78DWt+nV2MzdCamvYNrHPL980M6BR4H/OP5Ad1BcJ3xvx3i1OjpKA4+",
-	"Pci9gSqOUs9XFYQkF2PHQCkWWdJEPdASFiF2/DxSid+sM14bN0KdCy0psDq3mIhuCgbJTtwHwFyNuSxk",
-	"3kwRdkxI3R4WOOTSh2AGN2ziWSuS3huxOkrSPysWN3VnvS25Q9JbD8h1Olx88la8MmwPwxJGDJjG+62M",
-	"2KqpAdXW2e4UNn2UYp0CoZBwGJJLDEkbNTGLlVmC6hFySLezaOUJ3Y6I+tsUwu33yegrK/ax4ky6HKxo",
-	"IzOecfbXqlBhC68UE0gglUuBdlIvVJPIQtGS5NjF2TDyPyHtC/vOSvKaB74y4j8h9YvBnrA/UQ/DzsbF",
-	"WdtsbK1EhREE0EZgSMGf5vS+2BgozpuooPJypMRRJM4S1Yr5Ouj9hl5NKRqS67/xqyP5lQaJV5K9gGQJ",
-	"w31ZpVdcynTUO0Qgfyit0UaZhcxBdRq5triUxjvWqHM3qnh25572rHmQYO5OtEexOhs31p6dj90hYyw+",
-	"WJAd3sbrH8SHfYTBge41M79o0/wq8Z6BF5KYMou++m9jsLVtmu7XmCgbPyK8S50T190XKRnKNz6k26Da",
-	"msoQuiapkknvd502L9P0HU927J4XF4PnE/aVz3N0LmiQFet6gpNXLr6Ai010n8vgX7wFva+d4a12DFhs",
-	"q4dUnS4TJuwqXam51NOpFXZnUcecDD+CRuOdWrE/dGrvmDp1uNi9seJkvjoJf5mxzBpDTABB6uQMcnzs",
-	"4RyW3LfvVG4dgaX/S6J/Yjg1k443k4pP69bXjj9k9u1IfmwqbRskdnHm0rV8rrxAJnV7PRgZFrIFPtQq",
-	"XikkyHZVP7cX3q5U7Wpkdj3t8fU2/t2m3nnfssACvCI+K0C5TWt1boxC0M9bjC3aowy+tGzvq9bbt2g7",
-	"S/NrutuR7n5Eysthnuqlvc+x0RzSXhgYvRg7Fl1aI3y8qWtu3nnGvVV8xkuiejadKpODKo2j2Q9vfng7",
-	"hVpOl6d8uON6hq6GhtxsGoZOhm32cWtXTWN8h6mmb77L3E0Hw8DLUCby7mLddS33Nuc2u6ZBb+hYc322",
-	"aVu2XfnN2KbgDMe+66RSrA+N+GdkIb8LWaKz0EnYm/X/AgAA//9t1iy3MiUAAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
