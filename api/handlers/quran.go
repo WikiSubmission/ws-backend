@@ -22,8 +22,8 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 		endV = *p.VerseEnd
 	}
 	rangeInfo := fmt.Sprintf("%d:%d - %d:%d", startCh, startV, endCh, endV)
-
-	if err := s.ValidateQuranRange(startCh, endCh, startV, endV); err != nil {
+	startCh, endCh, startV, endV, err := s.ValidateQuranRange(startCh, endCh, startV, endV)
+	if err != nil {
 		return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
 	}
 
