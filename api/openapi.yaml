@@ -297,8 +297,21 @@ components:
         info:
           type: object
           properties:
-            rr: { type: string, example: "1:1-7", description: "requested_range" }
-            rc: { type: integer, description: "results_count" }
+            chapter_start:
+              type: integer
+              description: "Starting chapter"
+            chapter_end:
+              type: integer
+              description: "Ending chapter"
+            verse_start:
+              type: integer
+              description: "Starting verse"
+            verse_end:
+              type: integer
+              description: "Ending verse"
+            result_count:
+              type: integer
+              description: "results_count" 
         chapters:
           type: array
           items:

@@ -21,7 +21,6 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 	if p.VerseEnd != nil {
 		endV = *p.VerseEnd
 	}
-	rangeInfo := fmt.Sprintf("%d:%d - %d:%d", startCh, startV, endCh, endV)
 	startCh, endCh, startV, endV, err := s.ValidateQuranRange(startCh, endCh, startV, endV)
 	if err != nil {
 		return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
@@ -150,11 +149,22 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 	})
 
 	count := len(verseRefMap)
+	info := &struct {
+		ChapterEnd   *int `json:"chapter_end,omitempty"`
+		ChapterStart *int `json:"chapter_start,omitempty"`
+		ResultCount  *int `json:"result_count,omitempty"`
+		VerseEnd     *int `json:"verse_end,omitempty"`
+		VerseStart   *int `json:"verse_start,omitempty"`
+	}{
+		ChapterStart: &startCh,
+		ChapterEnd:   &endCh,
+		VerseStart:   &startV,
+		VerseEnd:     &endV,
+		ResultCount:  &count,
+	}
+
 	return GetQuran200JSONResponse{
-		Info: &struct {
-			Rc *int    `json:"rc,omitempty"`
-			Rr *string `json:"rr,omitempty"`
-		}{Rc: &count, Rr: &rangeInfo}, // Note the swapped order
 		Chapters: &finalChapters,
+		Info:     info,
 	}, nil
 }

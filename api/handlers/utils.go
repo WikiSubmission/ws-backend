@@ -6,37 +6,41 @@ func (s *Server) ValidateQuranRange(sCh, eCh, sV, eV int) (int, int, int, int, e
 	// Check Chapter bounds
 	startMeta, sExists := s.Chapters[sCh]
 	endMeta, eExists := s.Chapters[eCh]
-	outsCh, outeCh, outsV, outeV := 0, 0, 0, 0
-	err := ""
-
 	if !sExists || !eExists {
-		return outsCh, outeCh, outsV, outeV, fmt.Errorf("invalid chapter range: %d-%d", sCh, eCh)
+		return 0, 0, 0, 0, fmt.Errorf("invalid chapter range: %d-%d", sCh, eCh)
 	}
 
-	// Validate Verses
-	if sV < 0 {
-		outsV = 0
-		err = fmt.Sprintf("%s, chapter %d only has %d verses", err, sCh, startMeta.VerseCount)
+	// Default full chapter behavior
+	if sV <= 0 {
+		sV = 1
 	}
+
+	if eV == 9999 {
+		eV = endMeta.VerseCount
+	}
+
+	// Clamp verses to valid range
 	if sV > startMeta.VerseCount {
-		outsV = startMeta.VerseCount
-		err = fmt.Sprintf("%s, chapter %d only has %d verses", err, sCh, startMeta.VerseCount)
+		sV = startMeta.VerseCount
 	}
 
-	if eV != 9999 {
-		if eV < 0 {
-			outeV = 0
-			err = fmt.Sprintf("%s, chapter %d only has %d verses", err, sCh, endMeta.VerseCount)
-		}
-		if eV > endMeta.VerseCount {
-			outeV = startMeta.VerseCount
-			err = fmt.Sprintf("%s, chapter %d only has %d verses", err, sCh, endMeta.VerseCount)
-		}
+	if eV > endMeta.VerseCount {
+		eV = endMeta.VerseCount
 	}
 
+	if eV < 1 {
+		eV = 1
+	}
+
+	// Fix inverted verse ranges
 	if sCh == eCh && eV < sV {
-		err = fmt.Sprintf("%s, end verse cannot be less than start verse", err)
+		sV, eV = eV, sV
 	}
 
-	return outsCh, outeCh, outsV, outeV, fmt.Errorf("%s", err)
+	// Fix inverted chapter ranges
+	if eCh < sCh {
+		sCh, eCh = eCh, sCh
+	}
+
+	return sCh, eCh, sV, eV, nil
 }
