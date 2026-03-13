@@ -34,7 +34,7 @@ tidy:
 ## generate: Regenerate OpenAPI types from api/openapi.yaml
 ##           Must be run from the workspace root.
 generate:
-	@go tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+	@go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
 
 ## seed: One-time data migration from legacy Supabase schema
 seed:

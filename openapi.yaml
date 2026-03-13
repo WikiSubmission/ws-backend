@@ -11,10 +11,8 @@ info:
 servers:
   - url: http://localhost:8082/api/v1
     description: Development server
-  - url: https://api.wikisubmission.org/v1
+  - url: https://ws-backend.wikisubmission.org/api/v1
     description: Production Server
-  - url: https://staging.wikisubmission.org/v1
-    description: Staging Server
 
 tags:
   - name: Reader
