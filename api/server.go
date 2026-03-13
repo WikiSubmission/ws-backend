@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	middleware "github.com/oapi-codegen/gin-middleware"
@@ -29,6 +30,31 @@ func StartServer(database *db.DB) {
 
 	// gin.New() instead of gin.Default() to avoid double-adding Recovery.
 	r := gin.New()
+
+	originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
+	allowedOrigins := []string{"*"} // Default fallback
+
+	// If the env var is set and not empty, split it into a slice
+	if originsEnv != "" {
+		allowedOrigins = strings.Split(originsEnv, ",")
+		// Clean up whitespace in case of "https://a.com, https://b.com"
+		for i := range allowedOrigins {
+			allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
+		}
+		slog.Info("CORS configured with specific origins", "origins", allowedOrigins)
+	} else {
+		slog.Warn("CORS_ALLOWED_ORIGINS not set; defaulting to '*' (Permissive)")
+	}
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(SupportHEAD)
@@ -208,7 +234,7 @@ func StartServer(database *db.DB) {
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,  // prevent Slowloris attacks
+		ReadHeaderTimeout: 5 * time.Second, // prevent Slowloris attacks
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second, // generous for large /quran responses
 		IdleTimeout:       60 * time.Second,
