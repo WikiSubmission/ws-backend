@@ -1,21 +1,70 @@
 include .env
 export
 
-# PostgreSQL Command Utility
-# We use 'sudo -u postgres' to ensure we have permission to create users/DBs
 PSQL=sudo -u postgres psql
-GO_FILES=$(wildcard api/*.go)
+BIN=bin/server
 
-.PHONY: db-setup db-drop db-rebuild run tidy clean seed source-import source-cleanup
+.PHONY: run build test tidy generate seed \
+        db-setup db-drop db-rebuild \
+        source-import source-cleanup \
+        docker-build docker-run clean
 
-## db-setup: Create user, database, and set permissions
+# ---------------------------------------------------------------------------
+# Development
+# ---------------------------------------------------------------------------
+
+## run: Start the API in development mode (pretty slog output)
+run:
+	@APP_ENV=development go run ./api/
+
+## build: Compile a static binary to bin/server
+build:
+	@mkdir -p bin
+	@CGO_ENABLED=0 go build -trimpath -ldflags="-w -s" -o $(BIN) ./api/
+	@echo "Binary written to $(BIN)"
+
+## test: Run all tests (DB tests require a live DATABASE_NAME env var)
+test:
+	@go test ./...
+
+## tidy: Tidy the single root module
+tidy:
+	@go mod tidy
+
+## generate: Regenerate OpenAPI types from api/openapi.yaml
+##           Must be run from the workspace root.
+generate:
+	@go tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+
+## seed: One-time data migration from legacy Supabase schema
+seed:
+	@go run api/cmd/seed.go
+
+# ---------------------------------------------------------------------------
+# Docker
+# ---------------------------------------------------------------------------
+
+## docker-build: Build the production Docker image
+docker-build:
+	@docker build -t ws-backend:latest .
+
+## docker-run: Run the container locally (reads .env for DB vars)
+docker-run: docker-build
+	@docker run --rm -p 8080:8080 \
+		--env-file .env \
+		-e APP_ENV=production \
+		ws-backend:latest
+
+# ---------------------------------------------------------------------------
+# Database management (local / CI)
+# ---------------------------------------------------------------------------
+
+## db-setup: Create PostgreSQL user, database, and grant permissions
 db-setup:
 	@echo "Creating user $(DATABASE_USER)..."
 	@$(PSQL) -c "CREATE USER $(DATABASE_USER) WITH PASSWORD '$(DATABASE_PASSWORD)';" || echo "User already exists."
-	
 	@echo "Creating database $(DATABASE_NAME)..."
 	@$(PSQL) -c "CREATE DATABASE $(DATABASE_NAME) OWNER $(DATABASE_USER);" || echo "Database already exists."
-	
 	@echo "Granting permissions..."
 	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON DATABASE $(DATABASE_NAME) TO $(DATABASE_USER);"
 	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT USAGE, CREATE ON SCHEMA public TO $(DATABASE_USER);"
@@ -25,23 +74,19 @@ db-setup:
 	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $(DATABASE_USER);"
 	@echo "Database setup complete."
 
-## source-import: Import the raw Supabase dumps into the public schema
+## source-import: Load raw Supabase dumps into the public schema
 source-import:
-	@echo "Creating temporary source schema..."
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/source_schema.sql
-	@echo "Importing source data from Supabase dumps..."
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_chapters_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_index_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_text_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_subtitles_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_footnotes_rows.sql
 	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_word_by_word_rows.sql
-	@echo "Granting select on source tables to $(DATABASE_USER)..."
 	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
 
-## source-cleanup: Drop temporary source tables and remove local assets
+## source-cleanup: Drop temporary source tables and remove local asset files
 source-cleanup:
-	@echo "Dropping temporary source tables from database..."
 	@$(PSQL) -d $(DATABASE_NAME) -c "DROP TABLE IF EXISTS \
 		public.ws_quran_chapters, \
 		public.ws_quran_index, \
@@ -49,47 +94,24 @@ source-cleanup:
 		public.ws_quran_subtitles, \
 		public.ws_quran_word_by_word, \
 		public.ws_quran_footnotes CASCADE;"
-	@echo "Removing local source_data files..."
 	@rm -rf assets/source_data
-	@echo "Cleanup complete."
+	@echo "Source cleanup complete."
 
-## db-drop: Remove the database and user
+## db-drop: Remove the database and user entirely
 db-drop:
-	@echo "Dropping database $(DATABASE_NAME)..."
 	@$(PSQL) -c "DROP DATABASE IF EXISTS $(DATABASE_NAME);"
-	@echo "Dropping user $(DATABASE_USER)..."
 	@$(PSQL) -c "DROP USER IF EXISTS $(DATABASE_USER);"
 	@echo "Database and user removed."
 
-## db-rebuild: Drop and setup again
+## db-rebuild: Full local rebuild (drop → setup → import → seed → cleanup)
 db-rebuild: db-drop db-setup source-import seed source-cleanup
-	@echo "Full rebuild complete. Data migrated and normalized."
+	@echo "Full rebuild complete."
 
-tidy:
-	@echo "Tidying modules..."
-	@go work sync
-	@cd api && go mod tidy
-	@cd db && go mod tidy
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
 
-## run: Run the API in development mode with pretty logs
-run:
-	@echo "Starting API in development mode..."
-	@APP_ENV=development go run $(GO_FILES)
-
-## build: Compile the binary
-build:
-	@echo "Building binary..."
-	@go build -o bin/api api/*.go
-
-## clean: Remove binaries and cache
+## clean: Remove compiled binaries and Go build cache
 clean:
 	@rm -rf bin/
 	@go clean -cache
-
-## generate: Generate openapi types 
-generate:
-	@oapi-codegen --config=api/oapi-codegen.yaml api/openapi.yaml
-
-## seed: Seed data 
-seed:
-	@go run api/cmd/seed.go

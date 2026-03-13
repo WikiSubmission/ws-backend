@@ -23,15 +23,13 @@ func main() {
 		handler = slog.NewJSONHandler(os.Stdout, nil)
 	} else {
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
-			Level: slog.LevelDebug,
+			Level:      slog.LevelDebug,
 			TimeFormat: "15:04:05",
 		})
 	}
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-
-	
 
 	database, err := db.DbSetup()
 	if err != nil {

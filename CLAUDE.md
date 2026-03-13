@@ -6,13 +6,15 @@ WikiSubmission Quran Backend — a Go monorepo API for multilingual Quran readin
 
 ## Architecture
 
-### Go Workspace (`go.work`)
+### Single Go Module
 
-Three modules, all on Go 1.26:
+One module (`github.com/wikiSubmission/ws-backend`) at the repo root, with three packages:
 
 - `api/` — Gin HTTP server, OpenAPI handlers, route registration
 - `db/` — PostgreSQL layer (pgx/v5), migrations, row structs
 - `auth/` — Authentication module (stub, not yet implemented)
+
+There is no `go.work` workspace — all packages share a single `go.mod` at the repo root.
 
 ### Request Flow
 
@@ -39,14 +41,17 @@ api/server.go (Gin + OAP validator) → handlers/Server.method() → db.DB.Query
 
 ### Regenerate API types and server stubs
 
+Always run from the **repo root** (not from `api/`):
+
 ```bash
-cd api
-go generate ./...
+make generate
 # or directly:
-go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
+go tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
 ```
 
 Config (`api/oapi-codegen.yaml`) generates: strict server, gin server, models, embedded spec → `api/handlers/api.gen.go`.
+
+> Running from `api/` would write output relative to that directory (`api/api/handlers/api.gen.go`) — wrong path.
 
 **Never hand-edit `api/handlers/api.gen.go`** — it is always overwritten on regeneration.
 
@@ -88,7 +93,7 @@ Caches are populated at startup by `InitializeCaches()` — no live DB calls for
 ### Adding a new endpoint
 
 1. Add the path/operation to `api/openapi.yaml`
-2. Regenerate: `go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml`
+2. Regenerate: `make generate` (from repo root)
 3. Implement the generated interface method in `api/handlers/`
 4. The strict handler signature is always:
 
@@ -143,20 +148,18 @@ JSON keys are intentionally minified (bandwidth optimisation):
 ## Running Locally
 
 ```bash
-# From repo root (uses go.work)
-cd api && go run .
-
-# Seed the database (one-time migration from legacy schema)
-cd api && go run ./cmd/seed.go
+# From repo root
+make run      # start API server
+make seed     # one-time data migration from legacy schema
 ```
 
 ## Testing
 
 ```bash
-cd db && go test ./...
+make test     # runs go test ./...
 ```
 
-DB tests (`db/db_test.go`) require a live database connection.
+DB tests (`db/db_test.go`) require a live database connection (`DATABASE_NAME` env var must be set).
 
 ## Module Boundaries
 

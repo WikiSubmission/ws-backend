@@ -1,4 +1,4 @@
-module github.com/wikiSubmission/ws-backend/api
+module github.com/wikiSubmission/ws-backend
 
 go 1.26.0
 
@@ -11,7 +11,6 @@ require (
 	github.com/lmittmann/tint v1.1.3
 	github.com/oapi-codegen/gin-middleware v1.0.2
 	github.com/oapi-codegen/runtime v1.2.0
-	github.com/wikiSubmission/ws-backend/db v0.0.0-20260305045627-dd3fcaaf70ba
 	github.com/zsais/go-gin-prometheus v1.0.3
 )
 
