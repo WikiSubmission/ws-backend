@@ -1,4 +1,5 @@
-.env
+*.env*
 .42c*
 .vscode*
 .DS_Store
+quran_backup.dump

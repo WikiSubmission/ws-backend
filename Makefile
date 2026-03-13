@@ -1,7 +1,22 @@
 include .env
 export
 
-PSQL=sudo -u postgres psql
+
+ifneq ($(DATABASE_URL),)
+    PSQL_CONN=$(DATABASE_URL)
+    # Extract the base connection without the DB name for setup/drop tasks
+    # This replaces the DB name at the end with 'postgres'
+    PSQL_MAINT=$(shell echo $(DATABASE_URL) | sed 's/\/[^/]*$$/\/postgres/')
+else
+    PSQL_BASE=postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)
+    PSQL_CONN=$(PSQL_BASE)/$(DATABASE_NAME)
+    PSQL_MAINT=$(PSQL_BASE)/postgres
+endif
+# For general queries and imports
+PSQL=psql $(PSQL_CONN) --set ON_ERROR_STOP=1
+# For creating/dropping the database itself
+PSQL_ADMIN=psql $(PSQL_MAINT) --set ON_ERROR_STOP=1
+
 BIN=bin/server
 
 .PHONY: run build test tidy generate seed \
@@ -61,50 +76,35 @@ docker-run: docker-build
 
 ## db-setup: Create PostgreSQL user, database, and grant permissions
 db-setup:
-	@echo "Creating user $(DATABASE_USER)..."
-	@$(PSQL) -c "CREATE USER $(DATABASE_USER) WITH PASSWORD '$(DATABASE_PASSWORD)';" || echo "User already exists."
-	@echo "Creating database $(DATABASE_NAME)..."
-	@$(PSQL) -c "CREATE DATABASE $(DATABASE_NAME) OWNER $(DATABASE_USER);" || echo "Database already exists."
-	@echo "Granting permissions..."
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON DATABASE $(DATABASE_NAME) TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT USAGE, CREATE ON SCHEMA public TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $(DATABASE_USER);"
-	@$(PSQL) -d $(DATABASE_NAME) -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $(DATABASE_USER);"
+	@echo "Creating user and database via $(PSQL_MAINT)..."
+	@$(PSQL_ADMIN) -c "CREATE USER $(DATABASE_USER) WITH PASSWORD '$(DATABASE_PASSWORD)';" || echo "User already exists."
+	@$(PSQL_ADMIN) -c "CREATE DATABASE $(DATABASE_NAME) OWNER $(DATABASE_USER);" || echo "Database already exists."
+	@echo "Granting permissions on $(DATABASE_NAME)..."
+	@$(PSQL) -c "GRANT ALL PRIVILEGES ON DATABASE $(DATABASE_NAME) TO $(DATABASE_USER);"
+	@$(PSQL) -c "GRANT USAGE, CREATE ON SCHEMA public TO $(DATABASE_USER);"
 	@echo "Database setup complete."
 
-## source-import: Load raw Supabase dumps into the public schema
 source-import:
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/source_schema.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_chapters_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_index_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_text_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_subtitles_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_footnotes_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -f assets/source_data/ws_quran_word_by_word_rows.sql
-	@$(PSQL) -d $(DATABASE_NAME) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
+	@echo "Importing source data into $(DATABASE_NAME)..."
+	@$(PSQL) -f assets/source_data/source_schema.sql
+	@$(PSQL) -f assets/source_data/ws_quran_chapters_rows.sql
+	@$(PSQL) -f assets/source_data/ws_quran_footnotes_rows.sql
+	@$(PSQL) -f assets/source_data/ws_quran_index_rows.sql
+	@$(PSQL) -f assets/source_data/ws_quran_subtitles_rows.sql
+	@$(PSQL) -f assets/source_data/ws_quran_text_rows.sql
+	@$(PSQL) -f assets/source_data/ws_quran_word_by_word_rows.sql
+	@$(PSQL) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
 
-## source-cleanup: Drop temporary source tables and remove local asset files
-source-cleanup:
-	@$(PSQL) -d $(DATABASE_NAME) -c "DROP TABLE IF EXISTS \
-		public.ws_quran_chapters, \
-		public.ws_quran_index, \
-		public.ws_quran_text, \
-		public.ws_quran_subtitles, \
-		public.ws_quran_word_by_word, \
-		public.ws_quran_footnotes CASCADE;"
-	@rm -rf assets/source_data
-	@echo "Source cleanup complete."
-
-## db-drop: Remove the database and user entirely
 db-drop:
-	@$(PSQL) -c "DROP DATABASE IF EXISTS $(DATABASE_NAME);"
-	@$(PSQL) -c "DROP USER IF EXISTS $(DATABASE_USER);"
-	@echo "Database and user removed."
+	@echo "Dropping database $(DATABASE_NAME) via $(PSQL_MAINT)..."
+	@$(PSQL_ADMIN) -c "DROP DATABASE IF EXISTS $(DATABASE_NAME);"
+	@$(PSQL_ADMIN) -c "DROP USER IF EXISTS $(DATABASE_USER);"
+
+source-cleanup:
+	@$(PSQL) -c "DROP TABLE IF EXISTS public.ws_quran_chapters, public.ws_quran_index, ... CASCADE;"
 
 ## db-rebuild: Full local rebuild (drop → setup → import → seed → cleanup)
-db-rebuild: db-drop db-setup source-import seed source-cleanup
+db-rebuild: db-setup source-import seed source-cleanup
 	@echo "Full rebuild complete."
 
 # ---------------------------------------------------------------------------
