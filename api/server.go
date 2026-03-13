@@ -26,8 +26,10 @@ import (
 
 func StartServer(database *db.DB) {
 	swagger, _ := handlers.GetSwagger()
-	r := gin.Default()
 
+	// gin.New() instead of gin.Default() to avoid double-adding Recovery.
+	r := gin.New()
+	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(SupportHEAD)
 
@@ -35,6 +37,7 @@ func StartServer(database *db.DB) {
 	p.Use(r)
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
 
+	// Trusted proxies — must be set explicitly; default to none (no IP spoofing).
 	proxiesEnv := os.Getenv("TRUSTED_PROXIES")
 	if proxiesEnv != "" {
 		proxyList := strings.Split(proxiesEnv, ",")
@@ -42,11 +45,11 @@ func StartServer(database *db.DB) {
 		slog.Info("Trusted proxies configured", "proxies", proxyList)
 	} else {
 		r.SetTrustedProxies(nil)
-		slog.Warn("No trusted proxies set; trusting all (standard Gin default)")
+		slog.Warn("No TRUSTED_PROXIES set; all proxy headers will be ignored")
 	}
 
-	// Rate Limiting (5 req/sec per IP)
-	// limiter := tollbooth.NewLimiter(5, nil)
+	// Rate limiting — 20 req/s per IP across all API routes.
+	r.Use(RateLimitMiddleware(20))
 
 	// API Routes
 
@@ -149,6 +152,16 @@ func StartServer(database *db.DB) {
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
 
+	// Cache-Control for public reader endpoints. Quran/search responses are
+	// deterministic and immutable enough for a 1-hour CDN/browser cache.
+	r.Use(func(c *gin.Context) {
+		p := c.Request.URL.Path
+		if strings.HasSuffix(p, "/quran") || strings.HasSuffix(p, "/search") {
+			c.Header("Cache-Control", "public, max-age=3600")
+		}
+		c.Next()
+	})
+
 	// 4. Register handlers using the BaseURL
 	serverImpl := &handlers.Server{DB: database}
 	strictHandler := handlers.NewStrictHandler(serverImpl, nil)
@@ -175,8 +188,12 @@ func StartServer(database *db.DB) {
 	}
 	slog.Info("Starting API Server", "port", port)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%v", port),
-		Handler: r,
+		Addr:              fmt.Sprintf(":%v", port),
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,  // prevent Slowloris attacks
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second, // generous for large /quran responses
+		IdleTimeout:       60 * time.Second,
 	}
 
 	go func() {

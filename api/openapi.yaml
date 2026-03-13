@@ -95,10 +95,11 @@ paths:
         - name: q
           in: query
           required: true
-          description: Search query (min 2 characters). Supports quoted phrases and exclusions.
+          description: Search query (2–200 characters). Supports quoted phrases and exclusions.
           schema:
             type: string
             minLength: 2
+            maxLength: 200
         - name: langs
           in: query
           explode: true

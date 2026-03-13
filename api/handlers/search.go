@@ -12,9 +12,12 @@ import (
 func (s *Server) Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error) {
 	p := request.Params
 
-	// 1. Validate query
+	// 1. Validate query (belt-and-suspenders; schema also enforces these bounds)
 	if len(p.Q) < 2 {
 		return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be at least 2 characters"}}, nil
+	}
+	if len(p.Q) > 200 {
+		return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be 200 characters or fewer"}}, nil
 	}
 
 	// 2. Resolve and validate langs

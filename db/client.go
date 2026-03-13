@@ -109,9 +109,10 @@ func ConnectDB() (*DB, error) {
 	}
 
 	// Production connection pool tuning
-	config.MaxConns = 20 // Limits max concurrent DB connections
-	config.MinConns = 2  // Maintains warm connections for performance
-	config.MaxConnIdleTime = time.Minute * 5
+	config.MaxConns = 20                      // Limits max concurrent DB connections
+	config.MinConns = 2                       // Maintains warm connections for performance
+	config.MaxConnIdleTime = 5 * time.Minute  // Evict idle connections after 5 min
+	config.MaxConnLifetime = 30 * time.Minute // Recycle connections to avoid stale TCP/PgBouncer issues
 
 	// Set a 10-second timeout for the initial connection attempt and ping
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

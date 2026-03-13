@@ -27,16 +27,24 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 		return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
 	}
 
+	// Guard against excessively large range requests (max 20 chapters per call).
+	if endCh-startCh+1 > 20 {
+		return GetQuran400JSONResponse{BadRequestJSONResponse{
+			Message: fmt.Sprintf("chapter range too large (%d chapters); max 20 per request", endCh-startCh+1),
+		}}, nil
+	}
+
 	for _, l := range p.Langs {
 		if _, exists := s.Languages[l]; !exists {
-			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: "Unsupported language: " + l}}, nil
+			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: "unsupported language: " + l}}, nil
 		}
 	}
 
 	// 2. Fetch Core Data
 	versesRaw, err := s.DB.FetchVersesWithTranslations(ctx, startCh, endCh, startV, endV, p.Langs)
 	if err != nil {
-		return GetQuran501JSONResponse{NotImplementedErrorJSONResponse{Message: err.Error()}}, nil
+		slog.Error("FetchVersesWithTranslations failed", "error", err)
+		return GetQuran500JSONResponse{InternalServerErrrorJSONResponse{Message: "failed to fetch verses"}}, nil
 	}
 
 	chapterMap := make(map[int]*ChapterData)
