@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 )
 
@@ -124,13 +125,18 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 				}
 				(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
 			}
+		} else {
+			slog.Warn("Failed to fetch words for verses", "from", fmt.Sprintf("%d:%d", startCh, startV), "to", fmt.Sprintf("%d:%d", endCh, endV), "error", err)
 		}
 	}
 
 	// 5. Final Assembly
 	for vKey, vData := range verseRefMap {
 		var chNum int
-		fmt.Sscanf(vKey, "%d:", &chNum)
+		_, err := fmt.Sscanf(vKey, "%d:", &chNum)
+		if err != nil {
+			slog.Warn("Failed to parse verse key, skipping", "key", vKey, "error", err)
+		}
 		if ch, ok := chapterMap[chNum]; ok {
 			*ch.Verses = append(*ch.Verses, *vData)
 		}
@@ -149,22 +155,14 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 	})
 
 	count := len(verseRefMap)
-	info := &struct {
-		ChapterEnd   *int `json:"chapter_end,omitempty"`
-		ChapterStart *int `json:"chapter_start,omitempty"`
-		ResultCount  *int `json:"result_count,omitempty"`
-		VerseEnd     *int `json:"verse_end,omitempty"`
-		VerseStart   *int `json:"verse_start,omitempty"`
-	}{
-		ChapterStart: &startCh,
-		ChapterEnd:   &endCh,
-		VerseStart:   &startV,
-		VerseEnd:     &endV,
-		ResultCount:  &count,
-	}
-
 	return GetQuran200JSONResponse{
 		Chapters: &finalChapters,
-		Info:     info,
+		Info: &QuranResponseInfo{
+			ChapterStart: &startCh,
+			ChapterEnd:   &endCh,
+			VerseStart:   &startV,
+			VerseEnd:     &endV,
+			ResultCount:  &count,
+		},
 	}, nil
 }

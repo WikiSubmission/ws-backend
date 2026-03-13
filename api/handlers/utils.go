@@ -3,6 +3,11 @@ package handlers
 import "fmt"
 
 func (s *Server) ValidateQuranRange(sCh, eCh, sV, eV int) (int, int, int, int, error) {
+	// Fix inverted chapter ranges FIRST so verse clamping uses the correct metadata.
+	if eCh < sCh {
+		sCh, eCh = eCh, sCh
+	}
+
 	// Check Chapter bounds
 	startMeta, sExists := s.Chapters[sCh]
 	endMeta, eExists := s.Chapters[eCh]
@@ -32,14 +37,9 @@ func (s *Server) ValidateQuranRange(sCh, eCh, sV, eV int) (int, int, int, int, e
 		eV = 1
 	}
 
-	// Fix inverted verse ranges
+	// Fix inverted verse ranges (only meaningful within the same chapter)
 	if sCh == eCh && eV < sV {
 		sV, eV = eV, sV
-	}
-
-	// Fix inverted chapter ranges
-	if eCh < sCh {
-		sCh, eCh = eCh, sCh
 	}
 
 	return sCh, eCh, sV, eV, nil

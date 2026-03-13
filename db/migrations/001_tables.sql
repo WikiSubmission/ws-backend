@@ -22,7 +22,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS chapters (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    chapter_number int NOT NULL,
+    chapter_number int NOT NULL UNIQUE,
     verse_count int NOT NULL,
     revelation_order int NOT NULL
 );
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS chapter_text_history (
 
 CREATE TABLE IF NOT EXISTS verse_text_history (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    verse_text_id INT,
+    verse_text_id INT NOT NULL,
     verse_id INT NOT NULL,
     lang_id SMALLINT NOT NULL REFERENCES languages(id),
     content TEXT,
@@ -230,6 +230,7 @@ CREATE TABLE IF NOT EXISTS word_text_history (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     word_id INT NOT NULL,
     word_text_id INT NOT NULL,
+    lang_id SMALLINT NOT NULL REFERENCES languages(id),
     word TEXT,
     word_root TEXT,
     meaning TEXT,
@@ -246,10 +247,4 @@ CREATE TABLE IF NOT EXISTS word_text_history (
         FOREIGN KEY(word_text_id)
         REFERENCES word_text(id)
         ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS chapters_meta (
-    chapter_number INTEGER PRIMARY KEY,
-    verse_count INTEGER NOT NULL,
-    revelation_order INTEGER NOT NULL
 );

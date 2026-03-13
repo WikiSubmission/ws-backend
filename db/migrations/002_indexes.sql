@@ -15,13 +15,11 @@ CREATE INDEX IF NOT EXISTS idx_words_nav ON words(verse_id, word_index);
 -- Content indexes 
 -----------------------------------------
 
-CREATE INDEX IF NOT EXISTS idx_chapter_text_lang ON chapter_text(chapter_id,lang_id);
-CREATE INDEX IF NOT EXISTS idx_verse_text_lang ON verse_text(verse_id,lang_id);
-CREATE INDEX IF NOT EXISTS idx_word_text_lang ON word_text(word_id,lang_id);
+CREATE INDEX IF NOT EXISTS idx_chapter_text_lang ON chapter_text(chapter_id, lang_id);
+CREATE INDEX IF NOT EXISTS idx_verse_text_lang ON verse_text(verse_id, lang_id);
+CREATE INDEX IF NOT EXISTS idx_word_text_lang ON word_text(word_id, lang_id);
 
 -- for fetching chapter/verse/word text for the verse struct
-CREATE INDEX IF NOT EXISTS idx_verse_text_lookup ON verse_text(verse_id, lang_id);
-CREATE INDEX IF NOT EXISTS idx_word_text_lookup ON word_text(word_id, lang_id);
 CREATE INDEX IF NOT EXISTS idx_word_root_lookup ON word_text(word_root) WHERE word_root IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_word_meaning_lookup ON word_text(meaning) WHERE meaning IS NOT NULL;

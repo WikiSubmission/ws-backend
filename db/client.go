@@ -8,7 +8,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,12 +17,11 @@ import (
 type DB struct {
 	// Pool is the underlying PostgreSQL connection pool.
 	Pool *pgxpool.Pool
-	// isSyncing is an atomic flag used to prevent concurrent S3-to-DB sync operations.
-	isSyncing atomic.Bool
 }
 
 // migrationFiles embeds the SQL scripts from the /migrations directory into the binary.
 // This ensures that the migrations are always shipped with the application executable.
+//
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
@@ -81,7 +79,7 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	return nil
 }
 
-// ConnectDB builds a connection string from environment variables and 
+// ConnectDB builds a connection string from environment variables and
 // establishes a validated connection pool with production-optimized limits.
 func ConnectDB() (*DB, error) {
 	required := []string{
@@ -111,8 +109,8 @@ func ConnectDB() (*DB, error) {
 	}
 
 	// Production connection pool tuning
-	config.MaxConns = 20                   // Limits max concurrent DB connections
-	config.MinConns = 2                    // Maintains warm connections for performance
+	config.MaxConns = 20 // Limits max concurrent DB connections
+	config.MinConns = 2  // Maintains warm connections for performance
 	config.MaxConnIdleTime = time.Minute * 5
 
 	// Set a 10-second timeout for the initial connection attempt and ping
@@ -131,15 +129,15 @@ func ConnectDB() (*DB, error) {
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 
-	slog.Info("Successfully connected to database", 
-		"host", os.Getenv("DATABASE_DOMAIN"), 
+	slog.Info("Successfully connected to database",
+		"host", os.Getenv("DATABASE_DOMAIN"),
 		"db", os.Getenv("DATABASE_NAME"),
 	)
 
 	return &DB{Pool: pool}, nil
 }
 
-// Close gracefully shuts down the database connection pool, 
+// Close gracefully shuts down the database connection pool,
 // allowing existing queries to complete before closing.
 func (db *DB) Close() {
 	if db.Pool != nil {

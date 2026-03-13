@@ -1,3 +1,6 @@
+// Run from the workspace root: go tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+//go:generate go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
+
 package main
 
 import (
@@ -65,37 +68,56 @@ func StartServer(database *db.DB) {
 		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 	})
 	r.GET("/robots.txt", func(c *gin.Context) {
-		const robots = `User-agent: *
-		Allow: /
-		Allow: /explorer
-		Disallow: /file/
-		Disallow: /search
-		Disallow: /api/
-		Disallow: /file/private/`
-
-		c.String(200, robots)
+		c.String(http.StatusOK,
+			"User-agent: *\n"+
+				"\n"+
+				"# Public Quran reader API\n"+
+				"Allow: /api/v1/quran\n"+
+				"\n"+
+				"# Block all other API paths (editor, history, auth)\n"+
+				"Disallow: /api/\n"+
+				"\n"+
+				"# Block utility endpoints\n"+
+				"Disallow: /health\n"+
+				"Disallow: /ping\n"+
+				"\n"+
+				"# Allow everything else (UI routes)\n"+
+				"Allow: /\n",
+		)
 	})
 
 	r.GET("/sitemap.xml", func(c *gin.Context) {
 		c.Header("Content-Type", "application/xml")
 		c.Header("Cache-Control", "public, max-age=86400")
-
-		sitemap := `<?xml version="1.0" encoding="UTF-8"?>
-	<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-		<url>
-			<loc>https://library.wikisubmission.org/</loc>
-			<changefreq>daily</changefreq>
-			<priority>1.0</priority>
-		</url>
-		<url>
-			<loc>https://library.wikisubmission.org/explorer</loc>
-			<changefreq>hourly</changefreq>
-			<priority>0.8</priority>
-		</url>
-	</urlset>`
-
-		c.String(http.StatusOK, sitemap)
+		c.String(http.StatusOK,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
+				"<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"+
+				"  <url>\n"+
+				"    <loc>https://library.wikisubmission.org/</loc>\n"+
+				"    <changefreq>daily</changefreq>\n"+
+				"    <priority>1.0</priority>\n"+
+				"  </url>\n"+
+				"  <url>\n"+
+				"    <loc>https://library.wikisubmission.org/explorer</loc>\n"+
+				"    <changefreq>hourly</changefreq>\n"+
+				"    <priority>0.8</priority>\n"+
+				"  </url>\n"+
+				"  <url>\n"+
+				"    <loc>https://library.wikisubmission.org/library</loc>\n"+
+				"    <changefreq>weekly</changefreq>\n"+
+				"    <priority>0.7</priority>\n"+
+				"  </url>\n"+
+				"  <url>\n"+
+				"    <loc>https://library.wikisubmission.org/search</loc>\n"+
+				"    <changefreq>monthly</changefreq>\n"+
+				"    <priority>0.5</priority>\n"+
+				"  </url>\n"+
+				"</urlset>\n",
+		)
 	})
+	if len(swagger.Servers) <= 0 {
+		slog.Error("No servers block set in openapi.yaml, please set at least one.")
+	}
 
 	serverURL := swagger.Servers[0].URL
 
@@ -136,7 +158,10 @@ func StartServer(database *db.DB) {
 		BaseURL: apiPrefix,
 	})
 
-	serverImpl.InitializeCaches(context.Background())
+	if err := serverImpl.InitializeCaches(context.Background()); err != nil {
+		slog.Error("Cache initialization failed — server cannot serve requests", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// Debug registered routes
 	for _, route := range r.Routes() {

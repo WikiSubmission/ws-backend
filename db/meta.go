@@ -29,7 +29,7 @@ func (db *DB) FetchAllLanguages(ctx context.Context) ([]LanguageRow, error) {
 }
 
 func (db *DB) FetchAllChapterMeta(ctx context.Context) ([]ChapterMetaRow, error) {
-	query := `SELECT chapter_number, verse_count, revelation_order FROM chapters_meta ORDER BY chapter_number`
+	query := `SELECT chapter_number, verse_count, revelation_order FROM chapters ORDER BY chapter_number`
 	rows, err := db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, err

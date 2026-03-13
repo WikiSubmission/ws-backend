@@ -61,33 +61,66 @@ func (e TranslationStatus) Valid() bool {
 	}
 }
 
+// Defines values for SearchParamsScope.
+const (
+	Verses SearchParamsScope = "verses"
+	Words  SearchParamsScope = "words"
+)
+
+// Valid indicates whether the value is a known member of the SearchParamsScope enum.
+func (e SearchParamsScope) Valid() bool {
+	switch e {
+	case Verses:
+		return true
+	case Words:
+		return true
+	default:
+		return false
+	}
+}
+
 // ChapterData defines model for ChapterData.
 type ChapterData struct {
 	// Cn chapter_number
-	Cn     *int               `json:"cn,omitempty"`
+	Cn *int `json:"cn,omitempty"`
+
+	// Hits Number of matching verses in this chapter (search only).
+	Hits   *int               `json:"hits,omitempty"`
 	Titles *map[string]string `json:"titles,omitempty"`
-	Verses *[]VerseData       `json:"verses,omitempty"`
+
+	// Tm title_match — true when the chapter title matched the query (search only).
+	Tm     *bool        `json:"tm,omitempty"`
+	Verses *[]VerseData `json:"verses,omitempty"`
 }
 
 // QuranResponse defines model for QuranResponse.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
-	Info     *struct {
-		// ChapterEnd Ending chapter
-		ChapterEnd *int `json:"chapter_end,omitempty"`
 
-		// ChapterStart Starting chapter
-		ChapterStart *int `json:"chapter_start,omitempty"`
+	// Info Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+	Info *QuranResponseInfo `json:"info,omitempty"`
+}
 
-		// ResultCount results_count
-		ResultCount *int `json:"result_count,omitempty"`
+// QuranResponseInfo Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+type QuranResponseInfo struct {
+	ChapterEnd   *int `json:"chapter_end,omitempty"`
+	ChapterStart *int `json:"chapter_start,omitempty"`
+	Limit        *int `json:"limit,omitempty"`
+	Offset       *int `json:"offset,omitempty"`
 
-		// VerseEnd Ending verse
-		VerseEnd *int `json:"verse_end,omitempty"`
+	// Q The search query as submitted.
+	Q *string `json:"q,omitempty"`
 
-		// VerseStart Starting verse
-		VerseStart *int `json:"verse_start,omitempty"`
-	} `json:"info,omitempty"`
+	// ResultCount Number of matching verses in this response page.
+	ResultCount *int `json:"result_count,omitempty"`
+
+	// Scope Search scope used (verses or words).
+	Scope *string `json:"scope,omitempty"`
+
+	// Total Total matching results across all pages.
+	Total      *int `json:"total,omitempty"`
+	VerseEnd   *int `json:"verse_end,omitempty"`
+	VerseStart *int `json:"verse_start,omitempty"`
 }
 
 // TranslationContent defines model for TranslationContent.
@@ -97,6 +130,9 @@ type TranslationContent struct {
 
 	// F footer
 	F *string `json:"f,omitempty"`
+
+	// Hl Highlighted snippet with <b>…</b> tags around matching terms (search only).
+	Hl *string `json:"hl,omitempty"`
 
 	// Lc lang_code
 	Lc *string `json:"lc,omitempty"`
@@ -119,7 +155,10 @@ type TranslationStatus string
 
 // VerseData defines model for VerseData.
 type VerseData struct {
-	// Tr translations
+	// Sc Relevance score (search only).
+	Sc *float32 `json:"sc,omitempty"`
+
+	// Tr translations keyed by language code
 	Tr *map[string]TranslationContent `json:"tr,omitempty"`
 
 	// Vi verse_index
@@ -159,6 +198,9 @@ type WordData struct {
 	// Gi global_index
 	Gi *int `json:"gi,omitempty"`
 
+	// Hl Highlighted word text keyed by language code, with <b>…</b> tags (word search only).
+	Hl *map[string]string `json:"hl,omitempty"`
+
 	// M meaning
 	M *string `json:"m,omitempty"`
 
@@ -168,12 +210,24 @@ type WordData struct {
 	// R root
 	R *string `json:"r,omitempty"`
 
-	// Tx text
+	// Tx word text keyed by language code
 	Tx *map[string]string `json:"tx,omitempty"`
 
 	// Wi word_index
 	Wi *int `json:"wi,omitempty"`
 }
+
+// IncludeMeaningParam defines model for IncludeMeaningParam.
+type IncludeMeaningParam = bool
+
+// IncludeRootParam defines model for IncludeRootParam.
+type IncludeRootParam = bool
+
+// IncludeWordsParam defines model for IncludeWordsParam.
+type IncludeWordsParam = bool
+
+// WordLangsParam defines model for WordLangsParam.
+type WordLangsParam = []string
 
 // BadRequest defines model for BadRequest.
 type BadRequest struct {
@@ -219,15 +273,50 @@ type GetQuranParams struct {
 	VerseStart         *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
 	VerseEnd           *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Langs List of languages to include in the response.
+	// Langs Language codes to include (e.g. en, ar, fr).
 	Langs []string `form:"langs" json:"langs"`
 
-	// WordLangs Languages for word-level text (e.g., only "ar").
-	WordLangs      *[]string `form:"word_langs,omitempty" json:"word_langs,omitempty"`
-	IncludeWords   *bool     `form:"include_words,omitempty" json:"include_words,omitempty"`
-	IncludeRoot    *bool     `form:"include_root,omitempty" json:"include_root,omitempty"`
-	IncludeMeaning *bool     `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
+	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
+
+	// IncludeWords Include word-by-word breakdown for each verse.
+	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
+
+	// IncludeRoot Include Arabic root for each word (requires include_words).
+	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
+
+	// IncludeMeaning Include word meaning for each word (requires include_words).
+	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
 }
+
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	// Q Search query (min 2 characters). Supports quoted phrases and exclusions.
+	Q string `form:"q" json:"q"`
+
+	// Langs Language codes to search in. Omit for all languages.
+	Langs *[]string `form:"langs,omitempty" json:"langs,omitempty"`
+
+	// Scope Whether to search verse translations or word-level text.
+	Scope  *SearchParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
+	Limit  *int               `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int               `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
+
+	// IncludeWords Include word-by-word breakdown for each verse.
+	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
+
+	// IncludeRoot Include Arabic root for each word (requires include_words).
+	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
+
+	// IncludeMeaning Include word meaning for each word (requires include_words).
+	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
+}
+
+// SearchParamsScope defines parameters for Search.
+type SearchParamsScope string
 
 // CreateVerseDraftJSONRequestBody defines body for CreateVerseDraft for application/json ContentType.
 type CreateVerseDraftJSONRequestBody = VerseTextDraft
@@ -258,6 +347,9 @@ type ServerInterface interface {
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(c *gin.Context, params GetQuranParams)
+	// Full-text search across the Quran
+	// (GET /search)
+	Search(c *gin.Context, params SearchParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -556,6 +648,103 @@ func (siw *ServerInterfaceWrapper) GetQuran(c *gin.Context) {
 	siw.Handler.GetQuran(c, params)
 }
 
+// Search operation middleware
+func (siw *ServerInterfaceWrapper) Search(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	if paramValue := c.Query("q"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument q is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "langs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "langs", c.Request.URL.Query(), &params.Langs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter langs: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope", c.Request.URL.Query(), &params.Scope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "word_langs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "word_langs", c.Request.URL.Query(), &params.WordLangs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter word_langs: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "include_words" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_words", c.Request.URL.Query(), &params.IncludeWords, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter include_words: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "include_root" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_root", c.Request.URL.Query(), &params.IncludeRoot, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter include_root: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "include_meaning" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_meaning", c.Request.URL.Query(), &params.IncludeMeaning, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter include_meaning: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Search(c, params)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -591,6 +780,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/editor/history/verse-text", wrapper.GetVerseHistory)
 	router.POST(options.BaseURL+"/editor/publish/verse-text/:id", wrapper.PublishVerseText)
 	router.GET(options.BaseURL+"/quran", wrapper.GetQuran)
+	router.GET(options.BaseURL+"/search", wrapper.Search)
 }
 
 type BadRequestJSONResponse struct {
@@ -1176,6 +1366,54 @@ func (response GetQuran501JSONResponse) VisitGetQuranResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchRequestObject struct {
+	Params SearchParams
+}
+
+type SearchResponseObject interface {
+	VisitSearchResponse(w http.ResponseWriter) error
+}
+
+type Search200JSONResponse QuranResponse
+
+func (response Search200JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type Search400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response Search400JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type Search500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response Search500JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type Search501JSONResponse struct {
+	NotImplementedErrorJSONResponse
+}
+
+func (response Search501JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(501)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List all verse drafts
@@ -1202,6 +1440,9 @@ type StrictServerInterface interface {
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error)
+	// Full-text search across the Quran
+	// (GET /search)
+	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -1438,46 +1679,85 @@ func (sh *strictHandler) GetQuran(ctx *gin.Context, params GetQuranParams) {
 	}
 }
 
+// Search operation middleware
+func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
+	var request SearchRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Search(ctx, request.(SearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Search")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SearchResponseObject); ok {
+		if err := validResponse.VisitSearchResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"5rYrcei695vN/wMAAP//tcakFAgpAAA=",
+	"H4sIAAAAAAAC/+xaX3PbNhL/Kju8e3BmGMlOezM93culcdp6Lkl9ca55aDyeFbEUUYMADYCy1Yxm+iHu",
+	"M9wH6ye5AUCKlAlJdJKHPPjJFsld7J8fdheL/ZhkqqyUJGlNMvuYVKixJEva/zqTmagZvSaUXC7O3Tv3",
+	"mJHJNK8sVzKZtR/BrdIMyvAp5EoDYVaEp0eabmquyQAPH1+5x+bJJEkT7njc1KRXSZpILCmZJe1XDbck",
+	"TUxWUIlh8RxrYZNZjsJQmthV5UjmSglCmazXaSvRW6XsAZmfa5zzDLRS9guJ7Fh9orzv3QIjjPx0vnrq",
+	"ZZxrwmumbmUn+5K0oUMyek0eKqST7hXKxS4J3bsaFwSZYmS8RF5YQUsSYOnOwpGp54YsqByE45QCTRYT",
+	"UFKs4EOC+kPizUt3lVCMkpnVNcU1cZyvPI8tNbil0gO3kd9Y7eCz3iiEWuMqWTt9NJlKSUP++++RvaWb",
+	"mox1vzIlLUn/L1aV4Bk6Hae/Gafox956lVYVacsDk5KMwQVF1vfLeTixZPbr5sPLjVxq/htlNgi2bdZ3",
+	"BYEhvSQNmaoFA6ks1JKRNhYlA1sQ6CA6sJrAKuByiYIzMCtp8W4CjkUmOEkLpvA8SsV4vtqi9bz0CnCB",
+	"XE4+SGe0F0rmgmdfpU1auTujzB30ykqQJdaaAiFrdIBbbguvcVZr7W1h0ZLDYjCDUbXOaAJvySixpPBp",
+	"Sxyzzpm0pCWKC++dl1prpb9i9JDMVO1EJgYooZZ0V1HmbJUpybgjAFughUrTkqR7wS3kWpWQ1yLnQri4",
+	"3oOMM1WltPXPuDHB4u6HqavwgrAEnjs+FWnDjTWN7d4o+4OqJfuadxtKh6qcb28yYj2suM9JskpxaaHE",
+	"lcNgu/uU3gKWfy0VCCUXzht33NjOGGcOt6W3+svPxFHmQ+fHhO7QMU1myZuf312dvT5/9fL1yzfvXp4m",
+	"6TA89ozZ0b0ruOnU4yaEHWAuoKvKSTsZ8tph/DTI9cDdTQycal5xJ4BzyIos8M5cE79kMIbX/0WBlSV9",
+	"ijZmHDlMXFkguJJ1OSfdacSlpQVpZ56Ch+pom/CNJ3ARpESbFW57+PTrSgawzngNazgyhDorfKZ7Moku",
+	"YbkVQUZkYTeiON+SfVdOay2ZJjaSlj3fKy8g/PnHf8HlVLgtSIYA1wjovwpqUIC7T7g7Bd8UBmkSVN7K",
+	"vn/VlCez5C/TrracNh6a/uI+984ZZuWISv+uNcq3TaqO+DPIP375PjoGArhaI1eHWGyJdOYIDkt+1vDd",
+	"9s1rssjQIpD0W8pnH3R7LOckmIGjFpvGorZTkiwNEOsePAHUBJWqaoFuv8xXML1xS/8DGt+1vG5SsMqi",
+	"SEHwktsUVJ4bsimYTFUU4xMYuCiVxu1+RSGED+G8JXj8Ey9F/FWQLP7uZmjHELW9sgG2aMDU85JbHyAi",
+	"8U6TqYW98hnxUzZ2WzxChQuKb2hv1SHviyCnfwu1IQZHDe+mYDZPohJ710VUd487MYNeBjDTyhhAIbyE",
+	"Ji5igNJOH/aQFvsgBvp3GqURPl6/6NLXNnbYUAvGNWX+/zQhWZcucwjrYrG2opc0OnPkQya5UtbHb1kL",
+	"gXOxOUAMiIuIIX/ii0LwReGwbySvKmpKxg/18fE32dz/oT//+F/4PW0egMWFAdSumOncYEmX5l7w9Lvo",
+	"oGgiG4rmzjlXPn3GCPgOAs7isBx+buq5j/9j5LN3kRRDdzZaCOyDx4VFW3thWoczjbnjU9VzwU1BTn5n",
+	"P74kFsVAl0oGGDMRM74lQUuUGbnNp2mY23KlS7QOSUJhT6OmMHAK6X0Jel/SiGyMQeFju28MXNMqRGHR",
+	"P1cnEaMuIwgIW5dLRnfxnX+9i+aaVv4I3haBJ7OTGOxuh/RtV2FUHn6vNBtfBXhPv6M7e+oxMnD3QzfB",
+	"LhRP25o7ovEeM8cW2avGT9xYpVdDRTCSjdo9cOUxuQEpQ0tPLS+jUYHvCOkPVzymx8Z5A/kXESMthJqj",
+	"2APGEI5Hl72747ZvivlOU3z3pOMj+pHnNTqAd7aJlOBdF/NgeC3JYoxBqBPHrK+H5E1LcmRs/0Q/HLL9",
+	"GNlveTyq7MTOOnqcbIt4h2kM3SsqkQt31guP/nnLr7mvEI3hSk6Ujmj0HFiN4mlV60oZgufnZ7414PI7",
+	"GkAo+KJ4WpH2O9KllbIWlgvulBbgy3/QoZxHyQDBWFw46kWoFvKmQ9AL+0CMW6U5Cofl61yo2wC7kJ9n",
+	"yXt+zS82cjeLfI/ZtSviQsUWhD+ZHPtCuiKJFU9myTeT48k3LruiLbw/p2GtqU+7ZupD2VOfyt0+JhtL",
+	"oFZzWhIgCG58GzcQQ85FaCzNV76tVvuCc3N0P2PJLHnFjQ0Z29N4Ubq7hl8/Rvu8gdlWj3dklm3qi/X6",
+	"8l6r99nx8VC1n//lrPVteBVbYcNi2msVe5JvD5Nsul2e4O+HCTaN13Wa/G2MUNFepCc+GSXeoP/kmyp1",
+	"WaLLUt53/jDhUdJ43cESF853yUsPpeRynSaVMjZ2fcGtQ3WmKQBd5YCBj98HCKaijOc8a5ZwO6aNH0Ms",
+	"vXBsqENTEppOZOz3iq0e1Dw72Kvoyo71dnPLBbH1AFwnQ+WDtOwRYXsQFmwECJJutyJieyoYQG2d7g5h",
+	"04+crYMjBNnIKfycXMwmaUFTqZYoeoAcwu3Uc7kHtwd4/Vlw4fb7wPQRFftQccpNhpq1nolHnP25ymXY",
+	"vBYCGFnkwgRHGy4XoglkLmlxa+DsdOj5H8nuc/vOTPIYBz7R4z+S7SeDPW6/Vz0MO4Jnp+3lXsvFVxiu",
+	"AOpdibPkfkzvFxuDgvPSV1BZEUlx1gNnSWIFdeVOZw28mlQ0BNd//FcPxFcgYo8g+wyQBRvuiyq95FKE",
+	"s/qYAvlFoZVUQi14hmJTI1eallzVBprq3EQrnt2xp20WjCqYex2JB6A6jTPrWigP2yExFI8uyMbfIvU7",
+	"KdERj8fI/AU3zS+cbgFrxi0ItehX/60PtrZN08WNFWXxI8Lz0OYym/kMwV36prswfVFpVSpLpgmqVoX3",
+	"u06b52H5DU527J7PTgaHA/ZFnWVkjKtBVrDpbU8esfgZWGy8eyiC+3vQfe2MWksDCBrlwk8ChZu4CVyE",
+	"ARYTWjqVoM1Z1IDh7iFKUrURK49NVYWG2fZ0ntJhrpChxdDFGcR3378ZF9i3pxSaW7kvEeTvMQ6NpIez",
+	"6V8Wfjr9mNX3jh368bcwKnnkhwtJpoA6hVyPnS1sxwp3m3b0mGEah3rn7um9qcoRFMNh0fFE3UTseJqt",
+	"4d/Pzu6jByt2Z/DHqLgjKv5ANiuG4awXHcN0SRMdw+XGzvD4Qy2Ez9vtLUgzUxD6c43DffjbGiLyMxIo",
+	"BPiePXVdvH5Yzevff185rPmmYDdkwRGqxZXVi3ICF35CIkMJcwKJWqtbYm5/BwG2LkuHs8axgBtGL5ID",
+	"R8eL/iDJUcklPHMaaswcwZOeFje1ssSgKjQaMt4UdJeJ2hf5u2awb/ZGlpLLVyQXtkhmzyJXcYeDX+Mr",
+	"Lifwc8mb5qoQPS88LAh+WtDblvJ9QbZw+NiIN86FOywYBmui0+vJBvHtUMHmQbidvowaNWoAP50UXeXZ",
+	"cZqUeMdLt8TJsfvFZfMrHZ3wmhmn6Ap9lsdxlo955SvIK19F1N8Rp21B0NaXw/jvWHh5YiHwtJvwbaah",
+	"kzSptUhmSWFtNZtOhcpQFMrY2XfH3z2bYsWny5NkuPXPtWK1n+yCiyEjM5s60snwNjbO7aK5QN3Bqrlf",
+	"3cXucmOHgZTuOJFtRp3N5mq2tV+zZRvzDQVrRnq666329rajbQ4mQ9rnmyO1zyBNk8gFx+y6mRoIHDat",
+	"jsv1/wMAAP//9Y/k07Y1AAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
