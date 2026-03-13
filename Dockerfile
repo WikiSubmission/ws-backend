@@ -2,27 +2,22 @@
 
 # ---------------------------------------------------------------------------
 # Stage 1 — Build
-# Uses the full Go toolchain image; the workspace (go.work) covers all three
-# modules (api/, db/, auth/).
 # ---------------------------------------------------------------------------
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.26-bookworm AS builder
 
 WORKDIR /build
 
-# Copy workspace manifests first so Docker can cache the dependency download
+# Copy module manifests first so Docker can cache the dependency download
 # layer independently of source changes.
-COPY go.work go.work.sum ./
-COPY api/go.mod  api/go.sum  ./api/
-COPY db/go.mod   db/go.sum   ./db/
+COPY go.mod go.sum ./
 
 # Download all module dependencies (cached unless go.mod/go.sum change).
-RUN go work sync && \
-    cd api  && go mod download && \
-    cd ../db && go mod download
+RUN go mod download
 
 # Copy the rest of the source.
 COPY api/  ./api/
 COPY db/   ./db/
+COPY auth/ ./auth/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).
