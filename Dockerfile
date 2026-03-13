@@ -14,7 +14,6 @@ WORKDIR /build
 COPY go.work go.work.sum ./
 COPY api/go.mod  api/go.sum  ./api/
 COPY db/go.mod   db/go.sum   ./db/
-COPY auth/go.mod             ./auth/
 
 # Download all module dependencies (cached unless go.mod/go.sum change).
 RUN go work sync && \
@@ -24,7 +23,7 @@ RUN go work sync && \
 # Copy the rest of the source.
 COPY api/  ./api/
 COPY db/   ./db/
-COPY auth/ ./auth/
+
 
 # Produce a fully static binary (no CGO, no libc dependency).
 # -trimpath removes local file paths from stack traces.
