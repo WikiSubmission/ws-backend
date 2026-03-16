@@ -108,6 +108,24 @@ The production image uses `gcr.io/distroless/static-debian12:nonroot` — no she
 
 ## API Endpoints
 
+### `GET /api/v1/chapters`
+
+Returns chapter metadata (number, verse count, revelation order, title) for all 114 chapters in the requested language.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `lang` | `string` | No | Language code (default `en`) |
+
+### `GET /api/v1/appendices`
+
+Returns appendix entries (code, title, snippet) in the requested language.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `lang` | `string` | No | Language code (default `en`) |
+
+Both endpoints validate the `lang` code against the in-memory language cache and return `400` for unsupported languages.
+
 ### `GET /api/v1/quran`
 
 Fetch verses with translations and (optionally) word-by-word data.
@@ -115,8 +133,8 @@ Fetch verses with translations and (optionally) word-by-word data.
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `langs` | `[]string` | Yes | Language codes (e.g. `en`, `ar`) |
-| `chapter_start` | `integer` | No | Start chapter (1–114) |
-| `chapter_end` | `integer` | No | End chapter (1–114) |
+| `chapter_number_start` | `integer` | Yes | Start chapter (1–114) |
+| `chapter_number_end` | `integer` | No | End chapter (1–114) |
 | `verse_start` | `integer` | No | Start verse index |
 | `verse_end` | `integer` | No | End verse index |
 | `include_words` | `boolean` | No | Include word-by-word data |
@@ -135,7 +153,7 @@ Full-text search across all verse, word, and chapter title content.
 | `q` | `string` | Yes | Search query (2–200 chars) |
 | `langs` | `[]string` | No | Restrict to specific languages |
 | `scope` | `string` | No | `verses` (default) or `words` |
-| `limit` | `integer` | No | Max results (default 20) |
+| `limit` | `integer` | No | Max results (default 20, max 100) |
 | `offset` | `integer` | No | Pagination offset |
 | `include_words` | `boolean` | No | Include word-by-word data |
 | `word_langs` | `[]string` | No | Language codes for word data |
@@ -195,6 +213,8 @@ DATABASE_NAME=your_db go test ./db/...
 | `make db-rebuild` | Full rebuild: drop → setup → import → seed → cleanup |
 | `make source-import` | Load raw Supabase dumps into the database |
 | `make source-cleanup` | Drop temporary source tables and remove asset files |
+| `make seed-railway` | First-time seed of the Railway database (requires `DATABASE_URL` in `.env`) |
+| `make reseed-railway` | Re-seed Railway without dropping tables (truncates data, preserves schema) |
 | `make docker-build` | Build the production Docker image |
 | `make docker-run` | Build and run the container locally |
 | `make clean` | Remove compiled binaries and Go build cache |

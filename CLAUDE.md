@@ -41,17 +41,17 @@ api/server.go (Gin + OAP validator) → handlers/Server.method() → db.DB.Query
 
 ### Regenerate API types and server stubs
 
-Always run from the **repo root** (not from `api/`):
+Always run from the **repo root**:
 
 ```bash
 make generate
 # or directly:
-go tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
 ```
 
-Config (`api/oapi-codegen.yaml`) generates: strict server, gin server, models, embedded spec → `api/handlers/api.gen.go`.
+`oapi-codegen.yaml` and `openapi.yaml` are both at the repo root. Config generates: strict server, gin server, models, embedded spec → `api/handlers/api.gen.go`.
 
-> Running from `api/` would write output relative to that directory (`api/api/handlers/api.gen.go`) — wrong path.
+> Do NOT run from `api/` — the output path in the config is relative to CWD, which would write to `api/api/handlers/api.gen.go`.
 
 **Never hand-edit `api/handlers/api.gen.go`** — it is always overwritten on regeneration.
 
@@ -59,7 +59,7 @@ Config (`api/oapi-codegen.yaml`) generates: strict server, gin server, models, e
 
 ### Connection
 
-All config comes from env vars: `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_DOMAIN`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_SSL_MODE`.
+`DATABASE_URL` takes precedence if set (used by Railway). Otherwise falls back to individual vars: `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_DOMAIN`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_SSL_MODE`.
 
 ### Migrations
 
@@ -89,6 +89,8 @@ type Server struct {
 ```
 
 Caches are populated at startup by `InitializeCaches()` — no live DB calls for metadata.
+
+Handlers validate the `lang` param against `s.Languages` and return `400` for unknown codes. `FetchAllChapters` and `FetchAllAppendices` accept `langID int` (resolved from cache) instead of a lang code string, avoiding a JOIN on `languages` at query time.
 
 ### Adding a new endpoint
 
