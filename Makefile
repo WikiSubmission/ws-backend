@@ -3,25 +3,28 @@ export
 
 
 ifneq ($(DATABASE_URL),)
+    # Railway / remote: DATABASE_URL already contains superuser credentials.
     PSQL_CONN=$(DATABASE_URL)
-    # Extract the base connection without the DB name for setup/drop tasks
-    # This replaces the DB name at the end with 'postgres'
     PSQL_MAINT=$(shell echo $(DATABASE_URL) | sed 's/\/[^/]*$$/\/postgres/')
+    PSQL_ADMIN=psql $(PSQL_MAINT) --set ON_ERROR_STOP=1
 else
-    PSQL_BASE=postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)
-    PSQL_CONN=$(PSQL_BASE)/$(DATABASE_NAME)
-    PSQL_MAINT=$(PSQL_BASE)/postgres
+    # Local dev: app user for normal queries; OS postgres superuser for admin.
+    PSQL_ADMIN=sudo -u postgres psql --set ON_ERROR_STOP=1
 endif
-# For general queries and imports
-PSQL=psql $(PSQL_CONN) --set ON_ERROR_STOP=1
-# For creating/dropping the database itself
-PSQL_ADMIN=psql $(PSQL_MAINT) --set ON_ERROR_STOP=1
+# For general queries and imports: use PGPASSWORD so psql never prompts.
+PSQL=PGPASSWORD=$(DATABASE_PASSWORD) psql \
+    -U $(DATABASE_USER) \
+    -h $(DATABASE_DOMAIN) \
+    -p $(DATABASE_PORT) \
+    -d $(DATABASE_NAME) \
+    --set ON_ERROR_STOP=1
 
 BIN=bin/server
 
 .PHONY: run build test tidy generate seed \
         db-setup db-drop db-rebuild \
         source-import source-cleanup \
+        seed-railway reseed-railway \
         docker-build docker-run clean
 
 # ---------------------------------------------------------------------------
@@ -95,17 +98,85 @@ source-import:
 	@$(PSQL) -f assets/source_data/ws_quran_word_by_word_rows.sql
 	@$(PSQL) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
 
+## db-drop: Remove the database and user entirely
 db-drop:
 	@echo "Dropping database $(DATABASE_NAME) via $(PSQL_MAINT)..."
 	@$(PSQL_ADMIN) -c "DROP DATABASE IF EXISTS $(DATABASE_NAME);"
 	@$(PSQL_ADMIN) -c "DROP USER IF EXISTS $(DATABASE_USER);"
 
 source-cleanup:
-	@$(PSQL) -c "DROP TABLE IF EXISTS public.ws_quran_chapters, public.ws_quran_index, ... CASCADE;"
+	@$(PSQL) -d $(DATABASE_NAME) -c "DROP TABLE IF EXISTS \
+		public.ws_quran_chapters, \
+		public.ws_quran_index, \
+		public.ws_quran_text, \
+		public.ws_quran_subtitles, \
+		public.ws_quran_word_by_word, \
+		public.ws_quran_footnotes CASCADE;"
+	@rm -rf assets/source_data
+	@echo "Source cleanup complete."
+
 
 ## db-rebuild: Full local rebuild (drop → setup → import → seed → cleanup)
-db-rebuild: db-setup source-import seed source-cleanup
+db-rebuild: db-drop db-setup source-cleanup source-import seed
 	@echo "Full rebuild complete."
+
+# ---------------------------------------------------------------------------
+# Railway (remote) seeding — run locally, connects via DATABASE_URL
+# ---------------------------------------------------------------------------
+
+PSQL_REMOTE=psql $(DATABASE_URL) --set ON_ERROR_STOP=1
+
+## seed-railway: First-time seed of the Railway database.
+##               Set DATABASE_URL in .env to the Railway Postgres URL before running.
+seed-railway:
+	@test -n "$(DATABASE_URL)" || (echo "ERROR: DATABASE_URL is not set in .env" && exit 1)
+	@echo "Importing source data into Railway..."
+	@$(PSQL_REMOTE) -f assets/source_data/source_schema.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_chapters_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_footnotes_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_index_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_subtitles_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_text_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_word_by_word_rows.sql
+	@echo "Running seed migration against Railway..."
+	@DATABASE_URL=$(DATABASE_URL) go run api/cmd/seed.go
+	@echo "Cleaning up source tables on Railway..."
+	@$(PSQL_REMOTE) -c "DROP TABLE IF EXISTS \
+		public.ws_quran_chapters, \
+		public.ws_quran_index, \
+		public.ws_quran_text, \
+		public.ws_quran_subtitles, \
+		public.ws_quran_word_by_word, \
+		public.ws_quran_footnotes CASCADE;"
+	@echo "Railway seed complete."
+
+## reseed-railway: Re-seed Railway without dropping tables (truncates data only).
+##                 Use when seed failed mid-way or data needs to be refreshed.
+reseed-railway:
+	@test -n "$(DATABASE_URL)" || (echo "ERROR: DATABASE_URL is not set in .env" && exit 1)
+	@echo "Truncating app tables on Railway (schema preserved)..."
+	@$(PSQL_REMOTE) -c "TRUNCATE TABLE \
+		languages, chapters, verses, words, \
+		chapter_text, verse_text, word_text \
+		RESTART IDENTITY CASCADE;"
+	@echo "Re-importing source data..."
+	@$(PSQL_REMOTE) -f assets/source_data/source_schema.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_chapters_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_footnotes_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_index_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_subtitles_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_text_rows.sql
+	@$(PSQL_REMOTE) -f assets/source_data/ws_quran_word_by_word_rows.sql
+	@echo "Running seed migration against Railway..."
+	@DATABASE_URL=$(DATABASE_URL) go run api/cmd/seed.go
+	@$(PSQL_REMOTE) -c "DROP TABLE IF EXISTS \
+		public.ws_quran_chapters, \
+		public.ws_quran_index, \
+		public.ws_quran_text, \
+		public.ws_quran_subtitles, \
+		public.ws_quran_word_by_word, \
+		public.ws_quran_footnotes CASCADE;"
+	@echo "Railway reseed complete."
 
 # ---------------------------------------------------------------------------
 # Misc

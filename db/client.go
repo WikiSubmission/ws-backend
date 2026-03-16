@@ -81,27 +81,32 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 
 // ConnectDB builds a connection string from environment variables and
 // establishes a validated connection pool with production-optimized limits.
+// If DATABASE_URL is set it takes precedence over the individual DATABASE_* vars.
 func ConnectDB() (*DB, error) {
-	required := []string{
-		"DATABASE_USER", "DATABASE_PASSWORD", "DATABASE_DOMAIN",
-		"DATABASE_PORT", "DATABASE_NAME", "DATABASE_SSL_MODE",
-	}
+	var connStr string
 
-	for _, env := range required {
-		if os.Getenv(env) == "" {
-			slog.Error("Missing required database environment variable", "variable", env)
-			return nil, fmt.Errorf("missing required environment variable: %s", env)
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		connStr = url
+	} else {
+		required := []string{
+			"DATABASE_USER", "DATABASE_PASSWORD", "DATABASE_DOMAIN",
+			"DATABASE_PORT", "DATABASE_NAME", "DATABASE_SSL_MODE",
 		}
+		for _, env := range required {
+			if os.Getenv(env) == "" {
+				slog.Error("Missing required database environment variable", "variable", env)
+				return nil, fmt.Errorf("missing required environment variable: %s", env)
+			}
+		}
+		connStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+			os.Getenv("DATABASE_USER"),
+			os.Getenv("DATABASE_PASSWORD"),
+			os.Getenv("DATABASE_DOMAIN"),
+			os.Getenv("DATABASE_PORT"),
+			os.Getenv("DATABASE_NAME"),
+			os.Getenv("DATABASE_SSL_MODE"),
+		)
 	}
-
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASSWORD"),
-		os.Getenv("DATABASE_DOMAIN"),
-		os.Getenv("DATABASE_PORT"),
-		os.Getenv("DATABASE_NAME"),
-		os.Getenv("DATABASE_SSL_MODE"),
-	)
 
 	config, err := pgxpool.ParseConfig(connStr)
 	if err != nil {

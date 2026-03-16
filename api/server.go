@@ -170,12 +170,15 @@ func StartServer(database *db.DB) {
 	// match against the servers block. Behind a reverse proxy (Railway, etc.)
 	// c.Request.URL.Scheme and .Host are empty — kin-openapi returns 404 if it
 	// can't match any server URL.
+	isProd := appEnv == "production"
 	r.Use(func(c *gin.Context) {
 		if c.Request.URL.Scheme == "" {
 			if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
 				c.Request.URL.Scheme = proto
-			} else {
+			} else if isProd {
 				c.Request.URL.Scheme = "https"
+			} else {
+				c.Request.URL.Scheme = "http"
 			}
 		}
 		if c.Request.URL.Host == "" {
