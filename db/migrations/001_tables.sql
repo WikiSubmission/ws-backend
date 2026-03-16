@@ -248,3 +248,13 @@ CREATE TABLE IF NOT EXISTS word_text_history (
         REFERENCES word_text(id)
         ON DELETE CASCADE
 );
+
+-- Appendices 
+CREATE TABLE IF NOT EXISTS appendices (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
+    lang_id SMALLINT NOT NULL REFERENCES languages(id),
+    code SMALLINT,
+    title TEXT,
+    snippet TEXT,
+    CONSTRAINT appendices_lang_code_unique UNIQUE (lang_id, code)
+);

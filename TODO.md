@@ -1,0 +1,1 @@
+- how to cache the response of /chapters and /appendices? they rarely change 

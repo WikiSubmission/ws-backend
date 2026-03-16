@@ -79,6 +79,24 @@ func (e SearchParamsScope) Valid() bool {
 	}
 }
 
+// Appendix defines model for Appendix.
+type Appendix struct {
+	Code    *int    `json:"code,omitempty"`
+	Snippet *string `json:"snippet,omitempty"`
+	Title   *string `json:"title,omitempty"`
+}
+
+// AppendixMetadata defines model for AppendixMetadata.
+type AppendixMetadata = []Appendix
+
+// Chapter defines model for Chapter.
+type Chapter struct {
+	ChapterNumber   *int    `json:"chapter_number,omitempty"`
+	RevelationOrder *int    `json:"revelation_order,omitempty"`
+	Title           *string `json:"title,omitempty"`
+	VerseCount      *int    `json:"verse_count,omitempty"`
+}
+
 // ChapterData defines model for ChapterData.
 type ChapterData struct {
 	// Cn chapter_number
@@ -92,6 +110,9 @@ type ChapterData struct {
 	Tm     *bool        `json:"tm,omitempty"`
 	Verses *[]VerseData `json:"verses,omitempty"`
 }
+
+// ChapterMetadata defines model for ChapterMetadata.
+type ChapterMetadata = []Chapter
 
 // QuranResponse defines model for QuranResponse.
 type QuranResponse struct {
@@ -255,6 +276,16 @@ type NotImplementedError struct {
 	Message string `json:"message"`
 }
 
+// GetAppendicesParams defines parameters for GetAppendices.
+type GetAppendicesParams struct {
+	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
+// GetChaptersParams defines parameters for GetChapters.
+type GetChaptersParams struct {
+	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
 // ListVerseDraftsParams defines parameters for ListVerseDrafts.
 type ListVerseDraftsParams struct {
 	Status *TranslationStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -323,6 +354,12 @@ type CreateVerseDraftJSONRequestBody = VerseTextDraft
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// fetches appendix Metadata
+	// (GET /appendices)
+	GetAppendices(c *gin.Context, params GetAppendicesParams)
+	// fetches chapter Metadata
+	// (GET /chapters)
+	GetChapters(c *gin.Context, params GetChaptersParams)
 	// List all verse drafts
 	// (GET /editor/drafts/verse-text)
 	ListVerseDrafts(c *gin.Context, params ListVerseDraftsParams)
@@ -360,6 +397,58 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetAppendices operation middleware
+func (siw *ServerInterfaceWrapper) GetAppendices(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppendicesParams
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAppendices(c, params)
+}
+
+// GetChapters operation middleware
+func (siw *ServerInterfaceWrapper) GetChapters(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetChaptersParams
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetChapters(c, params)
+}
 
 // ListVerseDrafts operation middleware
 func (siw *ServerInterfaceWrapper) ListVerseDrafts(c *gin.Context) {
@@ -772,6 +861,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/appendices", wrapper.GetAppendices)
+	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
 	router.GET(options.BaseURL+"/editor/drafts/verse-text", wrapper.ListVerseDrafts)
 	router.POST(options.BaseURL+"/editor/drafts/verse-text", wrapper.CreateVerseDraft)
 	router.DELETE(options.BaseURL+"/editor/drafts/verse-text/:id", wrapper.DeleteVerseDraft)
@@ -802,6 +893,138 @@ type NotFoundJSONResponse struct {
 type NotImplementedErrorJSONResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+type GetAppendicesRequestObject struct {
+	Params GetAppendicesParams
+}
+
+type GetAppendicesResponseObject interface {
+	VisitGetAppendicesResponse(w http.ResponseWriter) error
+}
+
+type GetAppendices200JSONResponse AppendixMetadata
+
+func (response GetAppendices200JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAppendices400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetAppendices400JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAppendices404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAppendices404JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAppendices409JSONResponse struct{ ConflictJSONResponse }
+
+func (response GetAppendices409JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAppendices500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetAppendices500JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAppendices501JSONResponse struct {
+	NotImplementedErrorJSONResponse
+}
+
+func (response GetAppendices501JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(501)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChaptersRequestObject struct {
+	Params GetChaptersParams
+}
+
+type GetChaptersResponseObject interface {
+	VisitGetChaptersResponse(w http.ResponseWriter) error
+}
+
+type GetChapters200JSONResponse ChapterMetadata
+
+func (response GetChapters200JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChapters400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetChapters400JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChapters404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetChapters404JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChapters409JSONResponse struct{ ConflictJSONResponse }
+
+func (response GetChapters409JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChapters500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetChapters500JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChapters501JSONResponse struct {
+	NotImplementedErrorJSONResponse
+}
+
+func (response GetChapters501JSONResponse) VisitGetChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(501)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type ListVerseDraftsRequestObject struct {
@@ -1416,6 +1639,12 @@ func (response Search501JSONResponse) VisitSearchResponse(w http.ResponseWriter)
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// fetches appendix Metadata
+	// (GET /appendices)
+	GetAppendices(ctx context.Context, request GetAppendicesRequestObject) (GetAppendicesResponseObject, error)
+	// fetches chapter Metadata
+	// (GET /chapters)
+	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
 	// List all verse drafts
 	// (GET /editor/drafts/verse-text)
 	ListVerseDrafts(ctx context.Context, request ListVerseDraftsRequestObject) (ListVerseDraftsResponseObject, error)
@@ -1455,6 +1684,60 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetAppendices operation middleware
+func (sh *strictHandler) GetAppendices(ctx *gin.Context, params GetAppendicesParams) {
+	var request GetAppendicesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAppendices(ctx, request.(GetAppendicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAppendices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetAppendicesResponseObject); ok {
+		if err := validResponse.VisitGetAppendicesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetChapters operation middleware
+func (sh *strictHandler) GetChapters(ctx *gin.Context, params GetChaptersParams) {
+	var request GetChaptersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetChapters(ctx, request.(GetChaptersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetChapters")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetChaptersResponseObject); ok {
+		if err := validResponse.VisitGetChaptersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListVerseDrafts operation middleware
@@ -1709,55 +1992,58 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"eApt4+J6878AAAD//6kXaI2ENQAA",
+	"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",
+	"N5v/BAAA//9W1rlRgjwAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
