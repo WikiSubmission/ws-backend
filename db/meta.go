@@ -10,6 +10,7 @@ import (
 type LanguageRow struct {
 	ID        int    `db:"id"`
 	Code      string `db:"code"`
+	Name      string `db:"name"`
 	Direction string `db:"direction"`
 }
 
@@ -33,7 +34,7 @@ type ChapterRow struct {
 }
 
 func (db *DB) FetchAllLanguages(ctx context.Context) ([]LanguageRow, error) {
-	query := `SELECT id, code, direction FROM languages`
+	query := `SELECT id, code, name, direction FROM languages ORDER BY id`
 	rows, err := db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, err

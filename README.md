@@ -108,6 +108,19 @@ The production image uses `gcr.io/distroless/static-debian12:nonroot` — no she
 
 ## API Endpoints
 
+### `GET /api/v1/languages`
+
+Returns all supported languages with their ID, code, name, and text direction. Cached for 24 hours (`Cache-Control: public, max-age=86400`).
+
+No parameters. Response:
+
+```json
+[
+  { "id": 1, "code": "en", "name": "English", "direction": "ltr" },
+  { "id": 2, "code": "ar", "name": "Arabic",  "direction": "rtl" }
+]
+```
+
 ### `GET /api/v1/chapters`
 
 Returns chapter metadata (number, verse count, revelation order, title) for all 114 chapters in the requested language.

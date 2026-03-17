@@ -23,6 +23,24 @@ tags:
     description: Audit logs and version tracking
 
 paths:
+  /languages:
+    get:
+      tags: [Reader]
+      operationId: getLanguages
+      summary: List supported languages
+      description: Returns all languages supported by the API, including code, name, and text direction.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Language'
+        "500":
+          $ref: "#/components/responses/InternalServerErrror"
+
   /chapters:
     get:
       tags: [Reader]
@@ -580,6 +598,14 @@ components:
         vi: { type: integer, description: "verse_id" }
         li: { type: integer, description: "lang_id" }
         tx: { type: string, description: "text/content" }
+    Language:
+      type: object
+      properties:
+        id:        { type: integer }
+        code:      { type: string }
+        name:      { type: string }
+        direction: { type: string, enum: [ltr, rtl] }
+
     ChapterMetadata:
       type: array
       items: 

@@ -5,6 +5,28 @@ import (
 	"log/slog"
 )
 
+func (s *Server) GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error) {
+	data, err := s.DB.FetchAllLanguages(ctx)
+	if err != nil {
+		slog.Error("Failed to fetch languages", "error", err)
+		return GetLanguages500JSONResponse{
+			InternalServerErrrorJSONResponse{Message: "Internal Server Error"},
+		}, nil
+	}
+
+	result := make([]Language, len(data))
+	for i := range data {
+		result[i] = Language{
+			Id:        &data[i].ID,
+			Code:      &data[i].Code,
+			Name:      &data[i].Name,
+			Direction: (*LanguageDirection)(&data[i].Direction),
+		}
+	}
+
+	return GetLanguages200JSONResponse(result), nil
+}
+
 func (s *Server) GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error) {
 	langCode := "en"
 	if request.Params.Lang != nil {

@@ -205,6 +205,8 @@ func StartServer(database *db.DB) {
 		p := c.Request.URL.Path
 		if strings.HasSuffix(p, "/quran") || strings.HasSuffix(p, "/search") {
 			c.Header("Cache-Control", "public, max-age=3600")
+		} else if strings.HasSuffix(p, "/languages") || strings.HasSuffix(p, "/chapters") || strings.HasSuffix(p, "/appendices") {
+			c.Header("Cache-Control", "public, max-age=86400")
 		}
 		c.Next()
 	})
