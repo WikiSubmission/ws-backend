@@ -159,21 +159,24 @@ Max range: 20 chapters per request.
 
 ### `GET /api/v1/search`
 
-Full-text search across all verse, word, and chapter title content.
+Full-text search across all verse, word, and chapter title content. Also supports exact Arabic root lookup.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `q` | `string` | Yes | Search query (2–200 chars) |
+| `q` | `string` | Conditional | Search query (2–200 chars). Required unless `root` is provided. |
+| `root` | `string` | No | Arabic root (e.g. `رحم`). When set with `scope=words`, bypasses FTS and does exact `word_root` matching. Takes priority over `q`. |
 | `langs` | `[]string` | No | Restrict to specific languages |
 | `scope` | `string` | No | `verses` (default) or `words` |
 | `limit` | `integer` | No | Max results (default 20, max 100) |
 | `offset` | `integer` | No | Pagination offset |
 | `include_words` | `boolean` | No | Include word-by-word data |
 | `word_langs` | `[]string` | No | Language codes for word data |
-| `include_root` | `boolean` | No | Include Arabic root |
+| `include_root` | `boolean` | No | Include Arabic root in word results |
 | `include_meaning` | `boolean` | No | Include word meaning |
 
-Results include relevance scores (`sc`), highlighted snippets (`hl` with `<b>` tags), and a title-match flag (`tm`) when the chapter name matches.
+**FTS mode** (`q` provided): results include relevance scores (`sc`), highlighted snippets (`hl` with `<b>` tags), and a title-match flag (`tm`) when the chapter name matches.
+
+**Root mode** (`root` + `scope=words`): returns every occurrence of the root across all verses. `sc` is `1.0` for all results (no ranking). `hl` contains the plain word text.
 
 ### Utility Endpoints
 
