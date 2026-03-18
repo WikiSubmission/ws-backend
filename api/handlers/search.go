@@ -12,12 +12,15 @@ import (
 func (s *Server) Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error) {
 	p := request.Params
 
-	// 1. Validate query (belt-and-suspenders; schema also enforces these bounds)
-	if len(p.Q) < 2 {
-		return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be at least 2 characters"}}, nil
-	}
-	if len(p.Q) > 200 {
-		return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be 200 characters or fewer"}}, nil
+	// 1. Validate: q is required unless root is provided (root-based word lookup)
+	rootSearch := p.Root != nil && *p.Root != ""
+	if !rootSearch {
+		if p.Q == nil || len(*p.Q) < 2 {
+			return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be at least 2 characters (or provide root for root-based word search)"}}, nil
+		}
+		if len(*p.Q) > 200 {
+			return Search400JSONResponse{BadRequestJSONResponse{Message: "q must be 200 characters or fewer"}}, nil
+		}
 	}
 
 	// 2. Resolve and validate langs
@@ -61,28 +64,44 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		chapterMap  = make(map[int]*ChapterData)
 		verseRefMap = make(map[string]*VerseData)
 		searchErr   error
+		queryLabel  string // for logging
 	)
 
-	if scope == string(Words) {
-		// --- Word scope ---
+	if rootSearch {
+		// --- Root-based word lookup (exact match on word_root) ---
+		root := *p.Root
+		queryLabel = "root:" + root
 		go func() {
-			n, err := s.DB.CountSearchWords(ctx, p.Q, langs)
+			n, err := s.DB.CountSearchWordsByRoot(ctx, root, langs)
 			countCh <- countResult{n, err}
 		}()
-
-		wordRows, err := s.DB.SearchWords(ctx, p.Q, langs, limit, offset)
+		wordRows, err := s.DB.SearchWordsByRoot(ctx, root, langs, limit, offset)
+		searchErr = err
+		if err == nil {
+			searchErr = groupWordResults(wordRows, p, chapterMap, verseRefMap)
+		}
+	} else if scope == string(Words) {
+		// --- FTS word scope ---
+		q := *p.Q
+		queryLabel = q
+		go func() {
+			n, err := s.DB.CountSearchWords(ctx, q, langs)
+			countCh <- countResult{n, err}
+		}()
+		wordRows, err := s.DB.SearchWords(ctx, q, langs, limit, offset)
 		searchErr = err
 		if err == nil {
 			searchErr = groupWordResults(wordRows, p, chapterMap, verseRefMap)
 		}
 	} else {
-		// --- Verse scope (default) ---
+		// --- FTS verse scope (default) ---
+		q := *p.Q
+		queryLabel = q
 		go func() {
-			n, err := s.DB.CountSearchVerses(ctx, p.Q, langs)
+			n, err := s.DB.CountSearchVerses(ctx, q, langs)
 			countCh <- countResult{n, err}
 		}()
-
-		verseRows, err := s.DB.SearchVerses(ctx, p.Q, langs, limit, offset)
+		verseRows, err := s.DB.SearchVerses(ctx, q, langs, limit, offset)
 		searchErr = err
 		if err == nil {
 			groupVerseResults(verseRows, p, chapterMap, verseRefMap)
@@ -91,7 +110,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 
 	cr := <-countCh
 	if searchErr != nil {
-		slog.Error("search query failed", "scope", scope, "q", p.Q, "error", searchErr)
+		slog.Error("search query failed", "scope", scope, "q", queryLabel, "error", searchErr)
 		return Search500JSONResponse{InternalServerErrrorJSONResponse{Message: "search failed"}}, nil
 	}
 	if cr.err != nil {
@@ -133,7 +152,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 	resultCount := len(verseRefMap)
 	return Search200JSONResponse{
 		Info: &QuranResponseInfo{
-			Q:           &p.Q,
+			Q:           p.Q,
 			Scope:       &scope,
 			Total:       &total,
 			Limit:       &limit,

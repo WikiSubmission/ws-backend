@@ -171,12 +171,23 @@ paths:
       parameters:
         - name: q
           in: query
-          required: true
-          description: Search query (2–200 characters). Supports quoted phrases and exclusions.
+          required: false
+          description: >
+            Search query (2–200 characters). Supports quoted phrases and exclusions.
+            Optional when `root` is provided with scope=words.
           schema:
             type: string
             minLength: 2
             maxLength: 200
+        - name: root
+          in: query
+          required: false
+          description: >
+            Arabic root string (e.g. رحم). When provided with scope=words,
+            performs an exact match on word_root instead of full-text search.
+            Takes priority over q.
+          schema:
+            type: string
         - name: langs
           in: query
           explode: true

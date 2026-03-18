@@ -174,6 +174,58 @@ func (db *DB) SearchWords(ctx context.Context, query string, langs []string, lim
 	return pgx.CollectRows(rows, pgx.RowToStructByName[SearchWordRow])
 }
 
+// SearchWordsByRoot fetches all word occurrences whose word_root exactly equals
+// the given root string. No full-text scoring — all results have score 1.0.
+//
+// Pass nil for langs to return all languages.
+func (db *DB) SearchWordsByRoot(ctx context.Context, root string, langs []string, limit, offset int) ([]SearchWordRow, error) {
+	sql := `
+        SELECT
+            c.chapter_number,
+            v.verse_index,
+            w.word_index,
+            COALESCE(w.global_index, 0) AS global_index,
+            l.code  AS lang_code,
+            wt.word AS word_text,
+            wt.word_root,
+            wt.meaning,
+            1.0::real AS score,
+            wt.word  AS headline
+        FROM  word_text wt
+        JOIN  words    w  ON wt.word_id   = w.id
+        JOIN  verses   v  ON w.verse_id   = v.id
+        JOIN  chapters c  ON v.chapter_id = c.id
+        JOIN  languages l ON wt.lang_id   = l.id
+        WHERE wt.word_root = $1
+          AND ($2::text[] IS NULL OR l.code = ANY($2::text[]))
+        ORDER BY c.chapter_number, v.verse_index, w.word_index
+        LIMIT  $3
+        OFFSET $4
+	`
+	rows, err := db.Pool.Query(ctx, sql, root, langs, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[SearchWordRow])
+}
+
+// CountSearchWordsByRoot returns the total number of distinct words whose
+// word_root exactly equals root, for pagination metadata.
+func (db *DB) CountSearchWordsByRoot(ctx context.Context, root string, langs []string) (int, error) {
+	sql := `
+        SELECT COUNT(DISTINCT w.id)
+        FROM  word_text wt
+        JOIN  words    w  ON wt.word_id = w.id
+        JOIN  languages l ON wt.lang_id = l.id
+        WHERE wt.word_root = $1
+          AND ($2::text[] IS NULL OR l.code = ANY($2::text[]))
+	`
+	var count int
+	err := db.Pool.QueryRow(ctx, sql, root, langs).Scan(&count)
+	return count, err
+}
+
 // CountSearchWords returns the total number of distinct words matching the
 // query (across all requested languages), for pagination metadata.
 func (db *DB) CountSearchWords(ctx context.Context, query string, langs []string) (int, error) {
