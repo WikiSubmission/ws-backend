@@ -174,10 +174,13 @@ func StartServer(database *db.DB) {
 	r.Use(func(c *gin.Context) {
 		if c.Request.URL.Scheme == "" {
 			if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+				// Honour whatever the proxy (Cloudflare, Railway public proxy) says.
 				c.Request.URL.Scheme = proto
-			} else if isProd {
+			} else if isProd && !strings.Contains(c.Request.Host, ".railway.internal") {
+				// Public prod requests without a proxy header are still HTTPS.
 				c.Request.URL.Scheme = "https"
 			} else {
+				// Railway internal traffic (no proxy) and local dev are plain HTTP.
 				c.Request.URL.Scheme = "http"
 			}
 		}

@@ -9,10 +9,36 @@ info:
     email: contact@wikisubmission.org
 
 servers:
-  - url: http://localhost:8082/api/v1
+  - url: '{protocol}://{host}:{port}/api/v1'
+    description: Production server
+    variables:
+      protocol:
+        enum: [http, https]
+        default: https
+      host:
+        default: ws-backend.wikisubmission.org
+      port:
+        default: '443'
+  - url: '{protocol}://{host}:{port}/api/v1'
+    description: Internal production server (Railway private network)
+    variables:
+      protocol:
+        enum: [http, https]
+        default: http
+      host:
+        default: ws-backend.railway.internal
+      port:
+        default: '80'
+  - url: '{protocol}://{host}:{port}/api/v1'
     description: Development server
-  - url: https://ws-backend.wikisubmission.org/api/v1
-    description: Production Server
+    variables:
+      protocol:
+        enum: [http, https]
+        default: http
+      host:
+        default: localhost
+      port:
+        default: '8082'
 
 tags:
   - name: Reader
