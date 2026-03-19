@@ -15,9 +15,9 @@ func (s *Server) ValidateQuranRange(sCh, eCh, sV, eV int) (int, int, int, int, e
 		return 0, 0, 0, 0, fmt.Errorf("invalid chapter range: %d-%d", sCh, eCh)
 	}
 
-	// Default full chapter behavior
-	if sV <= 0 {
-		sV = 1
+	// Default full chapter behavior (0 is valid — it's the Basmallah verse index)
+	if sV < 0 {
+		sV = 0
 	}
 
 	if eV == 9999 {
