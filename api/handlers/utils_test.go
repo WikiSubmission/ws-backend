@@ -40,7 +40,7 @@ func TestValidateQuranRange(t *testing.T) {
 		{
 			name:    "full single chapter via default range",
 			sCh: 1, eCh: 1, sV: 0, eV: 9999,
-			wantSCh: 1, wantECh: 1, wantSV: 1, wantEV: 7,
+			wantSCh: 1, wantECh: 1, wantSV: 0, wantEV: 7,
 		},
 		{
 			name:    "cross-chapter range",
@@ -50,24 +50,24 @@ func TestValidateQuranRange(t *testing.T) {
 		{
 			name:    "last chapter full",
 			sCh: 114, eCh: 114, sV: 0, eV: 9999,
-			wantSCh: 114, wantECh: 114, wantSV: 1, wantEV: 6,
+			wantSCh: 114, wantECh: 114, wantSV: 0, wantEV: 6,
 		},
 		{
 			name:    "middle chapter full",
 			sCh: 18, eCh: 18, sV: 0, eV: 9999,
-			wantSCh: 18, wantECh: 18, wantSV: 1, wantEV: 110,
+			wantSCh: 18, wantECh: 18, wantSV: 0, wantEV: 110,
 		},
 
 		// --- Verse clamping ---
 		{
-			name:    "verse start 0 is clamped to 1",
+			name:    "verse start 0 is allowed (Basmallah verse)",
 			sCh: 2, eCh: 2, sV: 0, eV: 10,
-			wantSCh: 2, wantECh: 2, wantSV: 1, wantEV: 10,
+			wantSCh: 2, wantECh: 2, wantSV: 0, wantEV: 10,
 		},
 		{
-			name:    "verse start negative is clamped to 1",
+			name:    "verse start negative is clamped to 0 (Basmallah)",
 			sCh: 2, eCh: 2, sV: -99, eV: 10,
-			wantSCh: 2, wantECh: 2, wantSV: 1, wantEV: 10,
+			wantSCh: 2, wantECh: 2, wantSV: 0, wantEV: 10,
 		},
 		{
 			name:    "verse end 9999 resolves to end-chapter verse count",
@@ -110,7 +110,7 @@ func TestValidateQuranRange(t *testing.T) {
 			// This is the bug that existed before the fix: eV=9999 used to be resolved
 			// against the original eCh=1 (7 verses) instead of the corrected eCh=3 (200).
 			sCh: 3, eCh: 1, sV: 0, eV: 9999,
-			wantSCh: 1, wantECh: 3, wantSV: 1, wantEV: 200,
+			wantSCh: 1, wantECh: 3, wantSV: 0, wantEV: 200,
 		},
 		{
 			name:    "inverted chapter with eV beyond corrected end chapter is clamped",
@@ -164,3 +164,187 @@ func TestValidateQuranRange(t *testing.T) {
 		})
 	}
 }
+
+func TestParseVerseRefs(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    []VerseSpec
+		wantErr bool
+	}{
+		// --- Valid inputs ---
+		{
+			name: "single verse",
+			raw:  "1:1",
+			want: []VerseSpec{{Chapter: 1, Start: 1, End: -1}},
+		},
+		{
+			name: "verse range within chapter",
+			raw:  "1:1-3",
+			want: []VerseSpec{{Chapter: 1, Start: 1, End: 3}},
+		},
+		{
+			name: "mixed list",
+			raw:  "1:2,1:4-5,4:2",
+			want: []VerseSpec{
+				{Chapter: 1, Start: 2, End: -1},
+				{Chapter: 1, Start: 4, End: 5},
+				{Chapter: 4, Start: 2, End: -1},
+			},
+		},
+		{
+			name: "negative start verse",
+			raw:  "1:-2",
+			want: []VerseSpec{{Chapter: 1, Start: -2, End: -1}},
+		},
+		{
+			name: "zero verse",
+			raw:  "1:0",
+			want: []VerseSpec{{Chapter: 1, Start: 0, End: -1}},
+		},
+		{
+			name: "whitespace around token is trimmed",
+			raw:  "1:1 , 2:5",
+			want: []VerseSpec{
+				{Chapter: 1, Start: 1, End: -1},
+				{Chapter: 2, Start: 5, End: -1},
+			},
+		},
+
+		// --- Invalid inputs ---
+		{name: "missing colon", raw: "1", wantErr: true},
+		{name: "empty verse part", raw: "1:", wantErr: true},
+		{name: "empty chapter part", raw: ":1", wantErr: true},
+		{name: "non-numeric chapter", raw: "a:b", wantErr: true},
+		{name: "non-numeric verse end", raw: "1:2-a", wantErr: true},
+		{name: "empty string", raw: "", wantErr: true},
+		{name: "only commas", raw: ",,", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseVerseRefs(tt.raw)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ParseVerseRefs(%q) error = %v, wantErr = %v", tt.raw, err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("ParseVerseRefs(%q) returned %d specs, want %d", tt.raw, len(got), len(tt.want))
+			}
+			for i, w := range tt.want {
+				g := got[i]
+				if g.Chapter != w.Chapter || g.Start != w.Start || g.End != w.End {
+					t.Errorf("spec[%d]: got {%d %d %d}, want {%d %d %d}",
+						i, g.Chapter, g.Start, g.End, w.Chapter, w.Start, w.End)
+				}
+			}
+		})
+	}
+}
+
+func TestExpandVerseRefs(t *testing.T) {
+	s := testServer()
+
+	tests := []struct {
+		name      string
+		raw       string
+		maxVerses int
+		wantRefs  []VerseRef // nil means only check count
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name:      "single verse",
+			raw:       "1:1",
+			maxVerses: 300,
+			wantRefs:  []VerseRef{{Chapter: 1, VerseIndex: 1}},
+		},
+		{
+			name:      "verse range expands to individual refs",
+			raw:       "1:1-3",
+			maxVerses: 300,
+			wantRefs: []VerseRef{
+				{Chapter: 1, VerseIndex: 1},
+				{Chapter: 1, VerseIndex: 2},
+				{Chapter: 1, VerseIndex: 3},
+			},
+		},
+		{
+			name:      "negative start clamped to 0 (Basmallah)",
+			raw:       "1:-2",
+			maxVerses: 300,
+			wantRefs:  []VerseRef{{Chapter: 1, VerseIndex: 0}},
+		},
+		{
+			name:      "duplicate verses are deduplicated",
+			raw:       "1:1,1:1",
+			maxVerses: 300,
+			wantRefs:  []VerseRef{{Chapter: 1, VerseIndex: 1}},
+		},
+		{
+			name:      "inverted range is swapped",
+			raw:       "1:5-3",
+			maxVerses: 300,
+			wantRefs: []VerseRef{
+				{Chapter: 1, VerseIndex: 3},
+				{Chapter: 1, VerseIndex: 4},
+				{Chapter: 1, VerseIndex: 5},
+			},
+		},
+		{
+			name:      "end verse clamped to chapter verse count",
+			raw:       "1:1-999",
+			maxVerses: 300,
+			wantCount: 7, // chapter 1 has 7 verses
+		},
+		{
+			name:      "unknown chapter returns error",
+			raw:       "200:1",
+			maxVerses: 300,
+			wantErr:   true,
+		},
+		{
+			name:      "exceeding maxVerses returns error",
+			raw:       "2:1-286,3:1-15", // 286+15=301 > 300
+			maxVerses: 300,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			specs, err := ParseVerseRefs(tt.raw)
+			if err != nil {
+				if tt.wantErr {
+					return
+				}
+				t.Fatalf("ParseVerseRefs(%q) unexpected error: %v", tt.raw, err)
+			}
+
+			refs, err := s.ExpandVerseRefs(specs, tt.maxVerses)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ExpandVerseRefs error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+
+			if tt.wantRefs != nil {
+				if len(refs) != len(tt.wantRefs) {
+					t.Fatalf("got %d refs, want %d", len(refs), len(tt.wantRefs))
+				}
+				for i, w := range tt.wantRefs {
+					if refs[i] != w {
+						t.Errorf("ref[%d]: got {%d %d}, want {%d %d}",
+							i, refs[i].Chapter, refs[i].VerseIndex, w.Chapter, w.VerseIndex)
+					}
+				}
+			} else if tt.wantCount > 0 && len(refs) != tt.wantCount {
+				t.Errorf("got %d refs, want %d", len(refs), tt.wantCount)
+			}
+		})
+	}
+}
+

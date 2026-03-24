@@ -55,6 +55,56 @@ func (db *DB) FetchVersesWithTranslations(ctx context.Context, startCh, endCh, s
 	return pgx.CollectRows(rows, pgx.RowToStructByName[VerseRow])
 }
 
+// FetchVersesWithTranslationsByRefs fetches verses for a disjoint set of
+// (chapter, verse_index) pairs using a parallel unnest join. Use this instead
+// of FetchVersesWithTranslations when the verse set is non-contiguous.
+func (db *DB) FetchVersesWithTranslationsByRefs(ctx context.Context, chapterNums, verseIdxs []int32, langs []string) ([]VerseRow, error) {
+	query := `
+        SELECT
+            c.chapter_number, COALESCE(ct.title, '') AS chapter_title, v.verse_index,
+            l.id AS lang_id, l.code AS lang_code, l.direction,
+            vt.content AS verse_content, vt.subtitle AS verse_subtitle, vt.footer AS verse_footer
+        FROM unnest($1::int[], $2::int[]) AS ref(ch, vi)
+        JOIN chapters c    ON c.chapter_number = ref.ch
+        JOIN verses v      ON v.chapter_id = c.id AND v.verse_index = ref.vi
+        JOIN verse_text vt ON vt.verse_id = v.id
+        JOIN languages l   ON l.id = vt.lang_id
+        LEFT JOIN chapter_text ct ON ct.chapter_id = c.id AND ct.lang_id = l.id
+        WHERE l.code = ANY($3)
+        ORDER BY c.chapter_number, v.verse_index, l.id;
+    `
+	rows, err := db.Pool.Query(ctx, query, chapterNums, verseIdxs, langs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[VerseRow])
+}
+
+// FetchWordsForVersesByRefs fetches word data for a disjoint set of
+// (chapter, verse_index) pairs using a parallel unnest join.
+func (db *DB) FetchWordsForVersesByRefs(ctx context.Context, chapterNums, verseIdxs []int32, langs []string) ([]WordRow, error) {
+	query := `
+        SELECT
+            c.chapter_number, v.verse_index, w.word_index, COALESCE(w.global_index, 0) AS global_index,
+            l.code AS lang_code, wt.word AS word_text, wt.word_root, wt.meaning
+        FROM unnest($1::int[], $2::int[]) AS ref(ch, vi)
+        JOIN chapters c  ON c.chapter_number = ref.ch
+        JOIN verses v    ON v.chapter_id = c.id AND v.verse_index = ref.vi
+        JOIN words w     ON w.verse_id = v.id
+        JOIN word_text wt ON wt.word_id = w.id
+        JOIN languages l  ON l.id = wt.lang_id
+        WHERE l.code = ANY($3)
+        ORDER BY c.chapter_number, v.verse_index, w.word_index;
+    `
+	rows, err := db.Pool.Query(ctx, query, chapterNums, verseIdxs, langs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[WordRow])
+}
+
 func (db *DB) FetchWordsForVerses(ctx context.Context, startCh, endCh, startV, endV int, langs []string) ([]WordRow, error) {
 	query := `
         SELECT 

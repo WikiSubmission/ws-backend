@@ -5,57 +5,88 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+
+	"github.com/wikiSubmission/ws-backend/db"
 )
 
 func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error) {
 	p := request.Params
 
 	// 1. Parameter Resolution
-	startCh, endCh := p.ChapterNumberStart, p.ChapterNumberStart
-	if p.ChapterNumberEnd != nil {
-		endCh = *p.ChapterNumberEnd
-	}
-	startV, endV := 0, 9999
-	if p.VerseStart != nil {
-		startV = *p.VerseStart
-	}
-	if p.VerseEnd != nil {
-		endV = *p.VerseEnd
-	}
-	startCh, endCh, startV, endV, err := s.ValidateQuranRange(startCh, endCh, startV, endV)
-	if err != nil {
-		return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
-	}
+	versesMode := p.Verses != nil && *p.Verses != ""
 
-	// Guard against excessively large range requests (max 20 chapters per call).
-	if endCh-startCh+1 > 20 {
-		return GetQuran400JSONResponse{BadRequestJSONResponse{
-			Message: fmt.Sprintf("chapter range too large (%d chapters); max 20 per request", endCh-startCh+1),
-		}}, nil
-	}
+	var startCh, endCh, startV, endV int
+	var refs []VerseRef
 
+	// Lang validation — common to both modes
 	for _, l := range p.Langs {
 		if _, exists := s.Languages[l]; !exists {
 			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: "unsupported language: " + l}}, nil
 		}
 	}
 
-	// 2. Fetch Core Data
-	versesRaw, err := s.DB.FetchVersesWithTranslations(ctx, startCh, endCh, startV, endV, p.Langs)
-	if err != nil {
-		slog.Error("FetchVersesWithTranslations failed", "error", err)
-		return GetQuran500JSONResponse{InternalServerErrrorJSONResponse{Message: "failed to fetch verses"}}, nil
+	if versesMode {
+		specs, err := ParseVerseRefs(*p.Verses)
+		if err != nil {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+		}
+		refs, err = s.ExpandVerseRefs(specs, 300)
+		if err != nil {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+		}
+	} else {
+		if p.ChapterNumberStart == nil {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{
+				Message: "chapter_number_start is required when verses is not provided",
+			}}, nil
+		}
+		startCh = *p.ChapterNumberStart
+		endCh = startCh
+		if p.ChapterNumberEnd != nil {
+			endCh = *p.ChapterNumberEnd
+		}
+		startV, endV = 0, 9999
+		if p.VerseStart != nil {
+			startV = *p.VerseStart
+		}
+		if p.VerseEnd != nil {
+			endV = *p.VerseEnd
+		}
+		var err error
+		startCh, endCh, startV, endV, err = s.ValidateQuranRange(startCh, endCh, startV, endV)
+		if err != nil {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+		}
+		if endCh-startCh+1 > 20 {
+			return GetQuran400JSONResponse{BadRequestJSONResponse{
+				Message: fmt.Sprintf("chapter range too large (%d chapters); max 20 per request", endCh-startCh+1),
+			}}, nil
+		}
 	}
 
+	// 2. Fetch Core Data
 	chapterMap := make(map[int]*ChapterData)
 	verseRefMap := make(map[string]*VerseData)
+
+	var versesRaw []db.VerseRow
+	var fetchErr error
+	if versesMode {
+		chNums, viNums := refsToArrays(refs)
+		versesRaw, fetchErr = s.DB.FetchVersesWithTranslationsByRefs(ctx, chNums, viNums, p.Langs)
+	} else {
+		versesRaw, fetchErr = s.DB.FetchVersesWithTranslations(ctx, startCh, endCh, startV, endV, p.Langs)
+	}
+	if fetchErr != nil {
+		slog.Error("FetchVersesWithTranslations failed", "error", fetchErr)
+		return GetQuran500JSONResponse{InternalServerErrrorJSONResponse{Message: "failed to fetch verses"}}, nil
+	}
 
 	// 3. First Pass: Build Chapters and Verses (Minified Fields)
 	for _, row := range versesRaw {
 		if _, ok := chapterMap[row.ChapterNumber]; !ok {
 			chNum := row.ChapterNumber
 			chapterMap[row.ChapterNumber] = &ChapterData{
-				Cn:     &chNum, // chapter_number -> Cn
+				Cn:     &chNum,
 				Titles: &map[string]string{},
 				Verses: &[]VerseData{},
 			}
@@ -66,21 +97,21 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 		if _, ok := verseRefMap[vKey]; !ok {
 			vIdx, vK := row.VerseIndex, vKey
 			verseRefMap[vKey] = &VerseData{
-				Vi: &vIdx,                            // verse_index -> Vi
-				Vk: &vK,                              // verse_key -> Vk
-				Tr: &map[string]TranslationContent{}, // translations -> Tr
+				Vi: &vIdx,
+				Vk: &vK,
+				Tr: &map[string]TranslationContent{},
 			}
 		}
 
 		dir := TranslationContentD(row.Direction)
 		lID, lCode, content := row.LangID, row.LangCode, row.VerseContent
 		(*verseRefMap[vKey].Tr)[row.LangCode] = TranslationContent{
-			Li: &lID,              // lang_id -> Li
-			Lc: &lCode,            // lang_code -> Lc
-			D:  &dir,              // direction -> D
-			Tx: &content,          // text -> Tx
-			S:  row.VerseSubtitle, // subtitle -> S
-			F:  row.VerseFooter,   // footer -> F
+			Li: &lID,
+			Lc: &lCode,
+			D:  &dir,
+			Tx: &content,
+			S:  row.VerseSubtitle,
+			F:  row.VerseFooter,
 		}
 	}
 
@@ -91,8 +122,17 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 			wordLangs = *p.WordLangs
 		}
 
-		wordsRaw, err := s.DB.FetchWordsForVerses(ctx, startCh, endCh, startV, endV, wordLangs)
-		if err == nil {
+		var wordsRaw []db.WordRow
+		var wErr error
+		if versesMode {
+			chNums, viNums := refsToArrays(refs)
+			wordsRaw, wErr = s.DB.FetchWordsForVersesByRefs(ctx, chNums, viNums, wordLangs)
+		} else {
+			wordsRaw, wErr = s.DB.FetchWordsForVerses(ctx, startCh, endCh, startV, endV, wordLangs)
+		}
+		if wErr != nil {
+			slog.Warn("Failed to fetch words for verses", "from", fmt.Sprintf("%d:%d", startCh, startV), "to", fmt.Sprintf("%d:%d", endCh, endV), "error", wErr)
+		} else {
 			for _, wRow := range wordsRaw {
 				vKey := fmt.Sprintf("%d:%d", wRow.ChapterNumber, wRow.VerseIndex)
 				vData, exists := verseRefMap[vKey]
@@ -100,7 +140,7 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 					continue
 				}
 
-				if vData.W == nil { // words -> W
+				if vData.W == nil {
 					vData.W = &[]WordData{}
 				}
 
@@ -115,26 +155,21 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 				if targetWord == nil {
 					wIdx, gIdx := wRow.WordIndex, wRow.GlobalIndex
 					newWord := WordData{
-						Wi: &wIdx,                // word_index -> Wi
-						Gi: &gIdx,                // global_index -> Gi
-						Tx: &map[string]string{}, // text -> Tx
+						Wi: &wIdx,
+						Gi: &gIdx,
+						Tx: &map[string]string{},
 					}
-
 					if p.IncludeRoot != nil && *p.IncludeRoot {
-						newWord.R = wRow.WordRoot // root -> R
+						newWord.R = wRow.WordRoot
 					}
-
 					if p.IncludeMeaning != nil && *p.IncludeMeaning {
-						newWord.M = wRow.Meaning // meaning -> M
+						newWord.M = wRow.Meaning
 					}
-
 					*vData.W = append(*vData.W, newWord)
 					targetWord = &(*vData.W)[len(*vData.W)-1]
 				}
 				(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
 			}
-		} else {
-			slog.Warn("Failed to fetch words for verses", "from", fmt.Sprintf("%d:%d", startCh, startV), "to", fmt.Sprintf("%d:%d", endCh, endV), "error", err)
 		}
 	}
 
@@ -163,14 +198,16 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 	})
 
 	count := len(verseRefMap)
+	info := &QuranResponseInfo{ResultCount: &count}
+	if !versesMode {
+		info.ChapterStart = &startCh
+		info.ChapterEnd = &endCh
+		info.VerseStart = &startV
+		info.VerseEnd = &endV
+	}
+
 	return GetQuran200JSONResponse{
 		Chapters: &finalChapters,
-		Info: &QuranResponseInfo{
-			ChapterStart: &startCh,
-			ChapterEnd:   &endCh,
-			VerseStart:   &startV,
-			VerseEnd:     &endV,
-			ResultCount:  &count,
-		},
+		Info:     info,
 	}, nil
 }
