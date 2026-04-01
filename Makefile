@@ -21,7 +21,7 @@ PSQL=PGPASSWORD=$(DATABASE_PASSWORD) psql \
 
 BIN=bin/server
 
-.PHONY: run build test tidy generate seed \
+.PHONY: run build test tidy generate seed seed-bible \
         db-setup db-drop db-rebuild \
         source-import source-cleanup \
         seed-railway reseed-railway \
@@ -57,6 +57,10 @@ generate:
 ## seed: One-time data migration from legacy Supabase schema
 seed:
 	@go run api/cmd/seed.go
+
+## seed-bible: Seed Bible data from assets/bible/ CSV files
+seed-bible:
+	@go run ./api/cmd/seed_bible/
 
 # ---------------------------------------------------------------------------
 # Docker

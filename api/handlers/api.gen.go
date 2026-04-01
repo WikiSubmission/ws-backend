@@ -22,6 +22,24 @@ import (
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
+// Defines values for BibleTranslationContentD.
+const (
+	BibleTranslationContentDLtr BibleTranslationContentD = "ltr"
+	BibleTranslationContentDRtl BibleTranslationContentD = "rtl"
+)
+
+// Valid indicates whether the value is a known member of the BibleTranslationContentD enum.
+func (e BibleTranslationContentD) Valid() bool {
+	switch e {
+	case BibleTranslationContentDLtr:
+		return true
+	case BibleTranslationContentDRtl:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LanguageDirection.
 const (
 	LanguageDirectionLtr LanguageDirection = "ltr"
@@ -42,16 +60,16 @@ func (e LanguageDirection) Valid() bool {
 
 // Defines values for TranslationContentD.
 const (
-	TranslationContentDLtr TranslationContentD = "ltr"
-	TranslationContentDRtl TranslationContentD = "rtl"
+	Ltr TranslationContentD = "ltr"
+	Rtl TranslationContentD = "rtl"
 )
 
 // Valid indicates whether the value is a known member of the TranslationContentD enum.
 func (e TranslationContentD) Valid() bool {
 	switch e {
-	case TranslationContentDLtr:
+	case Ltr:
 		return true
-	case TranslationContentDRtl:
+	case Rtl:
 		return true
 	default:
 		return false
@@ -106,6 +124,115 @@ type Appendix struct {
 
 // AppendixMetadata defines model for AppendixMetadata.
 type AppendixMetadata = []Appendix
+
+// BibleBook Summary metadata for one Bible book.
+type BibleBook struct {
+	// Bk book_name
+	Bk *string `json:"bk,omitempty"`
+
+	// Bn book_number
+	Bn *int `json:"bn,omitempty"`
+
+	// Cc chapter_count
+	Cc *int `json:"cc,omitempty"`
+
+	// T testament (OT or NT)
+	T *string `json:"t,omitempty"`
+
+	// Vc verse_count
+	Vc *int `json:"vc,omitempty"`
+}
+
+// BibleBookData A Bible book with nested chapters, returned by /bible and /bible/search.
+type BibleBookData struct {
+	// Bk book_name
+	Bk *string `json:"bk,omitempty"`
+
+	// Bn book_number
+	Bn       *int                `json:"bn,omitempty"`
+	Chapters *[]BibleChapterData `json:"chapters,omitempty"`
+
+	// T testament (OT or NT)
+	T *string `json:"t,omitempty"`
+}
+
+// BibleChapterData defines model for BibleChapterData.
+type BibleChapterData struct {
+	// Cn chapter_number (within the book)
+	Cn *int `json:"cn,omitempty"`
+
+	// Hits Number of matching verses in this chapter (search only).
+	Hits   *int              `json:"hits,omitempty"`
+	Verses *[]BibleVerseData `json:"verses,omitempty"`
+}
+
+// BibleResponse defines model for BibleResponse.
+type BibleResponse struct {
+	Books *[]BibleBookData `json:"books,omitempty"`
+
+	// Info Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+	Info *BibleResponseInfo `json:"info,omitempty"`
+}
+
+// BibleResponseInfo Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+type BibleResponseInfo struct {
+	// Book Requested book number (reader only).
+	Book         *int `json:"book,omitempty"`
+	ChapterEnd   *int `json:"chapter_end,omitempty"`
+	ChapterStart *int `json:"chapter_start,omitempty"`
+	Limit        *int `json:"limit,omitempty"`
+	Offset       *int `json:"offset,omitempty"`
+
+	// Q The search query as submitted (search only).
+	Q *string `json:"q,omitempty"`
+
+	// ResultCount Number of matching verses in this response page.
+	ResultCount *int `json:"result_count,omitempty"`
+
+	// Total Total matching results across all pages (search only).
+	Total      *int `json:"total,omitempty"`
+	VerseEnd   *int `json:"verse_end,omitempty"`
+	VerseStart *int `json:"verse_start,omitempty"`
+}
+
+// BibleTranslationContent defines model for BibleTranslationContent.
+type BibleTranslationContent struct {
+	// D direction
+	D *BibleTranslationContentD `json:"d,omitempty"`
+
+	// F footer/footnote
+	F *string `json:"f,omitempty"`
+
+	// Hl highlight with <b> tags (search only)
+	Hl *string `json:"hl,omitempty"`
+
+	// Lc lang_code
+	Lc *string `json:"lc,omitempty"`
+
+	// Li lang_id
+	Li *int `json:"li,omitempty"`
+
+	// Tx text
+	Tx *string `json:"tx,omitempty"`
+}
+
+// BibleTranslationContentD direction
+type BibleTranslationContentD string
+
+// BibleVerseData defines model for BibleVerseData.
+type BibleVerseData struct {
+	// Sc Relevance score (search only).
+	Sc *float32 `json:"sc,omitempty"`
+
+	// Tr translations keyed by language code
+	Tr *map[string]BibleTranslationContent `json:"tr,omitempty"`
+
+	// Vk verse_key — book_number:chapter_number:verse_number
+	Vk *string `json:"vk,omitempty"`
+
+	// Vn verse_number
+	Vn *int `json:"vn,omitempty"`
+}
 
 // Chapter defines model for Chapter.
 type Chapter struct {
@@ -310,6 +437,38 @@ type GetAppendicesParams struct {
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// GetBibleParams defines parameters for GetBible.
+type GetBibleParams struct {
+	// Book Book number (1 = Genesis, 40 = Matthew, …, 66 = Revelation).
+	Book int `form:"book" json:"book"`
+
+	// ChapterStart First chapter to include (1-based, within the book).
+	ChapterStart int `form:"chapter_start" json:"chapter_start"`
+
+	// ChapterEnd Last chapter to include. Defaults to chapter_start.
+	ChapterEnd *int `form:"chapter_end,omitempty" json:"chapter_end,omitempty"`
+
+	// VerseStart First verse to include. Defaults to 1.
+	VerseStart *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
+
+	// VerseEnd Last verse to include. Defaults to end of chapter.
+	VerseEnd *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
+
+	// Langs Language codes to include (e.g. en).
+	Langs []string `form:"langs" json:"langs"`
+}
+
+// SearchBibleParams defines parameters for SearchBible.
+type SearchBibleParams struct {
+	// Q Search query (2–200 characters).
+	Q string `form:"q" json:"q"`
+
+	// Langs Language codes to search in. Omit for all languages.
+	Langs  *[]string `form:"langs,omitempty" json:"langs,omitempty"`
+	Limit  *int      `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int      `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetChaptersParams defines parameters for GetChapters.
 type GetChaptersParams struct {
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
@@ -392,6 +551,15 @@ type ServerInterface interface {
 	// fetches appendix Metadata
 	// (GET /appendices)
 	GetAppendices(c *gin.Context, params GetAppendicesParams)
+	// Fetch Bible verses by range
+	// (GET /bible)
+	GetBible(c *gin.Context, params GetBibleParams)
+	// List all Bible books
+	// (GET /bible/books)
+	GetBibleBooks(c *gin.Context)
+	// Full-text search across the Bible
+	// (GET /bible/search)
+	SearchBible(c *gin.Context, params SearchBibleParams)
 	// fetches chapter Metadata
 	// (GET /chapters)
 	GetChapters(c *gin.Context, params GetChaptersParams)
@@ -460,6 +628,163 @@ func (siw *ServerInterfaceWrapper) GetAppendices(c *gin.Context) {
 	}
 
 	siw.Handler.GetAppendices(c, params)
+}
+
+// GetBible operation middleware
+func (siw *ServerInterfaceWrapper) GetBible(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetBibleParams
+
+	// ------------- Required query parameter "book" -------------
+
+	if paramValue := c.Query("book"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument book is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "book", c.Request.URL.Query(), &params.Book, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter book: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "chapter_start" -------------
+
+	if paramValue := c.Query("chapter_start"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument chapter_start is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "chapter_start", c.Request.URL.Query(), &params.ChapterStart, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapter_start: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "chapter_end" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "chapter_end", c.Request.URL.Query(), &params.ChapterEnd, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapter_end: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "verse_start" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "verse_start", c.Request.URL.Query(), &params.VerseStart, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verse_start: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "verse_end" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "verse_end", c.Request.URL.Query(), &params.VerseEnd, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verse_end: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "langs" -------------
+
+	if paramValue := c.Query("langs"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument langs is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "langs", c.Request.URL.Query(), &params.Langs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter langs: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetBible(c, params)
+}
+
+// GetBibleBooks operation middleware
+func (siw *ServerInterfaceWrapper) GetBibleBooks(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetBibleBooks(c)
+}
+
+// SearchBible operation middleware
+func (siw *ServerInterfaceWrapper) SearchBible(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchBibleParams
+
+	// ------------- Required query parameter "q" -------------
+
+	if paramValue := c.Query("q"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument q is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "langs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "langs", c.Request.URL.Query(), &params.Langs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter langs: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SearchBible(c, params)
 }
 
 // GetChapters operation middleware
@@ -915,6 +1240,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	}
 
 	router.GET(options.BaseURL+"/appendices", wrapper.GetAppendices)
+	router.GET(options.BaseURL+"/bible", wrapper.GetBible)
+	router.GET(options.BaseURL+"/bible/books", wrapper.GetBibleBooks)
+	router.GET(options.BaseURL+"/bible/search", wrapper.SearchBible)
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
 	router.GET(options.BaseURL+"/editor/drafts/verse-text", wrapper.ListVerseDrafts)
 	router.POST(options.BaseURL+"/editor/drafts/verse-text", wrapper.CreateVerseDraft)
@@ -1011,6 +1339,107 @@ type GetAppendices501JSONResponse struct {
 func (response GetAppendices501JSONResponse) VisitGetAppendicesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(501)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBibleRequestObject struct {
+	Params GetBibleParams
+}
+
+type GetBibleResponseObject interface {
+	VisitGetBibleResponse(w http.ResponseWriter) error
+}
+
+type GetBible200JSONResponse BibleResponse
+
+func (response GetBible200JSONResponse) VisitGetBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBible400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetBible400JSONResponse) VisitGetBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBible500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetBible500JSONResponse) VisitGetBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBibleBooksRequestObject struct {
+}
+
+type GetBibleBooksResponseObject interface {
+	VisitGetBibleBooksResponse(w http.ResponseWriter) error
+}
+
+type GetBibleBooks200JSONResponse []BibleBook
+
+func (response GetBibleBooks200JSONResponse) VisitGetBibleBooksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBibleBooks500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetBibleBooks500JSONResponse) VisitGetBibleBooksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchBibleRequestObject struct {
+	Params SearchBibleParams
+}
+
+type SearchBibleResponseObject interface {
+	VisitSearchBibleResponse(w http.ResponseWriter) error
+}
+
+type SearchBible200JSONResponse BibleResponse
+
+func (response SearchBible200JSONResponse) VisitSearchBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchBible400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SearchBible400JSONResponse) VisitSearchBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchBible500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SearchBible500JSONResponse) VisitSearchBibleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -1723,6 +2152,15 @@ type StrictServerInterface interface {
 	// fetches appendix Metadata
 	// (GET /appendices)
 	GetAppendices(ctx context.Context, request GetAppendicesRequestObject) (GetAppendicesResponseObject, error)
+	// Fetch Bible verses by range
+	// (GET /bible)
+	GetBible(ctx context.Context, request GetBibleRequestObject) (GetBibleResponseObject, error)
+	// List all Bible books
+	// (GET /bible/books)
+	GetBibleBooks(ctx context.Context, request GetBibleBooksRequestObject) (GetBibleBooksResponseObject, error)
+	// Full-text search across the Bible
+	// (GET /bible/search)
+	SearchBible(ctx context.Context, request SearchBibleRequestObject) (SearchBibleResponseObject, error)
 	// fetches chapter Metadata
 	// (GET /chapters)
 	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
@@ -1790,6 +2228,85 @@ func (sh *strictHandler) GetAppendices(ctx *gin.Context, params GetAppendicesPar
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetAppendicesResponseObject); ok {
 		if err := validResponse.VisitGetAppendicesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBible operation middleware
+func (sh *strictHandler) GetBible(ctx *gin.Context, params GetBibleParams) {
+	var request GetBibleRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBible(ctx, request.(GetBibleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBible")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetBibleResponseObject); ok {
+		if err := validResponse.VisitGetBibleResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBibleBooks operation middleware
+func (sh *strictHandler) GetBibleBooks(ctx *gin.Context) {
+	var request GetBibleBooksRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBibleBooks(ctx, request.(GetBibleBooksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBibleBooks")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetBibleBooksResponseObject); ok {
+		if err := validResponse.VisitGetBibleBooksResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SearchBible operation middleware
+func (sh *strictHandler) SearchBible(ctx *gin.Context, params SearchBibleParams) {
+	var request SearchBibleRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchBible(ctx, request.(SearchBibleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchBible")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SearchBibleResponseObject); ok {
+		if err := validResponse.VisitSearchBibleResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -2101,63 +2618,74 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"7SRHoToV/XT/fwEAAP//ZQTCVfdXAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

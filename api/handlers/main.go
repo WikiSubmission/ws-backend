@@ -18,10 +18,17 @@ type ChapterCache struct {
 	RevelationOrder int
 }
 
+type BibleBookCache struct {
+	Name         string
+	Testament    string
+	ChapterCount int
+}
+
 type Server struct {
-	DB        *db.DB
-	Languages map[string]LanguageCache
-	Chapters  map[int]ChapterCache
+	DB         *db.DB
+	Languages  map[string]LanguageCache
+	Chapters   map[int]ChapterCache
+	BibleBooks map[int]BibleBookCache
 }
 
 func (s *Server) InitializeCaches(ctx context.Context) error {
@@ -49,6 +56,20 @@ func (s *Server) InitializeCaches(ctx context.Context) error {
 		s.Chapters[m.ChapterNumber] = ChapterCache{
 			VerseCount:      m.VerseCount,
 			RevelationOrder: m.RevelationOrder,
+		}
+	}
+
+	// 3. Load Bible book metadata
+	bibleBooks, err := s.DB.FetchBibleBooks(ctx)
+	if err != nil {
+		return fmt.Errorf("bible book cache: %w", err)
+	}
+	s.BibleBooks = make(map[int]BibleBookCache)
+	for _, b := range bibleBooks {
+		s.BibleBooks[b.BookNumber] = BibleBookCache{
+			Name:         b.Name,
+			Testament:    b.Testament,
+			ChapterCount: b.ChapterCount,
 		}
 	}
 
