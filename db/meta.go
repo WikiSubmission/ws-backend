@@ -87,3 +87,43 @@ func (db *DB) FetchAllChapters(ctx context.Context, langID int) ([]ChapterRow, e
 	defer rows.Close()
 	return pgx.CollectRows(rows, pgx.RowToStructByName[ChapterRow])
 }
+
+// FetchQuranLangs returns the set of language codes that have at least one
+// verse_text row.
+func (db *DB) FetchQuranLangs(ctx context.Context) (map[string]bool, error) {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT DISTINCT l.code FROM verse_text vt JOIN languages l ON l.id = vt.lang_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[string]bool)
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		result[code] = true
+	}
+	return result, rows.Err()
+}
+
+// FetchBibleLangs returns the set of language codes that have at least one
+// bible_verse_text row.
+func (db *DB) FetchBibleLangs(ctx context.Context) (map[string]bool, error) {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT DISTINCT l.code FROM bible_verse_text bvt JOIN languages l ON l.id = bvt.lang_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[string]bool)
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		result[code] = true
+	}
+	return result, rows.Err()
+}

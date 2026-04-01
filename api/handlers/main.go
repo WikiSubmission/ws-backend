@@ -29,6 +29,8 @@ type Server struct {
 	Languages  map[string]LanguageCache
 	Chapters   map[int]ChapterCache
 	BibleBooks map[int]BibleBookCache
+	QuranLangs map[string]bool // lang codes with Quran verse_text content
+	BibleLangs map[string]bool // lang codes with Bible verse_text content
 }
 
 func (s *Server) InitializeCaches(ctx context.Context) error {
@@ -72,6 +74,20 @@ func (s *Server) InitializeCaches(ctx context.Context) error {
 			ChapterCount: b.ChapterCount,
 		}
 	}
+
+	// 4. Load Quran language set (for FTS language detection)
+	quranLangs, err := s.DB.FetchQuranLangs(ctx)
+	if err != nil {
+		return fmt.Errorf("quran langs cache: %w", err)
+	}
+	s.QuranLangs = quranLangs
+
+	// 5. Load Bible language set (for FTS language detection)
+	bibleLangs, err := s.DB.FetchBibleLangs(ctx)
+	if err != nil {
+		return fmt.Errorf("bible langs cache: %w", err)
+	}
+	s.BibleLangs = bibleLangs
 
 	return nil
 }

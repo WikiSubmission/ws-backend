@@ -103,8 +103,8 @@ func (s *Server) SearchBible(ctx context.Context, request SearchBibleRequestObje
 		return SearchBible400JSONResponse{BadRequestJSONResponse{Message: "q must be 200 characters or fewer"}}, nil
 	}
 
-	// 2. Resolve languages (nil = all)
-	var langs []string
+	// 2. Resolve response languages (what the caller wants returned).
+	var responseLangs []string
 	if p.Langs != nil && len(*p.Langs) > 0 {
 		for _, lc := range *p.Langs {
 			if _, ok := s.Languages[lc]; !ok {
@@ -113,7 +113,14 @@ func (s *Server) SearchBible(ctx context.Context, request SearchBibleRequestObje
 				}}, nil
 			}
 		}
-		langs = *p.Langs
+		responseLangs = *p.Langs
+	}
+	if responseLangs == nil {
+		// Default to all available Bible languages.
+		responseLangs = make([]string, 0, len(s.BibleLangs))
+		for lc := range s.BibleLangs {
+			responseLangs = append(responseLangs, lc)
+		}
 	}
 
 	// 3. Pagination defaults
@@ -126,21 +133,25 @@ func (s *Server) SearchBible(ctx context.Context, request SearchBibleRequestObje
 		offset = *p.Offset
 	}
 
-	// 4. Search + count concurrently
+	// 4. Detect search language(s) from query script.
+	searchLangs := detectQueryLangs(p.Q, s.BibleLangs)
+
+	// 5. Search + count concurrently (both use search langs for FTS).
 	type countResult struct {
 		n   int
 		err error
 	}
 	countCh := make(chan countResult, 1)
 	go func() {
-		n, err := s.DB.CountSearchBibleVerses(ctx, p.Q, langs)
+		n, err := s.DB.CountSearchBibleVerses(ctx, p.Q, searchLangs)
 		countCh <- countResult{n, err}
 	}()
 
-	searchRows, err := s.DB.SearchBibleVerses(ctx, p.Q, langs, limit, offset)
+	// Phase A: FTS in detected language(s) → verse refs + scores + highlights.
+	phaseARows, err := s.DB.SearchBibleVerses(ctx, p.Q, searchLangs, limit, offset)
 	if err != nil {
-		slog.Error("SearchBibleVerses failed", "q", p.Q, "error", err)
-		<-countCh // drain goroutine
+		slog.Error("SearchBibleVerses failed (Phase A)", "q", p.Q, "error", err)
+		<-countCh
 		return SearchBible500JSONResponse{InternalServerErrrorJSONResponse{Message: "search failed"}}, nil
 	}
 
@@ -149,8 +160,55 @@ func (s *Server) SearchBible(ctx context.Context, request SearchBibleRequestObje
 		slog.Warn("CountSearchBibleVerses failed", "error", cr.err)
 	}
 
-	// 5. Assemble and return
-	books := assembleBibleBooksFromSearch(searchRows)
+	if len(phaseARows) == 0 {
+		total := cr.n
+		q := p.Q
+		resultCount := 0
+		emptyBooks := []BibleBookData{}
+		return SearchBible200JSONResponse{
+			Info: &BibleResponseInfo{
+				Q:           &q,
+				Total:       &total,
+				Limit:       &limit,
+				Offset:      &offset,
+				ResultCount: &resultCount,
+			},
+			Books: &emptyBooks,
+		}, nil
+	}
+
+	// Extract refs, scores, highlights from Phase A.
+	verseScores := make(map[string]float32)
+	verseHighlights := make(map[string]map[string]string) // vKey → langCode → headline
+	var bookNums, chNums, verseNums []int32
+	refSeen := make(map[string]bool)
+
+	for _, row := range phaseARows {
+		vKey := fmt.Sprintf("%d:%d:%d", row.BookNumber, row.ChapterNumber, row.VerseNumber)
+		if row.Score > verseScores[vKey] {
+			verseScores[vKey] = row.Score
+		}
+		if verseHighlights[vKey] == nil {
+			verseHighlights[vKey] = make(map[string]string)
+		}
+		verseHighlights[vKey][row.LangCode] = row.Headline
+		if !refSeen[vKey] {
+			refSeen[vKey] = true
+			bookNums = append(bookNums, int32(row.BookNumber))
+			chNums = append(chNums, int32(row.ChapterNumber))
+			verseNums = append(verseNums, int32(row.VerseNumber))
+		}
+	}
+
+	// Phase B: fetch content in response language(s).
+	phaseBRows, err := s.DB.FetchBibleVersesByRefs(ctx, bookNums, chNums, verseNums, responseLangs)
+	if err != nil {
+		slog.Error("FetchBibleVersesByRefs failed (Phase B)", "q", p.Q, "error", err)
+		return SearchBible500JSONResponse{InternalServerErrrorJSONResponse{Message: "search failed"}}, nil
+	}
+
+	// 6. Assemble and return.
+	books := assembleBibleBooksWithEnrichment(phaseBRows, verseScores, verseHighlights)
 	total := cr.n
 	q := p.Q
 	resultCount := countBibleVerses(books)
@@ -220,9 +278,15 @@ func assembleBibleBooks(rows []db.BibleVerseRow) []BibleBookData {
 	return finalizeBibleBooks(bookMap, chapterMap, verseMap)
 }
 
-// assembleBibleBooksFromSearch groups SearchBibleVerseRow results into the nested
-// structure, preserving relevance scores and highlights.
-func assembleBibleBooksFromSearch(rows []db.SearchBibleVerseRow) []BibleBookData {
+// assembleBibleBooksWithEnrichment builds the nested book → chapter → verse
+// structure from Phase B content rows, enriched with scores and highlights
+// from Phase A. Highlights are only set on translations whose lang code
+// appeared in the Phase A FTS search.
+func assembleBibleBooksWithEnrichment(
+	rows []db.BibleVerseRow,
+	verseScores map[string]float32,
+	verseHighlights map[string]map[string]string, // vKey → langCode → headline
+) []BibleBookData {
 	bookMap := make(map[int]*BibleBookData)
 	chapterMap := make(map[string]*BibleChapterData)
 	verseMap := make(map[string]*BibleVerseData)
@@ -251,33 +315,38 @@ func assembleBibleBooksFromSearch(rows []db.SearchBibleVerseRow) []BibleBookData
 		}
 
 		if _, ok := verseMap[vKey]; !ok {
-			vn, vk, sc := row.VerseNumber, vKey, row.Score
+			vn := row.VerseNumber
+			vkCopy := vKey
+			sc := verseScores[vKey]
 			verseMap[vKey] = &BibleVerseData{
 				Vn: &vn,
-				Vk: &vk,
+				Vk: &vkCopy,
 				Sc: &sc,
 				Tr: &map[string]BibleTranslationContent{},
 			}
-		} else if row.Score > *verseMap[vKey].Sc {
-			*verseMap[vKey].Sc = row.Score
 		}
 
 		dir := BibleTranslationContentD(row.Direction)
-		lID, lCode, content, hl := row.LangID, row.LangCode, row.Content, row.Headline
-		(*verseMap[vKey].Tr)[row.LangCode] = BibleTranslationContent{
+		lID, lCode, content := row.LangID, row.LangCode, row.Content
+		var hl *string
+		if hlMap, ok := verseHighlights[vKey]; ok {
+			if h, ok2 := hlMap[lCode]; ok2 {
+				hl = &h
+			}
+		}
+		(*verseMap[vKey].Tr)[lCode] = BibleTranslationContent{
 			Li: &lID,
 			Lc: &lCode,
 			D:  &dir,
 			Tx: &content,
 			F:  row.Footer,
-			Hl: &hl,
+			Hl: hl,
 		}
 	}
 
 	books := finalizeBibleBooks(bookMap, chapterMap, verseMap)
 
-	// For search: sort chapters by best verse score descending, then chapter number.
-	// Books sorted by best score descending, then book number.
+	// Sort by relevance score descending, then by number.
 	for i := range books {
 		sort.Slice(*books[i].Chapters, func(a, b int) bool {
 			sa := bestBibleChapterScore((*books[i].Chapters)[a])
@@ -287,8 +356,6 @@ func assembleBibleBooksFromSearch(rows []db.SearchBibleVerseRow) []BibleBookData
 			}
 			return *(*books[i].Chapters)[a].Cn < *(*books[i].Chapters)[b].Cn
 		})
-		hits := len(*books[i].Chapters)
-		_ = hits // hits per book not in schema; set per chapter below
 		for j := range *books[i].Chapters {
 			ch := &(*books[i].Chapters)[j]
 			n := len(*ch.Verses)

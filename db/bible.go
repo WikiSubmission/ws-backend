@@ -147,6 +147,39 @@ func (db *DB) SearchBibleVerses(ctx context.Context, query string, langs []strin
 	return pgx.CollectRows(rows, pgx.RowToStructByName[SearchBibleVerseRow])
 }
 
+// FetchBibleVersesByRefs fetches Bible verse content for a disjoint set of
+// (book_number, chapter_number, verse_number) triples using a parallel unnest join.
+// Use this for Phase B of a two-phase search (find refs → fetch in response langs).
+func (db *DB) FetchBibleVersesByRefs(ctx context.Context, bookNums, chapterNums, verseNums []int32, langs []string) ([]BibleVerseRow, error) {
+	sql := `
+		SELECT
+			bb.book_number,
+			bb.name       AS book_name,
+			bb.testament,
+			bc.chapter_number,
+			bv.verse_number,
+			l.id          AS lang_id,
+			l.code        AS lang_code,
+			l.direction,
+			bvt.content,
+			bvt.footer
+		FROM unnest($1::int[], $2::int[], $3::int[]) AS ref(bn, cn, vn)
+		JOIN bible_books      bb  ON bb.book_number    = ref.bn
+		JOIN bible_chapters   bc  ON bc.book_id        = bb.id AND bc.chapter_number = ref.cn
+		JOIN bible_verses     bv  ON bv.chapter_id     = bc.id AND bv.verse_number   = ref.vn
+		JOIN bible_verse_text bvt ON bvt.verse_id      = bv.id
+		JOIN languages        l   ON l.id              = bvt.lang_id
+		WHERE ($4::text[] IS NULL OR l.code = ANY($4))
+		ORDER BY bb.book_number, bc.chapter_number, bv.verse_number, l.id
+	`
+	rows, err := db.Pool.Query(ctx, sql, bookNums, chapterNums, verseNums, langs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[BibleVerseRow])
+}
+
 // CountSearchBibleVerses returns the total number of distinct Bible verses
 // matching the query, for pagination metadata.
 func (db *DB) CountSearchBibleVerses(ctx context.Context, query string, langs []string) (int, error) {

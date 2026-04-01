@@ -23,7 +23,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		}
 	}
 
-	// 2. Resolve and validate langs
+	// 2. Resolve and validate response languages.
 	// nil means "all languages" in the DB query; empty slice would match nothing.
 	var langs []string
 	if p.Langs != nil && len(*p.Langs) > 0 {
@@ -64,7 +64,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		chapterMap  = make(map[int]*ChapterData)
 		verseRefMap = make(map[string]*VerseData)
 		searchErr   error
-		queryLabel  string // for logging
+		queryLabel  string
 	)
 
 	if rootSearch {
@@ -81,30 +81,85 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			searchErr = groupWordResults(wordRows, p, chapterMap, verseRefMap)
 		}
 	} else if scope == string(Words) {
-		// --- FTS word scope ---
+		// --- FTS word scope with language detection ---
 		q := *p.Q
 		queryLabel = q
+		// Detect search language; fall back to user-specified langs if detection
+		// yields nil (Latin/ASCII query whose language is unambiguous to the user).
+		searchLangs := detectQueryLangs(q, s.QuranLangs)
+		if searchLangs == nil {
+			searchLangs = langs
+		}
 		go func() {
-			n, err := s.DB.CountSearchWords(ctx, q, langs)
+			n, err := s.DB.CountSearchWords(ctx, q, searchLangs)
 			countCh <- countResult{n, err}
 		}()
-		wordRows, err := s.DB.SearchWords(ctx, q, langs, limit, offset)
+		wordRows, err := s.DB.SearchWords(ctx, q, searchLangs, limit, offset)
 		searchErr = err
 		if err == nil {
 			searchErr = groupWordResults(wordRows, p, chapterMap, verseRefMap)
 		}
 	} else {
-		// --- FTS verse scope (default) ---
+		// --- FTS verse scope (default) — two-phase multilingual search ---
 		q := *p.Q
 		queryLabel = q
+
+		// Phase A search language: auto-detected from query script.
+		searchLangs := detectQueryLangs(q, s.QuranLangs)
+
+		// Phase B response language: user preference, or all available langs.
+		responseLangs := langs
+		if responseLangs == nil {
+			responseLangs = make([]string, 0, len(s.QuranLangs))
+			for lc := range s.QuranLangs {
+				responseLangs = append(responseLangs, lc)
+			}
+		}
+
 		go func() {
-			n, err := s.DB.CountSearchVerses(ctx, q, langs)
+			n, err := s.DB.CountSearchVerses(ctx, q, searchLangs)
 			countCh <- countResult{n, err}
 		}()
-		verseRows, err := s.DB.SearchVerses(ctx, q, langs, limit, offset)
-		searchErr = err
-		if err == nil {
-			groupVerseResults(verseRows, p, chapterMap, verseRefMap)
+
+		// Phase A: FTS in detected language(s) → verse refs + scores + highlights
+		phaseARows, err := s.DB.SearchVerses(ctx, q, searchLangs, limit, offset)
+		if err != nil {
+			searchErr = err
+		} else {
+			verseScores := make(map[string]float32)
+			verseHighlights := make(map[string]map[string]string) // vKey → langCode → headline
+			chapterTitleMatches := make(map[int]bool)
+			var chNums, viNums []int32
+			refSeen := make(map[string]bool)
+
+			for _, row := range phaseARows {
+				vKey := fmt.Sprintf("%d:%d", row.ChapterNumber, row.VerseIndex)
+				if row.Score > verseScores[vKey] {
+					verseScores[vKey] = row.Score
+				}
+				if verseHighlights[vKey] == nil {
+					verseHighlights[vKey] = make(map[string]string)
+				}
+				verseHighlights[vKey][row.LangCode] = row.Headline
+				if row.TitleMatch {
+					chapterTitleMatches[row.ChapterNumber] = true
+				}
+				if !refSeen[vKey] {
+					refSeen[vKey] = true
+					chNums = append(chNums, int32(row.ChapterNumber))
+					viNums = append(viNums, int32(row.VerseIndex))
+				}
+			}
+
+			if len(chNums) > 0 {
+				// Phase B: fetch content in response language(s)
+				phaseBRows, phaseBErr := s.DB.FetchVersesWithTranslationsByRefs(ctx, chNums, viNums, responseLangs)
+				if phaseBErr != nil {
+					searchErr = phaseBErr
+				} else {
+					groupVerseResultsFromContent(phaseBRows, verseScores, verseHighlights, chapterTitleMatches, chapterMap, verseRefMap)
+				}
+			}
 		}
 	}
 
@@ -138,7 +193,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		ch.Hits = &hits
 		finalChapters = append(finalChapters, *ch)
 	}
-	// Chapters ordered by highest verse score first (search relevance), then chapter number
+	// Chapters ordered by highest verse score first, then chapter number
 	sort.Slice(finalChapters, func(i, j int) bool {
 		si := bestScore(finalChapters[i])
 		sj := bestScore(finalChapters[j])
@@ -163,10 +218,14 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 	}, nil
 }
 
-// groupVerseResults populates chapterMap and verseRefMap from verse search rows.
-func groupVerseResults(
-	rows []db.SearchVerseRow,
-	p SearchParams,
+// groupVerseResultsFromContent builds chapter/verse maps from Phase B content
+// rows, enriched with scores and highlights from Phase A.
+// Highlights are only set for language codes that appeared in the Phase A search.
+func groupVerseResultsFromContent(
+	rows []db.VerseRow,
+	verseScores map[string]float32,
+	verseHighlights map[string]map[string]string, // vKey → langCode → headline
+	chapterTitleMatches map[int]bool,
 	chapterMap map[int]*ChapterData,
 	verseRefMap map[string]*VerseData,
 ) {
@@ -174,7 +233,7 @@ func groupVerseResults(
 		// Chapter
 		if _, ok := chapterMap[row.ChapterNumber]; !ok {
 			cn := row.ChapterNumber
-			tm := row.TitleMatch
+			tm := chapterTitleMatches[row.ChapterNumber]
 			chapterMap[row.ChapterNumber] = &ChapterData{
 				Cn:     &cn,
 				Titles: &map[string]string{},
@@ -188,28 +247,33 @@ func groupVerseResults(
 		vKey := fmt.Sprintf("%d:%d", row.ChapterNumber, row.VerseIndex)
 		if _, ok := verseRefMap[vKey]; !ok {
 			vi, vk := row.VerseIndex, vKey
-			sc := row.Score
+			sc := verseScores[vKey]
 			verseRefMap[vKey] = &VerseData{
 				Vi: &vi,
 				Vk: &vk,
 				Sc: &sc,
 				Tr: &map[string]TranslationContent{},
 			}
-		} else if row.Score > *verseRefMap[vKey].Sc {
-			*verseRefMap[vKey].Sc = row.Score
 		}
 
-		// Translation with highlight
+		// Translation — highlight only for langs that were part of Phase A
 		dir := TranslationContentD(row.Direction)
-		lID, lCode, hl, content := row.LangID, row.LangCode, row.Headline, row.Content
-		(*verseRefMap[vKey].Tr)[row.LangCode] = TranslationContent{
+		lID, lCode := row.LangID, row.LangCode
+		content := row.VerseContent
+		var hl *string
+		if hlMap, ok := verseHighlights[vKey]; ok {
+			if h, ok2 := hlMap[lCode]; ok2 {
+				hl = &h
+			}
+		}
+		(*verseRefMap[vKey].Tr)[lCode] = TranslationContent{
 			Li: &lID,
 			Lc: &lCode,
 			D:  &dir,
 			Tx: &content,
-			S:  row.Subtitle,
-			F:  row.Footer,
-			Hl: &hl,
+			S:  row.VerseSubtitle,
+			F:  row.VerseFooter,
+			Hl: hl,
 		}
 	}
 }
