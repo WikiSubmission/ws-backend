@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
@@ -70,27 +69,6 @@ func (e TranslationContentD) Valid() bool {
 	case Ltr:
 		return true
 	case Rtl:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for TranslationStatus.
-const (
-	Archived  TranslationStatus = "archived"
-	Draft     TranslationStatus = "draft"
-	Published TranslationStatus = "published"
-)
-
-// Valid indicates whether the value is a known member of the TranslationStatus enum.
-func (e TranslationStatus) Valid() bool {
-	switch e {
-	case Archived:
-		return true
-	case Draft:
-		return true
-	case Published:
 		return true
 	default:
 		return false
@@ -327,9 +305,6 @@ type TranslationContent struct {
 // TranslationContentD direction
 type TranslationContentD string
 
-// TranslationStatus defines model for TranslationStatus.
-type TranslationStatus string
-
 // VerseData defines model for VerseData.
 type VerseData struct {
 	// Sc Relevance score (search only).
@@ -346,28 +321,6 @@ type VerseData struct {
 
 	// W words
 	W *[]WordData `json:"w,omitempty"`
-}
-
-// VerseTextDraft defines model for VerseTextDraft.
-type VerseTextDraft struct {
-	// Li lang_id
-	Li *int `json:"li,omitempty"`
-
-	// Tx text/content
-	Tx *string `json:"tx,omitempty"`
-
-	// Vi verse_id
-	Vi *int `json:"vi,omitempty"`
-}
-
-// VerseTextHistory defines model for VerseTextHistory.
-type VerseTextHistory struct {
-	// At archived_at
-	At *time.Time `json:"at,omitempty"`
-	Id *int       `json:"id,omitempty"`
-
-	// Tx text/content
-	Tx *string `json:"tx,omitempty"`
 }
 
 // WordData defines model for WordData.
@@ -474,17 +427,6 @@ type GetChaptersParams struct {
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
-// ListVerseDraftsParams defines parameters for ListVerseDrafts.
-type ListVerseDraftsParams struct {
-	Status *TranslationStatus `form:"status,omitempty" json:"status,omitempty"`
-}
-
-// GetVerseHistoryParams defines parameters for GetVerseHistory.
-type GetVerseHistoryParams struct {
-	VerseId int `form:"verse_id" json:"verse_id"`
-	LangId  int `form:"lang_id" json:"lang_id"`
-}
-
 // GetQuranParams defines parameters for GetQuran.
 type GetQuranParams struct {
 	ChapterNumberStart *int `form:"chapter_number_start,omitempty" json:"chapter_number_start,omitempty"`
@@ -543,9 +485,6 @@ type SearchParams struct {
 // SearchParamsScope defines parameters for Search.
 type SearchParamsScope string
 
-// CreateVerseDraftJSONRequestBody defines body for CreateVerseDraft for application/json ContentType.
-type CreateVerseDraftJSONRequestBody = VerseTextDraft
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// fetches appendix Metadata
@@ -563,27 +502,6 @@ type ServerInterface interface {
 	// fetches chapter Metadata
 	// (GET /chapters)
 	GetChapters(c *gin.Context, params GetChaptersParams)
-	// List all verse drafts
-	// (GET /editor/drafts/verse-text)
-	ListVerseDrafts(c *gin.Context, params ListVerseDraftsParams)
-	// Create a new translation draft
-	// (POST /editor/drafts/verse-text)
-	CreateVerseDraft(c *gin.Context)
-	// Discard a draft
-	// (DELETE /editor/drafts/verse-text/{id})
-	DeleteVerseDraft(c *gin.Context, id int)
-	// Get a specific draft
-	// (GET /editor/drafts/verse-text/{id})
-	GetVerseDraft(c *gin.Context, id int)
-	// Update a draft
-	// (PATCH /editor/drafts/verse-text/{id})
-	UpdateVerseDraft(c *gin.Context, id int)
-	// View audit logs
-	// (GET /editor/history/verse-text)
-	GetVerseHistory(c *gin.Context, params GetVerseHistoryParams)
-	// Publish a draft
-	// (POST /editor/publish/verse-text/{id})
-	PublishVerseText(c *gin.Context, id int)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
@@ -811,189 +729,6 @@ func (siw *ServerInterfaceWrapper) GetChapters(c *gin.Context) {
 	}
 
 	siw.Handler.GetChapters(c, params)
-}
-
-// ListVerseDrafts operation middleware
-func (siw *ServerInterfaceWrapper) ListVerseDrafts(c *gin.Context) {
-
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ListVerseDraftsParams
-
-	// ------------- Optional query parameter "status" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", c.Request.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.ListVerseDrafts(c, params)
-}
-
-// CreateVerseDraft operation middleware
-func (siw *ServerInterfaceWrapper) CreateVerseDraft(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.CreateVerseDraft(c)
-}
-
-// DeleteVerseDraft operation middleware
-func (siw *ServerInterfaceWrapper) DeleteVerseDraft(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id int
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.DeleteVerseDraft(c, id)
-}
-
-// GetVerseDraft operation middleware
-func (siw *ServerInterfaceWrapper) GetVerseDraft(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id int
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.GetVerseDraft(c, id)
-}
-
-// UpdateVerseDraft operation middleware
-func (siw *ServerInterfaceWrapper) UpdateVerseDraft(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id int
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.UpdateVerseDraft(c, id)
-}
-
-// GetVerseHistory operation middleware
-func (siw *ServerInterfaceWrapper) GetVerseHistory(c *gin.Context) {
-
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetVerseHistoryParams
-
-	// ------------- Required query parameter "verse_id" -------------
-
-	if paramValue := c.Query("verse_id"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument verse_id is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "verse_id", c.Request.URL.Query(), &params.VerseId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verse_id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	// ------------- Required query parameter "lang_id" -------------
-
-	if paramValue := c.Query("lang_id"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument lang_id is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "lang_id", c.Request.URL.Query(), &params.LangId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang_id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.GetVerseHistory(c, params)
-}
-
-// PublishVerseText operation middleware
-func (siw *ServerInterfaceWrapper) PublishVerseText(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id int
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.PublishVerseText(c, id)
 }
 
 // GetLanguages operation middleware
@@ -1244,13 +979,6 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/bible/books", wrapper.GetBibleBooks)
 	router.GET(options.BaseURL+"/bible/search", wrapper.SearchBible)
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
-	router.GET(options.BaseURL+"/editor/drafts/verse-text", wrapper.ListVerseDrafts)
-	router.POST(options.BaseURL+"/editor/drafts/verse-text", wrapper.CreateVerseDraft)
-	router.DELETE(options.BaseURL+"/editor/drafts/verse-text/:id", wrapper.DeleteVerseDraft)
-	router.GET(options.BaseURL+"/editor/drafts/verse-text/:id", wrapper.GetVerseDraft)
-	router.PATCH(options.BaseURL+"/editor/drafts/verse-text/:id", wrapper.UpdateVerseDraft)
-	router.GET(options.BaseURL+"/editor/history/verse-text", wrapper.GetVerseHistory)
-	router.POST(options.BaseURL+"/editor/publish/verse-text/:id", wrapper.PublishVerseText)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
 	router.GET(options.BaseURL+"/quran", wrapper.GetQuran)
 	router.GET(options.BaseURL+"/search", wrapper.Search)
@@ -1510,502 +1238,6 @@ func (response GetChapters501JSONResponse) VisitGetChaptersResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListVerseDraftsRequestObject struct {
-	Params ListVerseDraftsParams
-}
-
-type ListVerseDraftsResponseObject interface {
-	VisitListVerseDraftsResponse(w http.ResponseWriter) error
-}
-
-type ListVerseDrafts200Response struct {
-}
-
-func (response ListVerseDrafts200Response) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.WriteHeader(200)
-	return nil
-}
-
-type ListVerseDrafts400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response ListVerseDrafts400JSONResponse) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListVerseDrafts404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response ListVerseDrafts404JSONResponse) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListVerseDrafts409JSONResponse struct{ ConflictJSONResponse }
-
-func (response ListVerseDrafts409JSONResponse) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListVerseDrafts500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response ListVerseDrafts500JSONResponse) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListVerseDrafts501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response ListVerseDrafts501JSONResponse) VisitListVerseDraftsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateVerseDraftRequestObject struct {
-	Body *CreateVerseDraftJSONRequestBody
-}
-
-type CreateVerseDraftResponseObject interface {
-	VisitCreateVerseDraftResponse(w http.ResponseWriter) error
-}
-
-type CreateVerseDraft201Response struct {
-}
-
-func (response CreateVerseDraft201Response) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type CreateVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response CreateVerseDraft400JSONResponse) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response CreateVerseDraft404JSONResponse) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateVerseDraft409JSONResponse struct{ ConflictJSONResponse }
-
-func (response CreateVerseDraft409JSONResponse) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateVerseDraft500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response CreateVerseDraft500JSONResponse) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateVerseDraft501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response CreateVerseDraft501JSONResponse) VisitCreateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteVerseDraftRequestObject struct {
-	Id int `json:"id"`
-}
-
-type DeleteVerseDraftResponseObject interface {
-	VisitDeleteVerseDraftResponse(w http.ResponseWriter) error
-}
-
-type DeleteVerseDraft201Response struct {
-}
-
-func (response DeleteVerseDraft201Response) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type DeleteVerseDraft204Response struct {
-}
-
-func (response DeleteVerseDraft204Response) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
-}
-
-type DeleteVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response DeleteVerseDraft400JSONResponse) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response DeleteVerseDraft404JSONResponse) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteVerseDraft409JSONResponse struct{ ConflictJSONResponse }
-
-func (response DeleteVerseDraft409JSONResponse) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteVerseDraft500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response DeleteVerseDraft500JSONResponse) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteVerseDraft501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response DeleteVerseDraft501JSONResponse) VisitDeleteVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseDraftRequestObject struct {
-	Id int `json:"id"`
-}
-
-type GetVerseDraftResponseObject interface {
-	VisitGetVerseDraftResponse(w http.ResponseWriter) error
-}
-
-type GetVerseDraft200Response struct {
-}
-
-func (response GetVerseDraft200Response) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(200)
-	return nil
-}
-
-type GetVerseDraft201Response struct {
-}
-
-func (response GetVerseDraft201Response) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type GetVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response GetVerseDraft400JSONResponse) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response GetVerseDraft404JSONResponse) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseDraft409JSONResponse struct{ ConflictJSONResponse }
-
-func (response GetVerseDraft409JSONResponse) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseDraft500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response GetVerseDraft500JSONResponse) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseDraft501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response GetVerseDraft501JSONResponse) VisitGetVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateVerseDraftRequestObject struct {
-	Id int `json:"id"`
-}
-
-type UpdateVerseDraftResponseObject interface {
-	VisitUpdateVerseDraftResponse(w http.ResponseWriter) error
-}
-
-type UpdateVerseDraft200Response struct {
-}
-
-func (response UpdateVerseDraft200Response) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(200)
-	return nil
-}
-
-type UpdateVerseDraft201Response struct {
-}
-
-func (response UpdateVerseDraft201Response) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type UpdateVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response UpdateVerseDraft400JSONResponse) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response UpdateVerseDraft404JSONResponse) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateVerseDraft409JSONResponse struct{ ConflictJSONResponse }
-
-func (response UpdateVerseDraft409JSONResponse) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateVerseDraft500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response UpdateVerseDraft500JSONResponse) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateVerseDraft501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response UpdateVerseDraft501JSONResponse) VisitUpdateVerseDraftResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistoryRequestObject struct {
-	Params GetVerseHistoryParams
-}
-
-type GetVerseHistoryResponseObject interface {
-	VisitGetVerseHistoryResponse(w http.ResponseWriter) error
-}
-
-type GetVerseHistory200JSONResponse []VerseTextHistory
-
-func (response GetVerseHistory200JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistory201Response struct {
-}
-
-func (response GetVerseHistory201Response) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type GetVerseHistory400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response GetVerseHistory400JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistory404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response GetVerseHistory404JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistory409JSONResponse struct{ ConflictJSONResponse }
-
-func (response GetVerseHistory409JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistory500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response GetVerseHistory500JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetVerseHistory501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response GetVerseHistory501JSONResponse) VisitGetVerseHistoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PublishVerseTextRequestObject struct {
-	Id int `json:"id"`
-}
-
-type PublishVerseTextResponseObject interface {
-	VisitPublishVerseTextResponse(w http.ResponseWriter) error
-}
-
-type PublishVerseText200Response struct {
-}
-
-func (response PublishVerseText200Response) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.WriteHeader(200)
-	return nil
-}
-
-type PublishVerseText201Response struct {
-}
-
-func (response PublishVerseText201Response) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.WriteHeader(201)
-	return nil
-}
-
-type PublishVerseText400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response PublishVerseText400JSONResponse) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PublishVerseText404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response PublishVerseText404JSONResponse) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PublishVerseText409JSONResponse struct{ ConflictJSONResponse }
-
-func (response PublishVerseText409JSONResponse) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(409)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PublishVerseText500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response PublishVerseText500JSONResponse) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type PublishVerseText501JSONResponse struct {
-	NotImplementedErrorJSONResponse
-}
-
-func (response PublishVerseText501JSONResponse) VisitPublishVerseTextResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(501)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type GetLanguagesRequestObject struct {
 }
 
@@ -2164,27 +1396,6 @@ type StrictServerInterface interface {
 	// fetches chapter Metadata
 	// (GET /chapters)
 	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
-	// List all verse drafts
-	// (GET /editor/drafts/verse-text)
-	ListVerseDrafts(ctx context.Context, request ListVerseDraftsRequestObject) (ListVerseDraftsResponseObject, error)
-	// Create a new translation draft
-	// (POST /editor/drafts/verse-text)
-	CreateVerseDraft(ctx context.Context, request CreateVerseDraftRequestObject) (CreateVerseDraftResponseObject, error)
-	// Discard a draft
-	// (DELETE /editor/drafts/verse-text/{id})
-	DeleteVerseDraft(ctx context.Context, request DeleteVerseDraftRequestObject) (DeleteVerseDraftResponseObject, error)
-	// Get a specific draft
-	// (GET /editor/drafts/verse-text/{id})
-	GetVerseDraft(ctx context.Context, request GetVerseDraftRequestObject) (GetVerseDraftResponseObject, error)
-	// Update a draft
-	// (PATCH /editor/drafts/verse-text/{id})
-	UpdateVerseDraft(ctx context.Context, request UpdateVerseDraftRequestObject) (UpdateVerseDraftResponseObject, error)
-	// View audit logs
-	// (GET /editor/history/verse-text)
-	GetVerseHistory(ctx context.Context, request GetVerseHistoryRequestObject) (GetVerseHistoryResponseObject, error)
-	// Publish a draft
-	// (POST /editor/publish/verse-text/{id})
-	PublishVerseText(ctx context.Context, request PublishVerseTextRequestObject) (PublishVerseTextResponseObject, error)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
@@ -2341,201 +1552,6 @@ func (sh *strictHandler) GetChapters(ctx *gin.Context, params GetChaptersParams)
 	}
 }
 
-// ListVerseDrafts operation middleware
-func (sh *strictHandler) ListVerseDrafts(ctx *gin.Context, params ListVerseDraftsParams) {
-	var request ListVerseDraftsRequestObject
-
-	request.Params = params
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.ListVerseDrafts(ctx, request.(ListVerseDraftsRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListVerseDrafts")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(ListVerseDraftsResponseObject); ok {
-		if err := validResponse.VisitListVerseDraftsResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// CreateVerseDraft operation middleware
-func (sh *strictHandler) CreateVerseDraft(ctx *gin.Context) {
-	var request CreateVerseDraftRequestObject
-
-	var body CreateVerseDraftJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateVerseDraft(ctx, request.(CreateVerseDraftRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateVerseDraft")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(CreateVerseDraftResponseObject); ok {
-		if err := validResponse.VisitCreateVerseDraftResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// DeleteVerseDraft operation middleware
-func (sh *strictHandler) DeleteVerseDraft(ctx *gin.Context, id int) {
-	var request DeleteVerseDraftRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteVerseDraft(ctx, request.(DeleteVerseDraftRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteVerseDraft")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(DeleteVerseDraftResponseObject); ok {
-		if err := validResponse.VisitDeleteVerseDraftResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetVerseDraft operation middleware
-func (sh *strictHandler) GetVerseDraft(ctx *gin.Context, id int) {
-	var request GetVerseDraftRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetVerseDraft(ctx, request.(GetVerseDraftRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetVerseDraft")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetVerseDraftResponseObject); ok {
-		if err := validResponse.VisitGetVerseDraftResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// UpdateVerseDraft operation middleware
-func (sh *strictHandler) UpdateVerseDraft(ctx *gin.Context, id int) {
-	var request UpdateVerseDraftRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.UpdateVerseDraft(ctx, request.(UpdateVerseDraftRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "UpdateVerseDraft")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(UpdateVerseDraftResponseObject); ok {
-		if err := validResponse.VisitUpdateVerseDraftResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetVerseHistory operation middleware
-func (sh *strictHandler) GetVerseHistory(ctx *gin.Context, params GetVerseHistoryParams) {
-	var request GetVerseHistoryRequestObject
-
-	request.Params = params
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetVerseHistory(ctx, request.(GetVerseHistoryRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetVerseHistory")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetVerseHistoryResponseObject); ok {
-		if err := validResponse.VisitGetVerseHistoryResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// PublishVerseText operation middleware
-func (sh *strictHandler) PublishVerseText(ctx *gin.Context, id int) {
-	var request PublishVerseTextRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PublishVerseText(ctx, request.(PublishVerseTextRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PublishVerseText")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PublishVerseTextResponseObject); ok {
-		if err := validResponse.VisitPublishVerseTextResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
 // GetLanguages operation middleware
 func (sh *strictHandler) GetLanguages(ctx *gin.Context) {
 	var request GetLanguagesRequestObject
@@ -2618,74 +1634,63 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"7SRHoToV/XT/fwEAAP//ZQTCVfdXAAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
