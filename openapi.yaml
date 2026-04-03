@@ -695,6 +695,7 @@ components:
         d:  { type: string,  enum: [ltr, rtl], description: "direction" }
         tx: { type: string,  description: "text" }
         f:  { type: string,  nullable: true, description: "footer/footnote" }
+        fn: { type: array, items: { type: string }, nullable: true, description: "theological footnotes" }
         hl: { type: string,  nullable: true, description: "highlight with <b> tags (search only)" }
 
   responses:

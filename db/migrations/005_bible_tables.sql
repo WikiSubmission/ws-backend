@@ -40,8 +40,9 @@ CREATE TABLE IF NOT EXISTS bible_verse_text (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     verse_id INT NOT NULL,
     lang_id SMALLINT NOT NULL REFERENCES languages(id),
-    content TEXT,
-    footer TEXT,
+    content         TEXT,
+    footer          TEXT,
+    theo_footnotes  TEXT[],
     content_tsv TSVECTOR GENERATED ALWAYS AS (
         to_tsvector('simple',
             coalesce(content, '') || ' ' || coalesce(footer, '')

@@ -266,12 +266,17 @@ func assembleBibleBooks(rows []db.BibleVerseRow) []BibleBookData {
 
 		dir := BibleTranslationContentD(row.Direction)
 		lID, lCode, content := row.LangID, row.LangCode, row.Content
+		var fn *[]string
+		if len(row.TheoFootnotes) > 0 {
+			fn = &row.TheoFootnotes
+		}
 		(*verseMap[vKey].Tr)[row.LangCode] = BibleTranslationContent{
 			Li: &lID,
 			Lc: &lCode,
 			D:  &dir,
 			Tx: &content,
 			F:  row.Footer,
+			Fn: fn,
 		}
 	}
 
@@ -334,12 +339,17 @@ func assembleBibleBooksWithEnrichment(
 				hl = &h
 			}
 		}
+		var fn *[]string
+		if len(row.TheoFootnotes) > 0 {
+			fn = &row.TheoFootnotes
+		}
 		(*verseMap[vKey].Tr)[lCode] = BibleTranslationContent{
 			Li: &lID,
 			Lc: &lCode,
 			D:  &dir,
 			Tx: &content,
 			F:  row.Footer,
+			Fn: fn,
 			Hl: hl,
 		}
 	}

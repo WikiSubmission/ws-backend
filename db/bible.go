@@ -17,32 +17,34 @@ type BibleBookRow struct {
 
 // BibleVerseRow holds one language-row from a Bible verse fetch.
 type BibleVerseRow struct {
-	BookNumber    int     `db:"book_number"`
-	BookName      string  `db:"book_name"`
-	Testament     string  `db:"testament"`
-	ChapterNumber int     `db:"chapter_number"`
-	VerseNumber   int     `db:"verse_number"`
-	LangID        int     `db:"lang_id"`
-	LangCode      string  `db:"lang_code"`
-	Direction     string  `db:"direction"`
-	Content       string  `db:"content"`
-	Footer        *string `db:"footer"`
+	BookNumber     int      `db:"book_number"`
+	BookName       string   `db:"book_name"`
+	Testament      string   `db:"testament"`
+	ChapterNumber  int      `db:"chapter_number"`
+	VerseNumber    int      `db:"verse_number"`
+	LangID         int      `db:"lang_id"`
+	LangCode       string   `db:"lang_code"`
+	Direction      string   `db:"direction"`
+	Content        string   `db:"content"`
+	Footer         *string  `db:"footer"`
+	TheoFootnotes  []string `db:"theo_footnotes"`
 }
 
 // SearchBibleVerseRow holds one language-row from a Bible FTS query.
 type SearchBibleVerseRow struct {
-	BookNumber    int     `db:"book_number"`
-	BookName      string  `db:"book_name"`
-	Testament     string  `db:"testament"`
-	ChapterNumber int     `db:"chapter_number"`
-	VerseNumber   int     `db:"verse_number"`
-	LangID        int     `db:"lang_id"`
-	LangCode      string  `db:"lang_code"`
-	Direction     string  `db:"direction"`
-	Content       string  `db:"content"`
-	Footer        *string `db:"footer"`
-	Score         float32 `db:"score"`
-	Headline      string  `db:"headline"`
+	BookNumber    int      `db:"book_number"`
+	BookName      string   `db:"book_name"`
+	Testament     string   `db:"testament"`
+	ChapterNumber int      `db:"chapter_number"`
+	VerseNumber   int      `db:"verse_number"`
+	LangID        int      `db:"lang_id"`
+	LangCode      string   `db:"lang_code"`
+	Direction     string   `db:"direction"`
+	Content       string   `db:"content"`
+	Footer        *string  `db:"footer"`
+	TheoFootnotes []string `db:"theo_footnotes"`
+	Score         float32  `db:"score"`
+	Headline      string   `db:"headline"`
 }
 
 // FetchBibleBooks returns all Bible books ordered by book_number, with
@@ -82,7 +84,8 @@ func (db *DB) FetchBibleVerses(ctx context.Context, bookNum, startCh, endCh, sta
 			l.code        AS lang_code,
 			l.direction,
 			bvt.content,
-			bvt.footer
+			bvt.footer,
+			COALESCE(bvt.theo_footnotes, '{}') AS theo_footnotes
 		FROM bible_verse_text bvt
 		JOIN bible_verses   bv  ON bvt.verse_id   = bv.id
 		JOIN bible_chapters bc  ON bv.chapter_id  = bc.id
@@ -123,6 +126,7 @@ func (db *DB) SearchBibleVerses(ctx context.Context, query string, langs []strin
 			l.direction,
 			bvt.content,
 			bvt.footer,
+			COALESCE(bvt.theo_footnotes, '{}') AS theo_footnotes,
 			ts_rank_cd(bvt.content_tsv, tsq.q)::real AS score,
 			ts_headline(
 				'simple', bvt.content, tsq.q,
@@ -162,7 +166,8 @@ func (db *DB) FetchBibleVersesByRefs(ctx context.Context, bookNums, chapterNums,
 			l.code        AS lang_code,
 			l.direction,
 			bvt.content,
-			bvt.footer
+			bvt.footer,
+			COALESCE(bvt.theo_footnotes, '{}') AS theo_footnotes
 		FROM unnest($1::int[], $2::int[], $3::int[]) AS ref(bn, cn, vn)
 		JOIN bible_books      bb  ON bb.book_number    = ref.bn
 		JOIN bible_chapters   bc  ON bc.book_id        = bb.id AND bc.chapter_number = ref.cn

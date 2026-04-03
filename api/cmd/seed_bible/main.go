@@ -29,10 +29,11 @@ type chapterCSVRow struct {
 }
 
 type verseData struct {
-	chapterID int
-	verseNum  int
-	content   string
-	footnote  *string
+	chapterID     int
+	verseNum      int
+	content       string
+	footnote      *string  // kept for footer column (unused in new seeds)
+	theoFootnotes []string // theological footnotes → theo_footnotes column
 }
 
 const batchSize = 500
@@ -72,7 +73,7 @@ func main() {
 	}
 	fmt.Printf("   Found %d chapter rows\n", len(chapterRows))
 
-	// 3. Parse footnotes CSV into map: "globalChNum:verseNum" → footnoteText
+	// 3. Parse footnotes CSV into map: "globalChNum:verseNum" → []footnoteText
 	fmt.Println("📝 Parsing footnotes CSV...")
 	footnoteMap, err := parseFootnotesCSV("assets/bible/ws_bible_footnotes_rows.csv")
 	if err != nil {
@@ -190,17 +191,11 @@ func main() {
 			continue
 		}
 		key := fmt.Sprintf("%d:%d", rv.globalChNum, rv.verseNum)
-		fn := footnoteMap[key]
-		var fnPtr *string
-		if fn != "" {
-			s := fn
-			fnPtr = &s
-		}
 		resolved = append(resolved, verseData{
-			chapterID: chID,
-			verseNum:  rv.verseNum,
-			content:   rv.content,
-			footnote:  fnPtr,
+			chapterID:     chID,
+			verseNum:      rv.verseNum,
+			content:       rv.content,
+			theoFootnotes: footnoteMap[key],
 		})
 	}
 
@@ -244,10 +239,14 @@ func main() {
 		// Step B: insert bible_verse_text
 		textBatch := &pgx.Batch{}
 		for i, v := range chunk {
+			var fn interface{} = nil
+			if len(v.theoFootnotes) > 0 {
+				fn = v.theoFootnotes
+			}
 			textBatch.Queue(
-				`INSERT INTO bible_verse_text (verse_id, lang_id, content, footer) VALUES ($1, $2, $3, $4)
-				 ON CONFLICT (verse_id, lang_id) DO UPDATE SET content = EXCLUDED.content, footer = EXCLUDED.footer`,
-				verseIDs[i], enLangID, v.content, v.footnote,
+				`INSERT INTO bible_verse_text (verse_id, lang_id, content, theo_footnotes) VALUES ($1, $2, $3, $4)
+				 ON CONFLICT (verse_id, lang_id) DO UPDATE SET content = EXCLUDED.content, theo_footnotes = EXCLUDED.theo_footnotes`,
+				verseIDs[i], enLangID, v.content, fn,
 			)
 		}
 		br2 := database.Pool.SendBatch(ctx, textBatch)
@@ -336,9 +335,9 @@ func parseChaptersCSV(path string) ([]chapterCSVRow, error) {
 	return rows, nil
 }
 
-// parseFootnotesCSV builds a map from "globalChNum:verseNum" → footnote text.
-// Multiple footnotes for the same verse are concatenated with a space.
-func parseFootnotesCSV(path string) (map[string]string, error) {
+// parseFootnotesCSV builds a map from "globalChNum:verseNum" → []footnote texts.
+// Multiple footnotes for the same verse are preserved as separate slice entries.
+func parseFootnotesCSV(path string) (map[string][]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
@@ -350,23 +349,15 @@ func parseFootnotesCSV(path string) (map[string]string, error) {
 		return nil, fmt.Errorf("read header: %w", err)
 	}
 
-	result := make(map[string]string)
+	result := make(map[string][]string)
 	for {
 		record, err := reader.Read()
 		if err != nil {
 			break
 		}
 		// columns: verse_index, verse_id, english, chapter_number, verse_number
-		chNum := record[3]
-		verseNum := record[4]
-		footnote := record[2]
-		key := chNum + ":" + verseNum
-
-		if existing, ok := result[key]; ok {
-			result[key] = existing + " " + footnote
-		} else {
-			result[key] = footnote
-		}
+		key := record[3] + ":" + record[4]
+		result[key] = append(result[key], record[2])
 	}
 	return result, nil
 }
