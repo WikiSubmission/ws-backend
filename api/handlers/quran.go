@@ -162,11 +162,12 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 					if p.IncludeRoot != nil && *p.IncludeRoot {
 						newWord.R = wRow.WordRoot
 					}
-					if p.IncludeMeaning != nil && *p.IncludeMeaning {
-						newWord.M = wRow.Meaning
-					}
+
 					*vData.W = append(*vData.W, newWord)
 					targetWord = &(*vData.W)[len(*vData.W)-1]
+				}
+				if p.IncludeMeaning != nil && *p.IncludeMeaning && wRow.Meaning != nil {
+					targetWord.M = wRow.Meaning // meaning -> M (pick first non-nil across langs)
 				}
 				(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
 			}
