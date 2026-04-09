@@ -380,6 +380,103 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerErrror'
 
+  # --- MUSIC API ---
+
+  /music/artists:
+    get:
+      tags: [Music]
+      operationId: getMusicArtists
+      summary: List all music artists
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MusicArtist'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /music/categories:
+    get:
+      tags: [Music]
+      operationId: getMusicCategories
+      summary: List all music categories
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MusicCategory'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /music/albums:
+    get:
+      tags: [Music]
+      operationId: getMusicAlbums
+      summary: List music albums
+      parameters:
+        - name: artist_id
+          in: query
+          description: Filter by artist ID.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MusicAlbum'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /music/tracks:
+    get:
+      tags: [Music]
+      operationId: getMusicTracks
+      summary: List music tracks
+      parameters:
+        - name: artist_id
+          in: query
+          description: Filter by artist ID.
+          schema:
+            type: integer
+        - name: category_id
+          in: query
+          description: Filter by category ID.
+          schema:
+            type: integer
+        - name: album_id
+          in: query
+          description: Filter by album ID.
+          schema:
+            type: integer
+        - name: featured
+          in: query
+          description: Filter to featured tracks only.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MusicTrack'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
 
 components:
   # -----------------------------------------------------------------------
@@ -697,6 +794,51 @@ components:
         f:  { type: string,  nullable: true, description: "footer/footnote" }
         fn: { type: array, items: { type: string }, nullable: true, description: "theological footnotes" }
         hl: { type: string,  nullable: true, description: "highlight with <b> tags (search only)" }
+
+    # --- Music schemas ---
+
+    MusicArtist:
+      type: object
+      required: [id, name, image_url, display_priority]
+      properties:
+        id:              { type: integer }
+        name:            { type: string }
+        description:     { type: string, nullable: true }
+        image_url:       { type: string }
+        display_priority: { type: integer }
+
+    MusicCategory:
+      type: object
+      required: [id, name, display_priority]
+      properties:
+        id:              { type: integer }
+        name:            { type: string }
+        description:     { type: string, nullable: true }
+        display_priority: { type: integer }
+
+    MusicAlbum:
+      type: object
+      required: [id, name, artist_id, release_date]
+      properties:
+        id:           { type: integer }
+        name:         { type: string }
+        artist_id:    { type: integer }
+        release_date: { type: string, format: date }
+        description:  { type: string, nullable: true }
+
+    MusicTrack:
+      type: object
+      required: [id, name, release_date, url, artist_id, featured]
+      properties:
+        id:           { type: integer }
+        name:         { type: string }
+        release_date: { type: string, format: date }
+        url:          { type: string }
+        artist_id:    { type: integer }
+        category_id:  { type: integer, nullable: true }
+        album_id:     { type: integer, nullable: true }
+        featured:     { type: boolean }
+        lyrics:       { type: string, nullable: true }
 
   responses:
     Conflict:

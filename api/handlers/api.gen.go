@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for BibleTranslationContentD.
@@ -251,6 +252,45 @@ type Language struct {
 // LanguageDirection defines model for Language.Direction.
 type LanguageDirection string
 
+// MusicAlbum defines model for MusicAlbum.
+type MusicAlbum struct {
+	ArtistId    int                `json:"artist_id"`
+	Description *string            `json:"description,omitempty"`
+	Id          int                `json:"id"`
+	Name        string             `json:"name"`
+	ReleaseDate openapi_types.Date `json:"release_date"`
+}
+
+// MusicArtist defines model for MusicArtist.
+type MusicArtist struct {
+	Description     *string `json:"description,omitempty"`
+	DisplayPriority int     `json:"display_priority"`
+	Id              int     `json:"id"`
+	ImageUrl        string  `json:"image_url"`
+	Name            string  `json:"name"`
+}
+
+// MusicCategory defines model for MusicCategory.
+type MusicCategory struct {
+	Description     *string `json:"description,omitempty"`
+	DisplayPriority int     `json:"display_priority"`
+	Id              int     `json:"id"`
+	Name            string  `json:"name"`
+}
+
+// MusicTrack defines model for MusicTrack.
+type MusicTrack struct {
+	AlbumId     *int               `json:"album_id,omitempty"`
+	ArtistId    int                `json:"artist_id"`
+	CategoryId  *int               `json:"category_id,omitempty"`
+	Featured    bool               `json:"featured"`
+	Id          int                `json:"id"`
+	Lyrics      *string            `json:"lyrics,omitempty"`
+	Name        string             `json:"name"`
+	ReleaseDate openapi_types.Date `json:"release_date"`
+	Url         string             `json:"url"`
+}
+
 // QuranResponse defines model for QuranResponse.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
@@ -430,6 +470,27 @@ type GetChaptersParams struct {
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// GetMusicAlbumsParams defines parameters for GetMusicAlbums.
+type GetMusicAlbumsParams struct {
+	// ArtistId Filter by artist ID.
+	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
+}
+
+// GetMusicTracksParams defines parameters for GetMusicTracks.
+type GetMusicTracksParams struct {
+	// ArtistId Filter by artist ID.
+	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
+
+	// CategoryId Filter by category ID.
+	CategoryId *int `form:"category_id,omitempty" json:"category_id,omitempty"`
+
+	// AlbumId Filter by album ID.
+	AlbumId *int `form:"album_id,omitempty" json:"album_id,omitempty"`
+
+	// Featured Filter to featured tracks only.
+	Featured *bool `form:"featured,omitempty" json:"featured,omitempty"`
+}
+
 // GetQuranParams defines parameters for GetQuran.
 type GetQuranParams struct {
 	ChapterNumberStart *int `form:"chapter_number_start,omitempty" json:"chapter_number_start,omitempty"`
@@ -508,6 +569,18 @@ type ServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
+	// List music albums
+	// (GET /music/albums)
+	GetMusicAlbums(c *gin.Context, params GetMusicAlbumsParams)
+	// List all music artists
+	// (GET /music/artists)
+	GetMusicArtists(c *gin.Context)
+	// List all music categories
+	// (GET /music/categories)
+	GetMusicCategories(c *gin.Context)
+	// List music tracks
+	// (GET /music/tracks)
+	GetMusicTracks(c *gin.Context, params GetMusicTracksParams)
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(c *gin.Context, params GetQuranParams)
@@ -747,6 +820,108 @@ func (siw *ServerInterfaceWrapper) GetLanguages(c *gin.Context) {
 	siw.Handler.GetLanguages(c)
 }
 
+// GetMusicAlbums operation middleware
+func (siw *ServerInterfaceWrapper) GetMusicAlbums(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMusicAlbumsParams
+
+	// ------------- Optional query parameter "artist_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "artist_id", c.Request.URL.Query(), &params.ArtistId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter artist_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMusicAlbums(c, params)
+}
+
+// GetMusicArtists operation middleware
+func (siw *ServerInterfaceWrapper) GetMusicArtists(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMusicArtists(c)
+}
+
+// GetMusicCategories operation middleware
+func (siw *ServerInterfaceWrapper) GetMusicCategories(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMusicCategories(c)
+}
+
+// GetMusicTracks operation middleware
+func (siw *ServerInterfaceWrapper) GetMusicTracks(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMusicTracksParams
+
+	// ------------- Optional query parameter "artist_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "artist_id", c.Request.URL.Query(), &params.ArtistId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter artist_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "category_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "category_id", c.Request.URL.Query(), &params.CategoryId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter category_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "album_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "album_id", c.Request.URL.Query(), &params.AlbumId, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter album_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "featured" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "featured", c.Request.URL.Query(), &params.Featured, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter featured: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMusicTracks(c, params)
+}
+
 // GetQuran operation middleware
 func (siw *ServerInterfaceWrapper) GetQuran(c *gin.Context) {
 
@@ -983,6 +1158,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/bible/search", wrapper.SearchBible)
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
+	router.GET(options.BaseURL+"/music/albums", wrapper.GetMusicAlbums)
+	router.GET(options.BaseURL+"/music/artists", wrapper.GetMusicArtists)
+	router.GET(options.BaseURL+"/music/categories", wrapper.GetMusicCategories)
+	router.GET(options.BaseURL+"/music/tracks", wrapper.GetMusicTracks)
 	router.GET(options.BaseURL+"/quran", wrapper.GetQuran)
 	router.GET(options.BaseURL+"/search", wrapper.Search)
 }
@@ -1268,6 +1447,116 @@ func (response GetLanguages500JSONResponse) VisitGetLanguagesResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetMusicAlbumsRequestObject struct {
+	Params GetMusicAlbumsParams
+}
+
+type GetMusicAlbumsResponseObject interface {
+	VisitGetMusicAlbumsResponse(w http.ResponseWriter) error
+}
+
+type GetMusicAlbums200JSONResponse []MusicAlbum
+
+func (response GetMusicAlbums200JSONResponse) VisitGetMusicAlbumsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicAlbums500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMusicAlbums500JSONResponse) VisitGetMusicAlbumsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicArtistsRequestObject struct {
+}
+
+type GetMusicArtistsResponseObject interface {
+	VisitGetMusicArtistsResponse(w http.ResponseWriter) error
+}
+
+type GetMusicArtists200JSONResponse []MusicArtist
+
+func (response GetMusicArtists200JSONResponse) VisitGetMusicArtistsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicArtists500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMusicArtists500JSONResponse) VisitGetMusicArtistsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicCategoriesRequestObject struct {
+}
+
+type GetMusicCategoriesResponseObject interface {
+	VisitGetMusicCategoriesResponse(w http.ResponseWriter) error
+}
+
+type GetMusicCategories200JSONResponse []MusicCategory
+
+func (response GetMusicCategories200JSONResponse) VisitGetMusicCategoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicCategories500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMusicCategories500JSONResponse) VisitGetMusicCategoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicTracksRequestObject struct {
+	Params GetMusicTracksParams
+}
+
+type GetMusicTracksResponseObject interface {
+	VisitGetMusicTracksResponse(w http.ResponseWriter) error
+}
+
+type GetMusicTracks200JSONResponse []MusicTrack
+
+func (response GetMusicTracks200JSONResponse) VisitGetMusicTracksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMusicTracks500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMusicTracks500JSONResponse) VisitGetMusicTracksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetQuranRequestObject struct {
 	Params GetQuranParams
 }
@@ -1402,6 +1691,18 @@ type StrictServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
+	// List music albums
+	// (GET /music/albums)
+	GetMusicAlbums(ctx context.Context, request GetMusicAlbumsRequestObject) (GetMusicAlbumsResponseObject, error)
+	// List all music artists
+	// (GET /music/artists)
+	GetMusicArtists(ctx context.Context, request GetMusicArtistsRequestObject) (GetMusicArtistsResponseObject, error)
+	// List all music categories
+	// (GET /music/categories)
+	GetMusicCategories(ctx context.Context, request GetMusicCategoriesRequestObject) (GetMusicCategoriesResponseObject, error)
+	// List music tracks
+	// (GET /music/tracks)
+	GetMusicTracks(ctx context.Context, request GetMusicTracksRequestObject) (GetMusicTracksResponseObject, error)
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error)
@@ -1580,6 +1881,110 @@ func (sh *strictHandler) GetLanguages(ctx *gin.Context) {
 	}
 }
 
+// GetMusicAlbums operation middleware
+func (sh *strictHandler) GetMusicAlbums(ctx *gin.Context, params GetMusicAlbumsParams) {
+	var request GetMusicAlbumsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMusicAlbums(ctx, request.(GetMusicAlbumsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMusicAlbums")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMusicAlbumsResponseObject); ok {
+		if err := validResponse.VisitGetMusicAlbumsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMusicArtists operation middleware
+func (sh *strictHandler) GetMusicArtists(ctx *gin.Context) {
+	var request GetMusicArtistsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMusicArtists(ctx, request.(GetMusicArtistsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMusicArtists")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMusicArtistsResponseObject); ok {
+		if err := validResponse.VisitGetMusicArtistsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMusicCategories operation middleware
+func (sh *strictHandler) GetMusicCategories(ctx *gin.Context) {
+	var request GetMusicCategoriesRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMusicCategories(ctx, request.(GetMusicCategoriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMusicCategories")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMusicCategoriesResponseObject); ok {
+		if err := validResponse.VisitGetMusicCategoriesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMusicTracks operation middleware
+func (sh *strictHandler) GetMusicTracks(ctx *gin.Context, params GetMusicTracksParams) {
+	var request GetMusicTracksRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMusicTracks(ctx, request.(GetMusicTracksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMusicTracks")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMusicTracksResponseObject); ok {
+		if err := validResponse.VisitGetMusicTracksResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetQuran operation middleware
 func (sh *strictHandler) GetQuran(ctx *gin.Context, params GetQuranParams) {
 	var request GetQuranRequestObject
@@ -1637,64 +2042,69 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

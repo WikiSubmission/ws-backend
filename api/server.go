@@ -21,12 +21,22 @@ import (
 	"github.com/gin-gonic/gin"
 	middleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
+	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
 func StartServer(database *db.DB) {
 	swagger, _ := handlers.GetSwagger()
+
+	// ── Auth setup ───────────────────────────────────────────────────────────
+	jwksURL := os.Getenv("SUPABASE_JWKS_URL")
+	jwksCache, err := auth.NewJWKSCache(context.Background(), jwksURL)
+	if err != nil {
+		slog.Warn("JWKS cache init failed, auth endpoints will return errors", "error", err)
+		jwksCache = &auth.JWKSCache{} // no-op
+	}
+	userHandler := handlers.UserHandler{DB: database}
 
 	// gin.New() instead of gin.Default() to avoid double-adding Recovery.
 	r := gin.New()
@@ -222,6 +232,19 @@ func StartServer(database *db.DB) {
 	handlers.RegisterHandlersWithOptions(r, strictHandler, handlers.GinServerOptions{
 		BaseURL: apiPrefix,
 	})
+
+	// ── Authenticated routes ─────────────────────────────────────────────────
+	authed := r.Group("/api/v1")
+	authed.Use(auth.RequireAuth(jwksCache))
+	authed.POST("/users", userHandler.UpsertUser)
+	authed.GET("/users/:id", userHandler.GetUserByID)
+
+	// ── Admin routes ─────────────────────────────────────────────────────────
+	admin := r.Group("/api/v1")
+	admin.Use(auth.RequireAuth(jwksCache))
+	admin.Use(auth.RequireAdmin(database))
+	admin.GET("/users", userHandler.GetUsers)
+	admin.PATCH("/users/:id", userHandler.UpdateUser)
 
 	if err := serverImpl.InitializeCaches(context.Background()); err != nil {
 		slog.Error("Cache initialization failed — server cannot serve requests", slog.Any("error", err))
