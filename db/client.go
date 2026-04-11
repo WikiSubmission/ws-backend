@@ -123,8 +123,13 @@ func ConnectDB() (*DB, error) {
 
 	// Register pgvector types on every new connection so the <=> operator
 	// and vector column reads/writes work transparently with pgx.
+	// Non-fatal: if the vector extension is not yet installed (e.g. before
+	// migration 011 runs on first deploy), log and continue — FTS still works.
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		return pgvectorpgx.RegisterTypes(ctx, conn)
+		if err := pgvectorpgx.RegisterTypes(ctx, conn); err != nil {
+			slog.Debug("pgvector types not registered (vector extension not yet installed)", "error", err)
+		}
+		return nil
 	}
 
 	// Set a 10-second timeout for the initial connection attempt and ping
