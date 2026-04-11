@@ -7,6 +7,13 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
+// Embedder generates query embeddings for semantic search.
+// Defined here (where it is consumed) per the Go "accept interfaces" idiom.
+// The concrete *embed.OpenAIEmbedder satisfies this interface.
+type Embedder interface {
+	Embed(ctx context.Context, text string) ([]float32, error)
+}
+
 type LanguageCache struct {
 	ID        int
 	Code      string
@@ -31,6 +38,7 @@ type Server struct {
 	BibleBooks map[int]BibleBookCache
 	QuranLangs map[string]bool // lang codes with Quran verse_text content
 	BibleLangs map[string]bool // lang codes with Bible verse_text content
+	Embedder   Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
 }
 
 func (s *Server) InitializeCaches(ctx context.Context) error {

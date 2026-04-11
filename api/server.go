@@ -20,6 +20,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	middleware "github.com/oapi-codegen/gin-middleware"
+	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
@@ -226,6 +227,12 @@ func StartServer(database *db.DB) {
 
 	// 4. Register handlers using the BaseURL
 	serverImpl := &handlers.Server{DB: database}
+	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+		serverImpl.Embedder = apitembed.NewOpenAIEmbedder(apiKey)
+		slog.Info("Semantic search enabled", "model", "text-embedding-3-small", "dims", 512)
+	} else {
+		slog.Warn("OPENAI_API_KEY not set — semantic search disabled, using FTS only")
+	}
 	strictHandler := handlers.NewStrictHandler(serverImpl, nil)
 
 	// Register handlers to the root 'r' but with the BaseURL prefix

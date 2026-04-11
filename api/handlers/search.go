@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"time"
 
 	"github.com/wikiSubmission/ws-backend/db"
 )
@@ -121,8 +122,22 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			countCh <- countResult{n, err}
 		}()
 
-		// Phase A: FTS in detected language(s) → verse refs + scores + highlights
-		phaseARows, err := s.DB.SearchVerses(ctx, q, searchLangs, limit, offset)
+		// Embed the query when an Embedder is configured and semantic=true (default).
+		var queryEmbedding []float32
+		if s.Embedder != nil && (p.Semantic == nil || *p.Semantic) {
+			embedCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			vec, embedErr := s.Embedder.Embed(embedCtx, q)
+			if embedErr != nil {
+				slog.Warn("embedding failed, falling back to FTS", "error", embedErr)
+			} else {
+				queryEmbedding = vec
+			}
+		}
+
+		// Phase A: hybrid (FTS + vector RRF) or pure FTS when no embedding available.
+		// SearchVersesHybrid falls back to SearchVerses when queryEmbedding is nil.
+		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset)
 		if err != nil {
 			searchErr = err
 		} else {

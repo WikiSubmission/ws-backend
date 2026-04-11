@@ -223,6 +223,15 @@ paths:
             type: integer
             minimum: 0
             default: 0
+        - name: semantic
+          in: query
+          required: false
+          description: >
+            Enable hybrid semantic search (FTS + vector RRF) when the server
+            has an embedding model configured. Defaults to true when
+            OPENAI_API_KEY is set. Set to false to force pure keyword FTS.
+          schema:
+            type: boolean
         - $ref: '#/components/parameters/WordLangsParam'
         - $ref: '#/components/parameters/IncludeWordsParam'
         - $ref: '#/components/parameters/IncludeRootParam'

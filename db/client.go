@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgvectorpgx "github.com/pgvector/pgvector-go/pgx"
 )
 
 // DB wraps the pgxpool.Pool to provide database connectivity and state management.
@@ -118,6 +120,12 @@ func ConnectDB() (*DB, error) {
 	config.MinConns = 2                       // Maintains warm connections for performance
 	config.MaxConnIdleTime = 5 * time.Minute  // Evict idle connections after 5 min
 	config.MaxConnLifetime = 30 * time.Minute // Recycle connections to avoid stale TCP/PgBouncer issues
+
+	// Register pgvector types on every new connection so the <=> operator
+	// and vector column reads/writes work transparently with pgx.
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgvectorpgx.RegisterTypes(ctx, conn)
+	}
 
 	// Set a 10-second timeout for the initial connection attempt and ping
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

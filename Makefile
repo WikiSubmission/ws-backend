@@ -22,7 +22,7 @@ PSQL=PGPASSWORD=$(DATABASE_PASSWORD) psql \
 BIN=bin/server
 
 .PHONY: run build test tidy generate seed seed-bible seed-admin \
-        seed-music seed-music-railway \
+        seed-music seed-music-railway embed-quran export-embeddings import-embeddings-railway \
         db-setup db-drop db-rebuild \
         source-import source-cleanup \
         seed-railway reseed-railway \
@@ -101,6 +101,33 @@ seed-music-railway:
 	@echo "Cleaning up music source tables..."
 	@$(PSQL_REMOTE) -c "DROP TABLE IF EXISTS public.ws_music_tracks, public.ws_music_albums, public.ws_music_categories, public.ws_music_artists CASCADE;"
 	@echo "Music seed complete (Railway)."
+
+## embed-quran: Generate and store embeddings for all English verse_text rows.
+##              Requires OPENAI_API_KEY in .env. Idempotent — skips rows already embedded.
+##              Cost: ~$0.004 total (text-embedding-3-small, 512 dims).
+embed-quran:
+	@test -n "$(OPENAI_API_KEY)" || (echo "ERROR: OPENAI_API_KEY is not set in .env" && exit 1)
+	@go run ./api/cmd/seed_embeddings/
+
+## export-embeddings: Dump (id, embedding) pairs from the local DB to assets/embeddings.csv.
+##                    Run this after embed-quran to snapshot embeddings for prod upload.
+export-embeddings:
+	@echo "Exporting embeddings from local database..."
+	@$(PSQL) -c "\COPY (SELECT id, embedding::text FROM verse_text WHERE embedding IS NOT NULL) TO '$(CURDIR)/assets/embeddings.csv' WITH (FORMAT CSV)"
+	@echo "Exported $$(wc -l < $(CURDIR)/assets/embeddings.csv | tr -d ' ') rows to assets/embeddings.csv"
+
+## import-embeddings-railway: Upload assets/embeddings.csv to Railway (UPDATE only, no re-embedding).
+##                             Requires DATABASE_URL in .env. Idempotent.
+import-embeddings-railway:
+	@test -n "$(DATABASE_URL)" || (echo "ERROR: DATABASE_URL is not set in .env" && exit 1)
+	@test -f assets/embeddings.csv || (echo "ERROR: assets/embeddings.csv not found — run make export-embeddings first" && exit 1)
+	@echo "Creating staging table on Railway..."
+	@psql $(DATABASE_URL) -c "DROP TABLE IF EXISTS _emb_stage; CREATE TABLE _emb_stage (id INT PRIMARY KEY, embedding vector(512));"
+	@echo "Uploading embeddings CSV (this may take a minute)..."
+	@psql $(DATABASE_URL) -c "\COPY _emb_stage (id, embedding) FROM '$(CURDIR)/assets/embeddings.csv' WITH (FORMAT CSV)"
+	@echo "Updating verse_text..."
+	@psql $(DATABASE_URL) -c "UPDATE verse_text v SET embedding = e.embedding FROM _emb_stage e WHERE v.id = e.id; DROP TABLE _emb_stage;"
+	@echo "Import complete."
 
 ## seed-admin: Promote a user to admin role by email
 ##             Usage: make seed-admin EMAIL=user@example.com
