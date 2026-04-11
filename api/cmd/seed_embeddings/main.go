@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	pgvector "github.com/pgvector/pgvector-go"
 	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/db"
 )
@@ -115,7 +116,7 @@ func main() {
 		for _, res := range pending {
 			batch.Queue(
 				"UPDATE verse_text SET embedding = $1 WHERE id = $2",
-				res.embedding, res.id,
+				pgvector.NewVector(res.embedding), res.id,
 			)
 		}
 		br := database.Pool.SendBatch(ctx, batch)
