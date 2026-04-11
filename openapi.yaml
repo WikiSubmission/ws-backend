@@ -15,7 +15,7 @@ servers:
     description: Production Server
   - url: http://ws-backend.railway.internal/api/v1
     description: Internal Production Server
-  - url: https://ws-backend-vec-production.up.railway.app/api/v1
+  - url: https://ws-backend-vc.wikisubmission.org/api/v1
     description: railway, temp test
 
 tags:
