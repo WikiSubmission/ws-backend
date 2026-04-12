@@ -84,8 +84,7 @@ func (db *DB) SearchVerses(ctx context.Context, query string, langs []string, li
         LEFT  JOIN chapter_text ct
               ON  c.id = ct.chapter_id AND ct.lang_id = l.id
         CROSS JOIN tsq
-        WHERE (vt.content_tsv @@ tsq.q
-               OR c.id IN (SELECT chapter_id FROM title_hits))
+        WHERE vt.content_tsv @@ tsq.q
           AND ($2::text[] IS NULL OR l.code = ANY($2::text[]))
         ORDER BY score DESC, c.chapter_number, v.verse_index
         LIMIT  $3
@@ -124,8 +123,7 @@ func (db *DB) CountSearchVerses(ctx context.Context, query string, langs []strin
         JOIN  chapters  c  ON v.chapter_id = c.id
         JOIN  languages l  ON vt.lang_id   = l.id
         CROSS JOIN tsq
-        WHERE (vt.content_tsv @@ tsq.q
-               OR c.id IN (SELECT chapter_id FROM title_hits))
+        WHERE vt.content_tsv @@ tsq.q
           AND ($2::text[] IS NULL OR l.code = ANY($2::text[]))
 	`
 	var count int

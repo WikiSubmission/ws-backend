@@ -220,6 +220,11 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 
 	total := cr.n
 	resultCount := len(verseRefMap)
+	// Hybrid/vector search can return results that FTS count doesn't cover.
+	// Ensure total is at least as large as what we're returning on this page.
+	if total < offset+resultCount {
+		total = offset + resultCount
+	}
 	return Search200JSONResponse{
 		Info: &QuranResponseInfo{
 			Q:           p.Q,
