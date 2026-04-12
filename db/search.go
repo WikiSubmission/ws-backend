@@ -131,6 +131,56 @@ func (db *DB) CountSearchVerses(ctx context.Context, query string, langs []strin
 	return count, err
 }
 
+// CountSearchVersesHybrid returns the total number of distinct verses in the
+// RRF candidate pool (FTS leg ∪ vector leg, each capped at 200 candidates).
+// This matches the universe that SearchVersesHybrid pages over, so the total
+// is accurate for pagination even when vector-only matches dominate.
+// Falls back to CountSearchVerses when queryEmbedding is nil or empty.
+func (db *DB) CountSearchVersesHybrid(
+	ctx context.Context,
+	query string,
+	queryEmbedding []float32,
+	langs []string,
+) (int, error) {
+	if len(queryEmbedding) == 0 {
+		return db.CountSearchVerses(ctx, query, langs)
+	}
+
+	vec := pgvector.NewVector(queryEmbedding)
+
+	sql := `
+        WITH
+          tsq AS (SELECT websearch_to_tsquery('simple', $1) AS q),
+          fts AS (
+            SELECT vt.verse_id, vt.lang_id
+            FROM   verse_text vt
+            CROSS  JOIN tsq
+            JOIN   languages l ON l.id = vt.lang_id
+            WHERE  vt.content_tsv @@ tsq.q
+              AND  ($3::text[] IS NULL OR l.code = ANY($3::text[]))
+            LIMIT  200
+          ),
+          vec AS (
+            SELECT vt.verse_id, vt.lang_id
+            FROM   verse_text vt
+            JOIN   languages l ON l.id = vt.lang_id
+            WHERE  vt.embedding IS NOT NULL
+              AND  ($3::text[] IS NULL OR l.code = ANY($3::text[]))
+            ORDER  BY vt.embedding <=> $2
+            LIMIT  200
+          ),
+          rrf AS (
+            SELECT COALESCE(f.verse_id, v.verse_id) AS verse_id
+            FROM   fts f
+            FULL   JOIN vec v ON v.verse_id = f.verse_id AND v.lang_id = f.lang_id
+          )
+        SELECT COUNT(DISTINCT verse_id) FROM rrf
+	`
+	var count int
+	err := db.Pool.QueryRow(ctx, sql, query, vec, langs).Scan(&count)
+	return count, err
+}
+
 // SearchVersesHybrid combines FTS and vector search via Reciprocal Rank Fusion
 // (RRF). When queryEmbedding is nil or empty it falls back to SearchVerses.
 //

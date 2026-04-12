@@ -117,12 +117,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			}
 		}
 
-		go func() {
-			n, err := s.DB.CountSearchVerses(ctx, q, searchLangs)
-			countCh <- countResult{n, err}
-		}()
-
-		// Embed the query when an Embedder is configured and semantic=true (default).
+		// Embed first so we can launch the matching count strategy concurrently.
 		var queryEmbedding []float32
 		if s.Embedder != nil && (p.Semantic == nil || *p.Semantic) {
 			embedCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -134,6 +129,13 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 				queryEmbedding = vec
 			}
 		}
+
+		// Count concurrently using the same strategy as the search (hybrid or FTS).
+		// CountSearchVersesHybrid delegates to CountSearchVerses when no embedding.
+		go func() {
+			n, err := s.DB.CountSearchVersesHybrid(ctx, q, queryEmbedding, searchLangs)
+			countCh <- countResult{n, err}
+		}()
 
 		// Phase A: hybrid (FTS + vector RRF) or pure FTS when no embedding available.
 		// SearchVersesHybrid falls back to SearchVerses when queryEmbedding is nil.
