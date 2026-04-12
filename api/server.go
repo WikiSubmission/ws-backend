@@ -181,6 +181,11 @@ func StartServer(database *db.DB) {
 	// match against the servers block. Behind a reverse proxy (Railway, etc.)
 	// c.Request.URL.Scheme and .Host are empty — kin-openapi returns 404 if it
 	// can't match any server URL.
+	//
+	// After setting scheme/host from headers we scan the spec's servers list and
+	// snap the URL to whichever entry shares the same hostname (port-insensitive).
+	// This means every server in the servers: block works automatically — adding a
+	// new domain only requires an entry in openapi.yaml, no code change needed.
 	isProd := appEnv == "production"
 	r.Use(func(c *gin.Context) {
 		if c.Request.URL.Scheme == "" {
@@ -198,6 +203,23 @@ func StartServer(database *db.DB) {
 		if c.Request.URL.Host == "" {
 			c.Request.URL.Host = c.Request.Host
 		}
+
+		// Snap scheme+host to the matching spec server so kin-openapi always finds
+		// an exact match. Comparison is hostname-only (ignores port) so that e.g.
+		// localhost:8080 matches the spec entry localhost:8082.
+		reqHostname := c.Request.URL.Hostname()
+		for _, s := range swagger.Servers {
+			u, err := url.Parse(s.URL)
+			if err != nil {
+				continue
+			}
+			if u.Hostname() == reqHostname {
+				c.Request.URL.Scheme = u.Scheme
+				c.Request.URL.Host = u.Host
+				break
+			}
+		}
+
 		c.Next()
 	})
 
