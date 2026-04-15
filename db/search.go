@@ -202,7 +202,7 @@ func (db *DB) SearchVersesHybrid(
 	sql := `
         WITH
           tsq AS (SELECT websearch_to_tsquery('simple', $1) AS q),
-          fts AS (
+          fts AS MATERIALIZED (
             SELECT
               vt.verse_id,
               vt.lang_id,
@@ -222,7 +222,25 @@ func (db *DB) SearchVersesHybrid(
               AND ($3::text[] IS NULL OR l.code = ANY($3::text[]))
             LIMIT 200
           ),
-          vec AS (
+          trgm AS (
+            SELECT
+              vt.verse_id,
+              vt.lang_id,
+              ROW_NUMBER() OVER (ORDER BY similarity(vt.content, $1) DESC) AS rnk,
+              ''::text AS headline,
+              false    AS title_match
+            FROM verse_text vt
+            JOIN languages l ON l.id = vt.lang_id
+            WHERE vt.content % $1
+              AND ($3::text[] IS NULL OR l.code = ANY($3::text[]))
+            LIMIT 200
+          ),
+          fts_or_trgm AS (
+            SELECT * FROM fts
+            UNION ALL
+            SELECT * FROM trgm WHERE NOT EXISTS (SELECT 1 FROM fts)
+          ),
+          vec AS MATERIALIZED (
             SELECT
               vt.verse_id,
               vt.lang_id,
@@ -238,10 +256,11 @@ func (db *DB) SearchVersesHybrid(
             SELECT
               COALESCE(f.verse_id, v.verse_id) AS verse_id,
               COALESCE(f.lang_id,  v.lang_id)  AS lang_id,
-              COALESCE(1.0/(60.0+f.rnk), 0) + COALESCE(1.0/(60.0+v.rnk), 0) AS score,
+              3.0*COALESCE(1.0/(60.0+f.rnk), 0) + COALESCE(1.0/(60.0+v.rnk), 0) AS score,
+              (f.verse_id IS NOT NULL)         AS fts_hit,
               COALESCE(f.headline, '')         AS headline,
               COALESCE(f.title_match, false)   AS title_match
-            FROM fts f
+            FROM fts_or_trgm f
             FULL JOIN vec v ON v.verse_id = f.verse_id AND v.lang_id = f.lang_id
           )
         SELECT
@@ -263,7 +282,7 @@ func (db *DB) SearchVersesHybrid(
         JOIN chapters    c  ON c.id  = vr.chapter_id
         JOIN languages   l  ON l.id  = vt.lang_id
         LEFT JOIN chapter_text ct ON ct.chapter_id = c.id AND ct.lang_id = l.id
-        ORDER BY r.score DESC, c.chapter_number, vr.verse_index
+        ORDER BY r.score DESC, r.fts_hit DESC, c.chapter_number, vr.verse_index
         LIMIT  $4
         OFFSET $5
 	`
