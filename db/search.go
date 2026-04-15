@@ -151,6 +151,7 @@ func (db *DB) CountSearchVersesHybrid(
 	query string,
 	queryEmbedding []float32,
 	langs []string,
+	vectorDistanceThreshold float64,
 ) (int, error) {
 	if len(queryEmbedding) == 0 {
 		return db.CountSearchVerses(ctx, query, langs)
@@ -166,7 +167,7 @@ func (db *DB) CountSearchVersesHybrid(
               THEN to_tsquery('simple', lower($1) || ':*')
               ELSE websearch_to_tsquery('simple', $1)
             END AS q),
-          fts AS (
+          fts AS MATERIALIZED (
             SELECT vt.verse_id, vt.lang_id
             FROM   verse_text vt
             CROSS  JOIN tsq
@@ -176,10 +177,12 @@ func (db *DB) CountSearchVersesHybrid(
             LIMIT  200
           ),
           vec AS (
-            SELECT vt.verse_id, vt.lang_id
+            SELECT vt.verse_id, vt.lang_id,
+                   ROW_NUMBER() OVER (ORDER BY vt.embedding <=> $2) AS rnk
             FROM   verse_text vt
             JOIN   languages l ON l.id = vt.lang_id
             WHERE  vt.embedding IS NOT NULL
+              AND  vt.embedding <=> $2 < $4
               AND  ($3::text[] IS NULL OR l.code = ANY($3::text[]))
             ORDER  BY vt.embedding <=> $2
             LIMIT  200
@@ -188,11 +191,13 @@ func (db *DB) CountSearchVersesHybrid(
             SELECT COALESCE(f.verse_id, v.verse_id) AS verse_id
             FROM   fts f
             FULL   JOIN vec v ON v.verse_id = f.verse_id AND v.lang_id = f.lang_id
+            WHERE  f.verse_id IS NOT NULL
+               OR  v.rnk <= CASE WHEN EXISTS (SELECT 1 FROM fts) THEN 20 ELSE 100 END
           )
         SELECT COUNT(DISTINCT verse_id) FROM rrf
 	`
 	var count int
-	err := db.Pool.QueryRow(ctx, sql, query, vec, langs).Scan(&count)
+	err := db.Pool.QueryRow(ctx, sql, query, vec, langs, vectorDistanceThreshold).Scan(&count)
 	return count, err
 }
 
@@ -207,6 +212,7 @@ func (db *DB) SearchVersesHybrid(
 	queryEmbedding []float32,
 	langs []string,
 	limit, offset int,
+	vectorDistanceThreshold float64,
 ) ([]SearchVerseRow, error) {
 	if len(queryEmbedding) == 0 {
 		return db.SearchVerses(ctx, query, langs, limit, offset)
@@ -268,6 +274,7 @@ func (db *DB) SearchVersesHybrid(
             FROM verse_text vt
             JOIN languages l ON l.id = vt.lang_id
             WHERE vt.embedding IS NOT NULL
+              AND vt.embedding <=> $2 < $6
               AND ($3::text[] IS NULL OR l.code = ANY($3::text[]))
             ORDER BY vt.embedding <=> $2
             LIMIT 200
@@ -282,6 +289,8 @@ func (db *DB) SearchVersesHybrid(
               COALESCE(f.title_match, false)   AS title_match
             FROM fts_or_trgm f
             FULL JOIN vec v ON v.verse_id = f.verse_id AND v.lang_id = f.lang_id
+            WHERE f.verse_id IS NOT NULL
+               OR v.rnk <= CASE WHEN EXISTS (SELECT 1 FROM fts) THEN 20 ELSE 100 END
           )
         SELECT
           c.chapter_number,
@@ -307,7 +316,7 @@ func (db *DB) SearchVersesHybrid(
         OFFSET $5
 	`
 
-	rows, err := db.Pool.Query(ctx, sql, query, vec, langs, limit, offset)
+	rows, err := db.Pool.Query(ctx, sql, query, vec, langs, limit, offset, vectorDistanceThreshold)
 	if err != nil {
 		return nil, err
 	}

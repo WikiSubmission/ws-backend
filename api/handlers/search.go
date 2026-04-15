@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/wikiSubmission/ws-backend/db"
@@ -130,16 +132,26 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			}
 		}
 
+		// Cosine distance ceiling for the vector leg. Verses with distance >= threshold
+		// are excluded before RRF fusion. Default 0.65 (similarity > 0.35).
+		// Tune via VECTOR_DISTANCE_THRESHOLD env var (e.g. "0.55" for stricter).
+		vecThreshold := 0.65
+		if v := os.Getenv("VECTOR_DISTANCE_THRESHOLD"); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				vecThreshold = f
+			}
+		}
+
 		// Count concurrently using the same strategy as the search (hybrid or FTS).
 		// CountSearchVersesHybrid delegates to CountSearchVerses when no embedding.
 		go func() {
-			n, err := s.DB.CountSearchVersesHybrid(ctx, q, queryEmbedding, searchLangs)
+			n, err := s.DB.CountSearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, vecThreshold)
 			countCh <- countResult{n, err}
 		}()
 
 		// Phase A: hybrid (FTS + vector RRF) or pure FTS when no embedding available.
 		// SearchVersesHybrid falls back to SearchVerses when queryEmbedding is nil.
-		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset)
+		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset, vecThreshold)
 		if err != nil {
 			searchErr = err
 		} else {
