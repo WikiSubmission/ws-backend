@@ -45,7 +45,12 @@ func (db *DB) SearchVerses(ctx context.Context, query string, langs []string, li
 	sql := `
         WITH
           tsq AS (
-            SELECT websearch_to_tsquery('simple', $1) AS q
+            SELECT
+              CASE
+                WHEN $1 ~ '^[A-Za-z]+$'
+                THEN to_tsquery('simple', lower($1) || ':*')
+                ELSE websearch_to_tsquery('simple', $1)
+              END AS q
           ),
           title_hits AS (
             SELECT DISTINCT ct.chapter_id
@@ -104,7 +109,12 @@ func (db *DB) CountSearchVerses(ctx context.Context, query string, langs []strin
 	sql := `
         WITH
           tsq AS (
-            SELECT websearch_to_tsquery('simple', $1) AS q
+            SELECT
+              CASE
+                WHEN $1 ~ '^[A-Za-z]+$'
+                THEN to_tsquery('simple', lower($1) || ':*')
+                ELSE websearch_to_tsquery('simple', $1)
+              END AS q
           ),
           title_hits AS (
             SELECT DISTINCT ct.chapter_id
@@ -150,7 +160,12 @@ func (db *DB) CountSearchVersesHybrid(
 
 	sql := `
         WITH
-          tsq AS (SELECT websearch_to_tsquery('simple', $1) AS q),
+          tsq AS (SELECT
+            CASE
+              WHEN $1 ~ '^[A-Za-z]+$'
+              THEN to_tsquery('simple', lower($1) || ':*')
+              ELSE websearch_to_tsquery('simple', $1)
+            END AS q),
           fts AS (
             SELECT vt.verse_id, vt.lang_id
             FROM   verse_text vt
@@ -201,7 +216,12 @@ func (db *DB) SearchVersesHybrid(
 
 	sql := `
         WITH
-          tsq AS (SELECT websearch_to_tsquery('simple', $1) AS q),
+          tsq AS (SELECT
+            CASE
+              WHEN $1 ~ '^[A-Za-z]+$'
+              THEN to_tsquery('simple', lower($1) || ':*')
+              ELSE websearch_to_tsquery('simple', $1)
+            END AS q),
           fts AS MATERIALIZED (
             SELECT
               vt.verse_id,
