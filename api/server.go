@@ -22,6 +22,7 @@ import (
 	middleware "github.com/oapi-codegen/gin-middleware"
 	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
+	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
@@ -90,23 +91,22 @@ func StartServer(database *db.DB) {
 
 	// API Routes
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "alive"})
-	})
-
 	// r.GET("/favicon.ico", func (c *gin.Context)  {
 	// 	logo_key := "wikisubmission/media/images/logo.png"
 	// })
 
-	r.GET("/health", func(c *gin.Context) {
-		// Deep health check: verify DB connectivity
-		if err := database.Pool.Ping(c.Request.Context()); err != nil {
-			slog.Error("Health check failed: DB unreachable", slog.Any("error", err))
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "unhealthy", "error": "db error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
-	})
+	// Health endpoints — see wikisubmission-infra/runbooks/health-endpoints.md
+	healthDeps := health.New("ws-backend",
+		health.WithCheck("postgres", true, func(ctx context.Context) error {
+			return database.Pool.Ping(ctx)
+		}),
+		health.WithEnv("APP_ENV", os.Getenv("APP_ENV")),
+	)
+	healthDeps.Register(r, healthSecretsFromEnv)
+
+	// Legacy aliases — keep during cutover, remove after all monitors updated.
+	r.GET("/health", healthDeps.Liveness())
+	r.GET("/ping", healthDeps.Liveness())
 	r.GET("/robots.txt", func(c *gin.Context) {
 		c.String(http.StatusOK,
 			"User-agent: *\n"+
@@ -119,6 +119,7 @@ func StartServer(database *db.DB) {
 				"\n"+
 				"# Block utility endpoints\n"+
 				"Disallow: /health\n"+
+				"Disallow: /healthz\n"+
 				"Disallow: /ping\n"+
 				"\n"+
 				"# Allow everything else (UI routes)\n"+

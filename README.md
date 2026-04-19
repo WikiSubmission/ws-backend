@@ -10,7 +10,7 @@ Single Go module (`github.com/wikiSubmission/ws-backend`) with three packages:
 | --- | --- |
 | `api/` | Gin HTTP server, OpenAPI handlers, route registration |
 | `db/` | PostgreSQL layer (pgx/v5), migrations, row structs |
-| `auth/` | Authentication module (stub, not yet implemented) |
+| `auth/` | Supabase JWT verification and route guards |
 
 **Request flow:**
 
@@ -41,6 +41,8 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DATABASE_PORT` | PostgreSQL port | `5432` |
 | `DATABASE_NAME` | PostgreSQL database name | — |
 | `DATABASE_SSL_MODE` | `disable`, `require`, `verify-full` | — |
+| `SUPABASE_JWKS_URL` | Supabase project JWKS endpoint used to verify bearer tokens | — |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins for authenticated API calls | `*` |
 
 ## First-Time Setup
 
@@ -107,6 +109,19 @@ make docker-run
 The production image uses `gcr.io/distroless/static-debian12:nonroot` — no shell, minimal attack surface. Database migrations are embedded in the binary at build time.
 
 ## API Endpoints
+
+## Authentication
+
+Authenticated frontend calls use Supabase access tokens as bearer tokens. The backend verifies those JWTs against `SUPABASE_JWKS_URL`, then uses the token subject as the canonical `supabase_uid`.
+
+Protected endpoints currently include:
+
+- `POST /api/v1/users`
+- `GET /api/v1/users/:id`
+- `GET /api/v1/users`
+- `PATCH /api/v1/users/:id`
+
+`POST /api/v1/users` accepts first-login upserts from the Next.js app. For SSO flows such as Google and Apple, the backend will fall back to the JWT email claim when the frontend omits `email` from the sync payload.
 
 ### `GET /api/v1/languages`
 

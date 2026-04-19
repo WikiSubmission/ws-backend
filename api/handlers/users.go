@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ type UserResponse struct {
 // UpsertUserRequest is the body for POST /users.
 type UpsertUserRequest struct {
 	SupabaseUID string  `json:"supabase_uid" binding:"required"`
-	Email       string  `json:"email"        binding:"required"`
+	Email       *string `json:"email,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
 }
 
@@ -158,7 +159,27 @@ func (h *UserHandler) UpsertUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.DB.UpsertUser(c.Request.Context(), req.SupabaseUID, req.Email, req.DisplayName)
+	email := strings.TrimSpace(c.GetString(auth.ContextKeyEmail))
+	if req.Email != nil {
+		requestEmail := strings.TrimSpace(*req.Email)
+		if requestEmail != "" {
+			email = requestEmail
+		}
+	}
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "email is required"})
+		return
+	}
+
+	var displayName *string
+	if req.DisplayName != nil {
+		trimmedDisplayName := strings.TrimSpace(*req.DisplayName)
+		if trimmedDisplayName != "" {
+			displayName = &trimmedDisplayName
+		}
+	}
+
+	user, err := h.DB.UpsertUser(c.Request.Context(), req.SupabaseUID, email, displayName)
 	if err != nil {
 		slog.Error("UpsertUser: DB error", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal server error"})
