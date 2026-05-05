@@ -9,7 +9,14 @@ ifneq ($(DATABASE_URL),)
     PSQL_ADMIN=psql $(PSQL_MAINT) --set ON_ERROR_STOP=1
 else
     # Local dev: app user for normal queries; OS postgres superuser for admin.
-    PSQL_ADMIN=sudo -u postgres psql --set ON_ERROR_STOP=1
+    # macOS (Homebrew): current user is the superuser — no sudo needed.
+    # Linux: postgres system user owns the cluster — use sudo -u postgres.
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Darwin)
+        PSQL_ADMIN=psql -d postgres --set ON_ERROR_STOP=1
+    else
+        PSQL_ADMIN=sudo -u postgres psql --set ON_ERROR_STOP=1
+    endif
 endif
 # For general queries and imports: use PGPASSWORD so psql never prompts.
 PSQL=PGPASSWORD=$(DATABASE_PASSWORD) psql \
@@ -25,7 +32,7 @@ BIN=bin/server
         seed-music seed-music-railway embed-quran export-embeddings import-embeddings-railway \
         dump-db import-db-railway \
         db-setup db-drop db-rebuild \
-        source-import source-cleanup \
+        source-import \
         seed-railway reseed-railway \
         docker-build docker-run clean
 
@@ -227,20 +234,8 @@ db-drop:
 	@$(PSQL_ADMIN) -c "DROP DATABASE IF EXISTS $(DATABASE_NAME);"
 	@$(PSQL_ADMIN) -c "DROP USER IF EXISTS $(DATABASE_USER);"
 
-source-cleanup:
-	@$(PSQL) -d $(DATABASE_NAME) -c "DROP TABLE IF EXISTS \
-		public.ws_quran_chapters, \
-		public.ws_quran_index, \
-		public.ws_quran_text, \
-		public.ws_quran_subtitles, \
-		public.ws_quran_word_by_word, \
-		public.ws_quran_footnotes CASCADE;"
-	@rm -rf assets/source_data
-	@echo "Source cleanup complete."
-
-
-## db-rebuild: Full local rebuild (drop → setup → import → seed → cleanup)
-db-rebuild: db-drop db-setup source-cleanup source-import seed
+## db-rebuild: Full local rebuild (drop → setup → import → seed)
+db-rebuild: db-drop db-setup source-import seed
 	@echo "Full rebuild complete."
 
 # ---------------------------------------------------------------------------
