@@ -34,6 +34,7 @@ BIN=bin/server
         db-setup db-drop db-rebuild coolify-init \
         source-import source-cleanup \
         seed-railway reseed-railway \
+        refresh-roots refresh-roots-railway \
         docker-build docker-run clean
 
 # ---------------------------------------------------------------------------
@@ -181,6 +182,21 @@ import-embeddings-railway:
 	@echo "Updating verse_text..."
 	@psql $(DATABASE_URL) -c "UPDATE verse_text v SET embedding = e.embedding FROM _emb_stage e WHERE v.id = e.id; DROP TABLE _emb_stage;"
 	@echo "Import complete."
+
+## refresh-roots: Refresh the root_index_mv materialized view (local).
+##                 Run after seeding/reseeding the corpus so /roots reflects new data.
+refresh-roots:
+	@echo "Refreshing root_index_mv (local)..."
+	@$(PSQL) -c "REFRESH MATERIALIZED VIEW CONCURRENTLY root_index_mv;"
+	@echo "Done."
+
+## refresh-roots-railway: Refresh the root_index_mv materialized view on Railway.
+##                         Run after seed-railway / reseed-railway.
+refresh-roots-railway:
+	@test -n "$(DATABASE_URL)" || (echo "ERROR: DATABASE_URL is not set in .env" && exit 1)
+	@echo "Refreshing root_index_mv (Railway)..."
+	@psql "$(DATABASE_URL)" -c "REFRESH MATERIALIZED VIEW CONCURRENTLY root_index_mv;"
+	@echo "Done."
 
 ## seed-admin: Promote a user to admin role by email
 ##             Usage: make seed-admin EMAIL=user@example.com
