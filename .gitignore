@@ -5,3 +5,5 @@
 quran_backup.dump
 aoeuenv
 bin/server
+seed_embeddings
+assets/db_dump.sql

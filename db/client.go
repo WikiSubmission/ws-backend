@@ -100,11 +100,14 @@ func ConnectDB() (*DB, error) {
 				return nil, fmt.Errorf("missing required environment variable: %s", env)
 			}
 		}
-		connStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-			os.Getenv("DATABASE_USER"),
-			os.Getenv("DATABASE_PASSWORD"),
+		// key=value DSN (not URL) so passwords with @, ?, /, &, *, ! don't need
+		// percent-encoding. pgx treats quoted values as literal.
+		connStr = fmt.Sprintf(
+			"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 			os.Getenv("DATABASE_DOMAIN"),
 			os.Getenv("DATABASE_PORT"),
+			os.Getenv("DATABASE_USER"),
+			quoteDSN(os.Getenv("DATABASE_PASSWORD")),
 			os.Getenv("DATABASE_NAME"),
 			os.Getenv("DATABASE_SSL_MODE"),
 		)
@@ -154,6 +157,15 @@ func ConnectDB() (*DB, error) {
 	)
 
 	return &DB{Pool: pool}, nil
+}
+
+// quoteDSN wraps a libpq key=value value in single quotes and escapes any
+// embedded backslashes or single quotes, so special characters (spaces,
+// @, ?, &, *, !) in passwords pass through verbatim.
+func quoteDSN(v string) string {
+	v = strings.ReplaceAll(v, `\`, `\\`)
+	v = strings.ReplaceAll(v, `'`, `\'`)
+	return "'" + v + "'"
 }
 
 // Close gracefully shuts down the database connection pool,

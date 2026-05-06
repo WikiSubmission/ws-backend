@@ -31,8 +31,8 @@ BIN=bin/server
 .PHONY: run build test tidy generate seed seed-bible seed-admin \
         seed-music seed-music-railway embed-quran export-embeddings import-embeddings-railway \
         dump-db import-db-railway \
-        db-setup db-drop db-rebuild \
-        source-import \
+        db-setup db-drop db-rebuild coolify-init \
+        source-import source-cleanup \
         seed-railway reseed-railway \
         docker-build docker-run clean
 
@@ -227,6 +227,24 @@ source-import:
 	@$(PSQL) -f assets/source_data/ws_quran_text_rows.sql
 	@$(PSQL) -f assets/source_data/ws_quran_word_by_word_rows.sql
 	@$(PSQL) -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO $(DATABASE_USER);"
+
+## coolify-init: Bootstrap role + database + extensions on a shared Postgres
+##               instance (e.g. Coolify). Requires POSTGRES_ADMIN_URL in .env
+##               pointing at the superuser (e.g. postgres://postgres:pass@host:5432/postgres).
+##               Reads DATABASE_NAME / DATABASE_USER / DATABASE_PASSWORD for the
+##               app-level role. Idempotent.
+coolify-init:
+	@test -n "$(POSTGRES_ADMIN_URL)" || (echo "ERROR: POSTGRES_ADMIN_URL is not set in .env" && exit 1)
+	@test -n "$(DATABASE_NAME)"     || (echo "ERROR: DATABASE_NAME is not set in .env"     && exit 1)
+	@test -n "$(DATABASE_USER)"     || (echo "ERROR: DATABASE_USER is not set in .env"     && exit 1)
+	@test -n "$(DATABASE_PASSWORD)" || (echo "ERROR: DATABASE_PASSWORD is not set in .env" && exit 1)
+	@psql "$(POSTGRES_ADMIN_URL)" \
+		--set ON_ERROR_STOP=1 \
+		-v db_name=$(DATABASE_NAME) \
+		-v db_user=$(DATABASE_USER) \
+		-v db_pass='$(DATABASE_PASSWORD)' \
+		-f init.sql
+	@echo "Coolify init complete for $(DATABASE_NAME)."
 
 ## db-drop: Remove the database and user entirely
 db-drop:

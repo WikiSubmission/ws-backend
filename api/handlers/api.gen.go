@@ -94,299 +94,385 @@ func (e SearchParamsScope) Valid() bool {
 	}
 }
 
-// Appendix defines model for Appendix.
+// Appendix Metadata for a single Quranic appendix.
 type Appendix struct {
-	Code    *int    `json:"code,omitempty"`
+	// Code Numeric code identifying the appendix.
+	Code *int `json:"code,omitempty"`
+
+	// Snippet Short introductory excerpt from the appendix body.
 	Snippet *string `json:"snippet,omitempty"`
-	Title   *string `json:"title,omitempty"`
+
+	// Title Title of the appendix in the requested language.
+	Title *string `json:"title,omitempty"`
 }
 
-// AppendixMetadata defines model for AppendixMetadata.
+// AppendixMetadata List of metadata objects for all Quranic appendices.
 type AppendixMetadata = []Appendix
 
-// BibleBook Summary metadata for one Bible book.
+// BibleBook Summary metadata for one Bible book, as returned by `/bible/books`.
 type BibleBook struct {
-	// Bk book_name
+	// Bk book_name — full English name of the book.
 	Bk *string `json:"bk,omitempty"`
 
-	// Bn book_number
+	// Bn book_number — 1-based index: 1 = Genesis, 40 = Matthew, 66 = Revelation. Use this value as the `book` parameter in `/bible`.
 	Bn *int `json:"bn,omitempty"`
 
-	// Cc chapter_count
+	// Cc chapter_count — total number of chapters in this book.
 	Cc *int `json:"cc,omitempty"`
 
-	// T testament (OT or NT)
+	// T testament — `OT` for Old Testament (books 1–39), `NT` for New Testament (books 40–66).
 	T *string `json:"t,omitempty"`
 
-	// Vc verse_count
+	// Vc verse_count — total number of verses in this book.
 	Vc *int `json:"vc,omitempty"`
 }
 
-// BibleBookData A Bible book with nested chapters, returned by /bible and /bible/search.
+// BibleBookData A Bible book with nested chapters returned by `/bible` and `/bible/search`. In reader mode all chapters/verses in the requested range are included. In search mode only chapters/verses that matched the query are included.
 type BibleBookData struct {
-	// Bk book_name
+	// Bk book_name — full English name of the book.
 	Bk *string `json:"bk,omitempty"`
 
-	// Bn book_number
+	// Bn book_number — 1-based book index (1 = Genesis … 66 = Revelation).
 	Bn       *int                `json:"bn,omitempty"`
 	Chapters *[]BibleChapterData `json:"chapters,omitempty"`
 
-	// T testament (OT or NT)
+	// T testament — `OT` for Old Testament (books 1–39), `NT` for New Testament (books 40–66).
 	T *string `json:"t,omitempty"`
 }
 
-// BibleChapterData defines model for BibleChapterData.
+// BibleChapterData A single Bible chapter with its matching verses.
 type BibleChapterData struct {
-	// Cn chapter_number (within the book)
+	// Cn chapter_number — 1-based chapter number within the book.
 	Cn *int `json:"cn,omitempty"`
 
-	// Hits Number of matching verses in this chapter (search only).
+	// Hits Number of verses in this chapter that matched the search query (search only). Absent from `/bible` reader responses.
 	Hits   *int              `json:"hits,omitempty"`
 	Verses *[]BibleVerseData `json:"verses,omitempty"`
 }
 
-// BibleResponse defines model for BibleResponse.
+// BibleResponse Top-level envelope for both `/bible` (reader) and `/bible/search` (FTS) responses. The `info` object describes the resolved query; `books` contains the matching verses grouped by book and chapter.
 type BibleResponse struct {
 	Books *[]BibleBookData `json:"books,omitempty"`
 
-	// Info Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+	// Info Metadata envelope for Bible responses. Reader fields (`book`, `chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/bible`; search fields (`q`, `total`, `limit`, `offset`) are populated by `/bible/search`.
 	Info *BibleResponseInfo `json:"info,omitempty"`
 }
 
-// BibleResponseInfo Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+// BibleResponseInfo Metadata envelope for Bible responses. Reader fields (`book`, `chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/bible`; search fields (`q`, `total`, `limit`, `offset`) are populated by `/bible/search`.
 type BibleResponseInfo struct {
-	// Book Requested book number (reader only).
-	Book         *int `json:"book,omitempty"`
-	ChapterEnd   *int `json:"chapter_end,omitempty"`
+	// Book Requested book number (reader only). 1-based: 1 = Genesis, 40 = Matthew, 66 = Revelation.
+	Book *int `json:"book,omitempty"`
+
+	// ChapterEnd Resolved last chapter of the query range (reader only).
+	ChapterEnd *int `json:"chapter_end,omitempty"`
+
+	// ChapterStart Resolved first chapter of the query range (reader only).
 	ChapterStart *int `json:"chapter_start,omitempty"`
-	Limit        *int `json:"limit,omitempty"`
-	Offset       *int `json:"offset,omitempty"`
+
+	// Limit Page size used for this response (search only).
+	Limit *int `json:"limit,omitempty"`
+
+	// Offset Number of results skipped before this page (search only).
+	Offset *int `json:"offset,omitempty"`
 
 	// Q The search query as submitted (search only).
 	Q *string `json:"q,omitempty"`
 
-	// ResultCount Number of matching verses in this response page.
+	// ResultCount Number of verses returned in this response page.
 	ResultCount *int `json:"result_count,omitempty"`
 
-	// Total Total matching results across all pages (search only).
-	Total      *int `json:"total,omitempty"`
-	VerseEnd   *int `json:"verse_end,omitempty"`
+	// Total Total matching results across all pages (search only). Use with `limit` and `offset` for pagination.
+	Total *int `json:"total,omitempty"`
+
+	// VerseEnd Resolved last verse of the query range (reader only).
+	VerseEnd *int `json:"verse_end,omitempty"`
+
+	// VerseStart Resolved first verse of the query range (reader only).
 	VerseStart *int `json:"verse_start,omitempty"`
 }
 
-// BibleTranslationContent defines model for BibleTranslationContent.
+// BibleTranslationContent A single translation of a Bible verse in one language. Field names follow the same minified key convention as the Quran API.
 type BibleTranslationContent struct {
-	// D direction
+	// D direction — text direction for this language. `ltr` for Latin scripts; `rtl` for Arabic / Hebrew.
 	D *BibleTranslationContentD `json:"d,omitempty"`
 
-	// F footer/footnote
+	// F footer — short translator's footnote or clarification appended after the verse text (nullable).
 	F *string `json:"f,omitempty"`
 
-	// Fn theological footnotes
+	// Fn Theological footnotes — array of extended commentary strings (nullable). Distinct from `f` (short inline footnote): `fn` entries are longer annotations, cross-references, or theological explanations associated with this verse.
 	Fn *[]string `json:"fn,omitempty"`
 
-	// Hl highlight with <b> tags (search only)
+	// Hl Highlighted snippet with `<b>…</b>` tags wrapping matched terms (search only). `null` in `/bible` reader responses.
 	Hl *string `json:"hl,omitempty"`
 
-	// Lc lang_code
+	// Lc lang_code — ISO 639-1 language code, e.g. `en`.
 	Lc *string `json:"lc,omitempty"`
 
-	// Li lang_id
+	// Li lang_id — internal integer identifier for this language.
 	Li *int `json:"li,omitempty"`
 
-	// Tx text
+	// Tx Full translation text of this verse in this language.
 	Tx *string `json:"tx,omitempty"`
 }
 
-// BibleTranslationContentD direction
+// BibleTranslationContentD direction — text direction for this language. `ltr` for Latin scripts; `rtl` for Arabic / Hebrew.
 type BibleTranslationContentD string
 
-// BibleVerseData defines model for BibleVerseData.
+// BibleVerseData A single Bible verse with its translations and optional relevance score.
 type BibleVerseData struct {
-	// Sc Relevance score (search only).
+	// Sc Relevance score assigned by the FTS ranker (search only). Higher values indicate stronger relevance. Absent from `/bible` responses.
 	Sc *float32 `json:"sc,omitempty"`
 
-	// Tr translations keyed by language code
+	// Tr Translations keyed by ISO 639-1 language code. Only the codes requested via `langs` are present.
 	Tr *map[string]BibleTranslationContent `json:"tr,omitempty"`
 
-	// Vk verse_key — book_number:chapter_number:verse_number
+	// Vk verse_key — `book_number:chapter_number:verse_number` (all 1-based), e.g. `40:5:3` for Matthew 5:3 or `1:1:1` for Genesis 1:1.
 	Vk *string `json:"vk,omitempty"`
 
-	// Vn verse_number
+	// Vn verse_number — 1-based verse number within its chapter.
 	Vn *int `json:"vn,omitempty"`
 }
 
-// Chapter defines model for Chapter.
+// Chapter Metadata for a single Quranic chapter.
 type Chapter struct {
-	ChapterNumber   *int    `json:"chapter_number,omitempty"`
-	RevelationOrder *int    `json:"revelation_order,omitempty"`
-	Title           *string `json:"title,omitempty"`
-	VerseCount      *int    `json:"verse_count,omitempty"`
+	// ChapterNumber Chapter number, 1-based (1–114). Also known as Surah number.
+	ChapterNumber *int `json:"chapter_number,omitempty"`
+
+	// RevelationOrder Chronological order in which the chapter was revealed (1-based). Distinct from the canonical chapter_number ordering.
+	RevelationOrder *int `json:"revelation_order,omitempty"`
+
+	// Title Chapter title in the language requested via the `lang` parameter (or the default language if omitted).
+	Title *string `json:"title,omitempty"`
+
+	// VerseCount Total number of verses in this chapter.
+	VerseCount *int `json:"verse_count,omitempty"`
 }
 
-// ChapterData defines model for ChapterData.
+// ChapterData A single Quranic chapter with its matching verses. In reader mode all verses within the requested range are included. In search mode only verses that matched the query are included, and the `hits` and `tm` fields are populated.
 type ChapterData struct {
-	// Cn chapter_number
+	// Cn chapter_number — Quranic chapter number, 1-based (1–114).
 	Cn *int `json:"cn,omitempty"`
 
-	// Hits Number of matching verses in this chapter (search only).
-	Hits   *int               `json:"hits,omitempty"`
+	// Hits Number of verses in this chapter that matched the search query (search only). Absent from `/quran` responses.
+	Hits *int `json:"hits,omitempty"`
+
+	// Titles Map of chapter titles keyed by ISO 639-1 language code. Only codes that were requested in `langs` (or all available codes for `/chapters`) are present.
 	Titles *map[string]string `json:"titles,omitempty"`
 
-	// Tm title_match — true when the chapter title matched the query (search only).
+	// Tm title_match — `true` when the chapter title itself matched the search query, not just verse content (search only). Absent from `/quran` responses.
 	Tm     *bool        `json:"tm,omitempty"`
 	Verses *[]VerseData `json:"verses,omitempty"`
 }
 
-// ChapterMetadata defines model for ChapterMetadata.
+// ChapterMetadata List of metadata objects for all 114 Quranic chapters.
 type ChapterMetadata = []Chapter
 
-// Language defines model for Language.
+// Language A language supported by the API for translations and word text.
 type Language struct {
-	Code      *string            `json:"code,omitempty"`
+	// Code ISO 639-1 language code. Use this value in `langs`, `word_langs`, and `lang` parameters throughout the API.
+	Code *string `json:"code,omitempty"`
+
+	// Direction Text direction for this language. `ltr` for left-to-right scripts; `rtl` for right-to-left scripts (Arabic, Hebrew, Urdu, Persian).
 	Direction *LanguageDirection `json:"direction,omitempty"`
-	Id        *int               `json:"id,omitempty"`
-	Name      *string            `json:"name,omitempty"`
+
+	// Id Internal integer identifier. Used internally; prefer `code` for all API calls.
+	Id *int `json:"id,omitempty"`
+
+	// Name Human-readable language name in English.
+	Name *string `json:"name,omitempty"`
 }
 
-// LanguageDirection defines model for Language.Direction.
+// LanguageDirection Text direction for this language. `ltr` for left-to-right scripts; `rtl` for right-to-left scripts (Arabic, Hebrew, Urdu, Persian).
 type LanguageDirection string
 
-// MusicAlbum defines model for MusicAlbum.
+// MusicAlbum A music album in the catalogue.
 type MusicAlbum struct {
-	ArtistId    int                `json:"artist_id"`
-	Description *string            `json:"description,omitempty"`
-	Id          int                `json:"id"`
-	Name        string             `json:"name"`
+	// ArtistId ID of the artist this album belongs to. Matches `id` in `MusicArtist`.
+	ArtistId int `json:"artist_id"`
+
+	// Description Short description of the album (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// Id Internal album identifier. Use this as `album_id` in the tracks filter.
+	Id int `json:"id"`
+
+	// Name Album title.
+	Name string `json:"name"`
+
+	// ReleaseDate Album release date in ISO 8601 format (`YYYY-MM-DD`).
 	ReleaseDate openapi_types.Date `json:"release_date"`
 }
 
-// MusicArtist defines model for MusicArtist.
+// MusicArtist A music artist in the catalogue.
 type MusicArtist struct {
-	Description     *string `json:"description,omitempty"`
-	DisplayPriority int     `json:"display_priority"`
-	Id              int     `json:"id"`
-	ImageUrl        string  `json:"image_url"`
-	Name            string  `json:"name"`
+	// Description Short biography or description of the artist (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// DisplayPriority Sort order for display; lower values appear first.
+	DisplayPriority int `json:"display_priority"`
+
+	// Id Internal artist identifier. Use this as `artist_id` in albums and tracks filters.
+	Id int `json:"id"`
+
+	// ImageUrl URL to the artist's cover / profile image.
+	ImageUrl string `json:"image_url"`
+
+	// Name Display name of the artist.
+	Name string `json:"name"`
 }
 
-// MusicCategory defines model for MusicCategory.
+// MusicCategory A music category (genre / theme) used to classify tracks.
 type MusicCategory struct {
-	Description     *string `json:"description,omitempty"`
-	DisplayPriority int     `json:"display_priority"`
-	Id              int     `json:"id"`
-	Name            string  `json:"name"`
+	// Description Short description of the category (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// DisplayPriority Sort order for display; lower values appear first.
+	DisplayPriority int `json:"display_priority"`
+
+	// Id Internal category identifier. Use this as `category_id` in the tracks filter.
+	Id int `json:"id"`
+
+	// Name Display name of the category.
+	Name string `json:"name"`
 }
 
-// MusicTrack defines model for MusicTrack.
+// MusicTrack A single music track in the catalogue.
 type MusicTrack struct {
-	AlbumId     *int               `json:"album_id,omitempty"`
-	ArtistId    int                `json:"artist_id"`
-	CategoryId  *int               `json:"category_id,omitempty"`
-	Featured    bool               `json:"featured"`
-	Id          int                `json:"id"`
-	Lyrics      *string            `json:"lyrics,omitempty"`
-	Name        string             `json:"name"`
+	// AlbumId ID of the album (nullable). Matches `id` in `MusicAlbum`.
+	AlbumId *int `json:"album_id,omitempty"`
+
+	// ArtistId ID of the artist. Matches `id` in `MusicArtist`.
+	ArtistId int `json:"artist_id"`
+
+	// CategoryId ID of the category (nullable). Matches `id` in `MusicCategory`.
+	CategoryId *int `json:"category_id,omitempty"`
+
+	// Featured Whether this track is hand-picked as featured. Featured tracks are highlighted in the UI and can be filtered with `featured=true`.
+	Featured bool `json:"featured"`
+
+	// Id Internal track identifier.
+	Id int `json:"id"`
+
+	// Lyrics Full song lyrics (nullable). May contain newlines for line breaks.
+	Lyrics *string `json:"lyrics,omitempty"`
+
+	// Name Track title.
+	Name string `json:"name"`
+
+	// ReleaseDate Track release date in ISO 8601 format (`YYYY-MM-DD`).
 	ReleaseDate openapi_types.Date `json:"release_date"`
-	Url         string             `json:"url"`
+
+	// Url Direct URL to the audio file or streaming resource.
+	Url string `json:"url"`
 }
 
-// QuranResponse defines model for QuranResponse.
+// QuranResponse Top-level envelope for both `/quran` (reader) and `/search` (FTS) responses. The `info` object describes the query parameters that were resolved; `chapters` contains the matching verses grouped by chapter.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
 
-	// Info Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+	// Info Metadata envelope describing the resolved query. Reader fields (`chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/quran` and absent from `/search` responses. Search fields (`q`, `total`, `limit`, `offset`, `scope`) are populated by `/search` and absent from `/quran` responses.
 	Info *QuranResponseInfo `json:"info,omitempty"`
 }
 
-// QuranResponseInfo Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+// QuranResponseInfo Metadata envelope describing the resolved query. Reader fields (`chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/quran` and absent from `/search` responses. Search fields (`q`, `total`, `limit`, `offset`, `scope`) are populated by `/search` and absent from `/quran` responses.
 type QuranResponseInfo struct {
-	ChapterEnd   *int `json:"chapter_end,omitempty"`
-	ChapterStart *int `json:"chapter_start,omitempty"`
-	Limit        *int `json:"limit,omitempty"`
-	Offset       *int `json:"offset,omitempty"`
+	// ChapterEnd Resolved last chapter of the query range (reader only). Equal to `chapter_start` when no end chapter was requested.
+	ChapterEnd *int `json:"chapter_end,omitempty"`
 
-	// Q The search query as submitted.
+	// ChapterStart Resolved first chapter of the query range (reader only). Reflects the `chapter_number_start` param after server validation.
+	ChapterStart *int `json:"chapter_start,omitempty"`
+
+	// Limit Page size used for this response (search only).
+	Limit *int `json:"limit,omitempty"`
+
+	// Offset Number of results skipped before this page (search only).
+	Offset *int `json:"offset,omitempty"`
+
+	// Q The search query as submitted by the client (search only).
 	Q *string `json:"q,omitempty"`
 
-	// ResultCount Number of matching verses in this response page.
+	// ResultCount Number of verses returned in this response page. For `/quran` this equals the total number of matching verses (no pagination); for `/search` this is the number of verses on the current page (≤ `limit`).
 	ResultCount *int `json:"result_count,omitempty"`
 
-	// Scope Search scope used (verses or words).
+	// Scope Search scope that was applied (search only). `verses` means verse translation text was searched; `words` means word-level Arabic / transliteration text was searched.
 	Scope *string `json:"scope,omitempty"`
 
-	// Total Total matching results across all pages.
-	Total      *int `json:"total,omitempty"`
-	VerseEnd   *int `json:"verse_end,omitempty"`
+	// Total Total number of matching verses across ALL pages (search only). Use together with `limit` and `offset` to calculate the total page count and navigate paginated results.
+	Total *int `json:"total,omitempty"`
+
+	// VerseEnd Resolved last verse of the query range (reader only). Defaults to the final verse of the chapter when the param was omitted.
+	VerseEnd *int `json:"verse_end,omitempty"`
+
+	// VerseStart Resolved first verse of the query range (reader only). Defaults to 1 when the param was omitted.
 	VerseStart *int `json:"verse_start,omitempty"`
 }
 
-// TranslationContent defines model for TranslationContent.
+// TranslationContent A single translation of a verse in one language. All short field names follow the minified key convention documented in the info section.
 type TranslationContent struct {
-	// D direction
+	// D direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
 	D *TranslationContentD `json:"d,omitempty"`
 
-	// F footer
+	// F footer — translator's footnote or clarification appended after the verse text (nullable). May contain cross-references or explanatory notes.
 	F *string `json:"f,omitempty"`
 
-	// Hl Highlighted snippet with <b>…</b> tags around matching terms (search only).
+	// Hl Highlighted snippet with `<b>…</b>` tags wrapping the matched terms (search only). Suitable for rendering search result previews. `null` in `/quran` responses.
 	Hl *string `json:"hl,omitempty"`
 
-	// Lc lang_code
+	// Lc lang_code — ISO 639-1 language code, e.g. `en`, `ar`, `fr`.
 	Lc *string `json:"lc,omitempty"`
 
-	// Li lang_id
+	// Li lang_id — internal integer identifier for this language.
 	Li *int `json:"li,omitempty"`
 
-	// S subtitle
+	// S subtitle — chapter-level subtitle or section heading associated with this verse (Quran-specific, nullable). Typically appears only on verse 1 of a chapter.
 	S *string `json:"s,omitempty"`
 
-	// Tx text
+	// Tx Full translation text of this verse in this language.
 	Tx *string `json:"tx,omitempty"`
 }
 
-// TranslationContentD direction
+// TranslationContentD direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
 type TranslationContentD string
 
-// VerseData defines model for VerseData.
+// VerseData A single Quranic verse with its translations in the requested languages, and optionally word-by-word data.
 type VerseData struct {
-	// Sc Relevance score (search only).
+	// Sc Relevance score assigned by the FTS / semantic ranker (search only). Higher values indicate stronger relevance to the query. Absent from `/quran` responses.
 	Sc *float32 `json:"sc,omitempty"`
 
-	// Tr translations keyed by language code
+	// Tr Translations keyed by ISO 639-1 language code. Only the codes requested via `langs` are present. Example: `{ "en": { ... }, "ar": { ... } }`.
 	Tr *map[string]TranslationContent `json:"tr,omitempty"`
 
-	// Vi verse_index
+	// Vi verse_index — 0-based position of this verse within its chapter. The first verse (`vi: 0`) is verse 1.
 	Vi *int `json:"vi,omitempty"`
 
-	// Vk verse_key
+	// Vk verse_key — `chapter_number:verse_number` (1-based), e.g. `2:255` for Ayat al-Kursi or `1:1` for the Fatiha opening verse.
 	Vk *string `json:"vk,omitempty"`
 
-	// W words
+	// W Word-by-word breakdown of the verse (present only when `include_words=true`). Each element represents one Arabic word in reading order.
 	W *[]WordData `json:"w,omitempty"`
 }
 
-// WordData defines model for WordData.
+// WordData Data for a single Arabic word within a verse. Returned only when `include_words=true`. Fields `r` and `m` require their respective `include_root` / `include_meaning` params to be `true`.
 type WordData struct {
-	// Gi global_index
+	// Gi global_index — unique 1-based index of this word across the entire Quran (all chapters, all verses, in reading order).
 	Gi *int `json:"gi,omitempty"`
 
-	// Hl Highlighted word text keyed by language code, with <b>…</b> tags (word search only).
+	// Hl Highlighted word text keyed by language code, with `<b>` tags around the matched portion (word search only). `null` for non-search responses or when the word did not match.
 	Hl *map[string]string `json:"hl,omitempty"`
 
-	// M meaning
+	// M meaning — English gloss / meaning of this specific word form (e.g. `"in the name of"`). `null` unless `include_meaning=true`.
 	M *string `json:"m,omitempty"`
 
-	// Meta metadata
+	// Meta Arbitrary metadata object containing morphological tags, grammar notes, or other word-level annotations. Structure may vary and should be treated as opaque unless documented separately.
 	Meta *map[string]interface{} `json:"meta,omitempty"`
 
-	// R root
+	// R root — Arabic root of the word (3–4 letter root form, e.g. `رحم` for words related to mercy). `null` unless `include_root=true`.
 	R *string `json:"r,omitempty"`
 
-	// Tx word text keyed by language code
+	// Tx Word text keyed by language code (e.g. `{ "ar": "بِسْمِ" }`). Only codes requested via `word_langs` are present. `null` if no `word_langs` were requested.
 	Tx *map[string]string `json:"tx,omitempty"`
 
-	// Wi word_index
+	// Wi word_index — 0-based position of this word within its verse. The first word of the verse is `wi: 0`.
 	Wi *int `json:"wi,omitempty"`
 }
 
@@ -430,122 +516,141 @@ type NotImplementedError struct {
 
 // GetAppendicesParams defines parameters for GetAppendices.
 type GetAppendicesParams struct {
+	// Lang ISO 639-1 language code for the appendix title and snippet (e.g. `en`, `ar`). Must be a code returned by `/languages`.
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetBibleParams defines parameters for GetBible.
 type GetBibleParams struct {
-	// Book Book number (1 = Genesis, 40 = Matthew, …, 66 = Revelation).
+	// Book 1-based Bible book number. 1 = Genesis, 40 = Matthew, 66 = Revelation. Use `/bible/books` to retrieve the full list of book numbers and names.
 	Book int `form:"book" json:"book"`
 
-	// ChapterStart First chapter to include (1-based, within the book).
+	// ChapterStart First chapter to include, 1-based and within the bounds of the requested book. Use `/bible/books` to find each book's `cc` (chapter_count).
 	ChapterStart int `form:"chapter_start" json:"chapter_start"`
 
-	// ChapterEnd Last chapter to include. Defaults to chapter_start.
+	// ChapterEnd Last chapter to include (inclusive), 1-based. Must be ≥ `chapter_start`. Defaults to `chapter_start` when omitted (single chapter).
 	ChapterEnd *int `form:"chapter_end,omitempty" json:"chapter_end,omitempty"`
 
-	// VerseStart First verse to include. Defaults to 1.
+	// VerseStart First verse to include within `chapter_start`, 1-based. Defaults to 1 (beginning of the chapter) when omitted.
 	VerseStart *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
 
-	// VerseEnd Last verse to include. Defaults to end of chapter.
+	// VerseEnd Last verse to include within `chapter_end` (or `chapter_start`), 1-based. Defaults to the last verse of the chapter when omitted.
 	VerseEnd *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Langs Language codes to include (e.g. en).
+	// Langs One or more ISO 639-1 language codes to include. Each code must be returned by `/languages`. Currently the primary supported code is `en` (English).
 	Langs []string `form:"langs" json:"langs"`
 }
 
 // SearchBibleParams defines parameters for SearchBible.
 type SearchBibleParams struct {
-	// Q Search query (2–200 characters).
+	// Q Search query (2–200 characters). Matched against verse text and footnotes using PostgreSQL full-text search. Supports quoted phrases.
 	Q string `form:"q" json:"q"`
 
-	// Langs Language codes to search in. Omit for all languages.
-	Langs  *[]string `form:"langs,omitempty" json:"langs,omitempty"`
-	Limit  *int      `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int      `form:"offset,omitempty" json:"offset,omitempty"`
+	// Langs ISO 639-1 language codes to search in. When omitted, all indexed languages are searched. Currently the primary supported code is `en`.
+	Langs *[]string `form:"langs,omitempty" json:"langs,omitempty"`
+
+	// Limit Maximum number of verses to return per page (1–100). Defaults to 20.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of results to skip before returning the page. Use with `limit` and `total` for pagination.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // GetChaptersParams defines parameters for GetChapters.
 type GetChaptersParams struct {
+	// Lang ISO 639-1 language code for the chapter title (e.g. `en`, `ar`, `fr`). Must be a code returned by `/languages`. Defaults to `en` when omitted.
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetMusicAlbumsParams defines parameters for GetMusicAlbums.
 type GetMusicAlbumsParams struct {
-	// ArtistId Filter by artist ID.
+	// ArtistId Filter results to albums belonging to this artist. Must be an `id` returned by `/music/artists`. Omit to return all albums.
 	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
 }
 
 // GetMusicTracksParams defines parameters for GetMusicTracks.
 type GetMusicTracksParams struct {
-	// ArtistId Filter by artist ID.
+	// ArtistId Return only tracks by this artist. Must be an `id` returned by `/music/artists`.
 	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
 
-	// CategoryId Filter by category ID.
+	// CategoryId Return only tracks in this category. Must be an `id` returned by `/music/categories`.
 	CategoryId *int `form:"category_id,omitempty" json:"category_id,omitempty"`
 
-	// AlbumId Filter by album ID.
+	// AlbumId Return only tracks from this album. Must be an `id` returned by `/music/albums`.
 	AlbumId *int `form:"album_id,omitempty" json:"album_id,omitempty"`
 
-	// Featured Filter to featured tracks only.
+	// Featured When `true`, return only featured (hand-picked) tracks. When omitted or `false`, featured and non-featured tracks are both included.
 	Featured *bool `form:"featured,omitempty" json:"featured,omitempty"`
 }
 
 // GetQuranParams defines parameters for GetQuran.
 type GetQuranParams struct {
+	// ChapterNumberStart First (or only) chapter to include, 1-based (1–114). When `chapter_number_end` is omitted, only this chapter is queried. Ignored when `verses` is provided.
 	ChapterNumberStart *int `form:"chapter_number_start,omitempty" json:"chapter_number_start,omitempty"`
-	ChapterNumberEnd   *int `form:"chapter_number_end,omitempty" json:"chapter_number_end,omitempty"`
-	VerseStart         *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
-	VerseEnd           *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Verses Compact verse references. Single verse (1:1), range within a chapter (1:1-3), or comma-separated list (1:2,1:4-5,4:2). When present, takes priority over chapter_number_start/verse_start/verse_end. Max 300 verses.
+	// ChapterNumberEnd Last chapter to include (inclusive), 1-based (1–114). Must be ≥ `chapter_number_start`. Ignored when `verses` is provided.
+	ChapterNumberEnd *int `form:"chapter_number_end,omitempty" json:"chapter_number_end,omitempty"`
+
+	// VerseStart First verse to include within `chapter_number_start`, 1-based. Defaults to 1 when omitted. Ignored when `verses` is provided.
+	VerseStart *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
+
+	// VerseEnd Last verse to include within `chapter_number_end` (or `chapter_number_start` if no end chapter), 1-based. Defaults to the last verse of the chapter when omitted. Ignored when `verses` is provided.
+	VerseEnd *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
+
+	// Verses Compact verse reference string. Takes priority over all chapter/verse range params when present. Supported formats:
+	// - Single verse: `1:1` - Range within a chapter: `1:1-7` - Comma-separated list: `1:2,2:255,2:285-286`
+	// Maximum 300 verses per request.
 	Verses *string `form:"verses,omitempty" json:"verses,omitempty"`
 
-	// Langs Language codes to include (e.g. en, ar, fr).
+	// Langs One or more ISO 639-1 language codes to include in the response. Each code must be a value returned by `/languages`. Translations for each code appear inside every verse's `tr` map.
 	Langs []string `form:"langs" json:"langs"`
 
-	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	// WordLangs Language codes for word-level text. Must be a subset of the `langs` array. Only words in these languages are included in the `tx` map of each `WordData` object. Typically set to `["ar"]` to include Arabic word text alongside an English translation.
 	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
 
-	// IncludeWords Include word-by-word breakdown for each verse.
+	// IncludeWords When `true`, each verse includes a `w` array of `WordData` objects with per-word text (and optionally root / meaning). When `false` (default), the `w` array is entirely omitted from each verse, keeping the response compact.
 	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
 
-	// IncludeRoot Include Arabic root for each word (requires include_words).
+	// IncludeRoot When `true`, each `WordData` object includes the `r` field containing the Arabic root (3–4 letters). Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
 
-	// IncludeMeaning Include word meaning for each word (requires include_words).
+	// IncludeMeaning When `true`, each `WordData` object includes the `m` field containing an English gloss / meaning for the word. Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
 }
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
-	// Q Search query (2–200 characters). Supports quoted phrases and exclusions. Optional when `root` is provided with scope=words.
+	// Q Search query (2–200 characters). Supports quoted phrases and exclusions (e.g. `"mercy of God" -punishment`). Required unless `root` is provided with `scope=words`.
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
-	// Root Arabic root string (e.g. رحم). When provided with scope=words, performs an exact match on word_root instead of full-text search. Takes priority over q.
+	// Root Arabic root string (3–4 letters, e.g. `رحم`). When provided with `scope=words`, performs an exact match on `word_root` instead of running FTS. Takes priority over `q`.
 	Root *string `form:"root,omitempty" json:"root,omitempty"`
 
-	// Langs Language codes to search in. Omit for all languages.
+	// Langs ISO 639-1 language codes to search in. When omitted, all indexed languages are searched simultaneously. Only affects which translation columns are queried — returned verse objects always include the translations for these codes.
 	Langs *[]string `form:"langs,omitempty" json:"langs,omitempty"`
 
-	// Scope Whether to search verse translations or word-level text.
-	Scope  *SearchParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
-	Limit  *int               `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int               `form:"offset,omitempty" json:"offset,omitempty"`
+	// Scope Whether to search verse translations (`verses`) or word-level Arabic / transliteration text (`words`). Defaults to `verses`.
+	Scope *SearchParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
 
-	// Semantic Enable hybrid semantic search (FTS + vector RRF) when the server has an embedding model configured. Defaults to true when OPENAI_API_KEY is set. Set to false to force pure keyword FTS.
+	// Limit Maximum number of verses to return per page (1–100). Defaults to 20.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of results to skip before returning the page. Use with `limit` and the `total` field for pagination.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Semantic Enable hybrid semantic search (FTS + vector RRF fusion) when the server has an embedding model configured. Defaults to `true` when `OPENAI_API_KEY` is set, otherwise `false`. Set to `false` to force pure keyword FTS regardless of server configuration.
 	Semantic *bool `form:"semantic,omitempty" json:"semantic,omitempty"`
 
-	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	// WordLangs Language codes for word-level text. Must be a subset of the `langs` array. Only words in these languages are included in the `tx` map of each `WordData` object. Typically set to `["ar"]` to include Arabic word text alongside an English translation.
 	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
 
-	// IncludeWords Include word-by-word breakdown for each verse.
+	// IncludeWords When `true`, each verse includes a `w` array of `WordData` objects with per-word text (and optionally root / meaning). When `false` (default), the `w` array is entirely omitted from each verse, keeping the response compact.
 	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
 
-	// IncludeRoot Include Arabic root for each word (requires include_words).
+	// IncludeRoot When `true`, each `WordData` object includes the `r` field containing the Arabic root (3–4 letters). Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
 
-	// IncludeMeaning Include word meaning for each word (requires include_words).
+	// IncludeMeaning When `true`, each `WordData` object includes the `m` field containing an English gloss / meaning for the word. Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
 }
 
@@ -554,7 +659,7 @@ type SearchParamsScope string
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// fetches appendix Metadata
+	// Fetch appendix metadata
 	// (GET /appendices)
 	GetAppendices(c *gin.Context, params GetAppendicesParams)
 	// Fetch Bible verses by range
@@ -566,7 +671,7 @@ type ServerInterface interface {
 	// Full-text search across the Bible
 	// (GET /bible/search)
 	SearchBible(c *gin.Context, params SearchBibleParams)
-	// fetches chapter Metadata
+	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(c *gin.Context, params GetChaptersParams)
 	// List supported languages
@@ -1684,7 +1789,7 @@ func (response Search501JSONResponse) VisitSearchResponse(w http.ResponseWriter)
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// fetches appendix Metadata
+	// Fetch appendix metadata
 	// (GET /appendices)
 	GetAppendices(ctx context.Context, request GetAppendicesRequestObject) (GetAppendicesResponseObject, error)
 	// Fetch Bible verses by range
@@ -1696,7 +1801,7 @@ type StrictServerInterface interface {
 	// Full-text search across the Bible
 	// (GET /bible/search)
 	SearchBible(ctx context.Context, request SearchBibleRequestObject) (SearchBibleResponseObject, error)
-	// fetches chapter Metadata
+	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
 	// List supported languages
@@ -2053,72 +2158,166 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AAD//zLZeghfUgAA",
+	"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",
+	"lPJe/Pji/wQAAP//TjuYEjmnAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
