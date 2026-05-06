@@ -84,7 +84,7 @@ func (s *Server) GetRootDetail(ctx context.Context, request GetRootDetailRequest
 		}}, nil
 	}
 
-	summary, derivRows, occRows, err := s.DB.RootDetail(ctx, letters)
+	summary, derivRows, occRows, meaning, err := s.DB.RootDetail(ctx, letters)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return GetRootDetail404JSONResponse{NotFoundJSONResponse{
@@ -101,6 +101,7 @@ func (s *Server) GetRootDetail(ctx context.Context, request GetRootDetailRequest
 	for _, d := range derivRows {
 		derivs = append(derivs, Derivative{
 			Ar: d.Ar,
+			Tr: d.Tr,
 			C:  d.Count,
 		})
 	}
@@ -112,6 +113,8 @@ func (s *Server) GetRootDetail(ctx context.Context, request GetRootDetailRequest
 			Ar: o.Ar,
 			En: o.En,
 			Hl: &hl,
+			Tl: o.Tl,
+			Wi: o.Wi,
 		})
 	}
 
@@ -121,6 +124,7 @@ func (s *Server) GetRootDetail(ctx context.Context, request GetRootDetailRequest
 		C:  summary.Occurrences,
 		Dv: &derivs,
 		Oc: &occs,
+		M:  meaning,
 	}, nil
 }
 
@@ -153,7 +157,12 @@ func (s *Server) GetRootOccurrences(ctx context.Context, request GetRootOccurren
 		offset = *p.Offset
 	}
 
-	rows, total, err := s.DB.RootOccurrences(ctx, letters, limit, offset)
+	surface := ""
+	if p.Surface != nil {
+		surface = strings.TrimSpace(*p.Surface)
+	}
+
+	rows, total, err := s.DB.RootOccurrences(ctx, letters, surface, limit, offset)
 	if err != nil {
 		slog.Error("root occurrences query failed", "letters", letters, "error", err)
 		return GetRootOccurrences500JSONResponse{InternalServerErrrorJSONResponse{
@@ -169,6 +178,8 @@ func (s *Server) GetRootOccurrences(ctx context.Context, request GetRootOccurren
 			Ar: o.Ar,
 			En: o.En,
 			Hl: &hl,
+			Tl: o.Tl,
+			Wi: o.Wi,
 		})
 	}
 	return GetRootOccurrences200JSONResponse{
