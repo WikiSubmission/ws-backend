@@ -7,37 +7,40 @@
 -- data is present at migration time; subsequent re-seeds require a manual
 -- REFRESH (run `make refresh-roots`).
 --
--- The abjadi rank function maps Arabic letters to their classical numeric
--- weight (1..28); the per-root rank composes the first three letters as
--- l1*1000 + l2*30 + l3 to give a stable, lexicographically-correct ordering.
+-- abjadi_rank composes the first three letters of a root using the classical
+-- abjadi numeric weights (1..28) into l1*1000 + l2*30 + l3, giving a stable,
+-- lexicographically-correct ordering. The letter weights are inlined into the
+-- function body via a VALUES table so the function is self-contained and
+-- safe to invoke from a materialized view body without depending on a
+-- session-resolved helper function.
 
--- 1. Per-letter abjadi rank.
-CREATE OR REPLACE FUNCTION abjadi_letter_rank(ch text) RETURNS int AS $$
-  SELECT CASE ch
-    WHEN 'ا' THEN 1  WHEN 'ب' THEN 2  WHEN 'ج' THEN 3  WHEN 'د' THEN 4
-    WHEN 'ه' THEN 5  WHEN 'و' THEN 6  WHEN 'ز' THEN 7  WHEN 'ح' THEN 8
-    WHEN 'ط' THEN 9  WHEN 'ي' THEN 10 WHEN 'ك' THEN 11 WHEN 'ل' THEN 12
-    WHEN 'م' THEN 13 WHEN 'ن' THEN 14 WHEN 'س' THEN 15 WHEN 'ع' THEN 16
-    WHEN 'ف' THEN 17 WHEN 'ص' THEN 18 WHEN 'ق' THEN 19 WHEN 'ر' THEN 20
-    WHEN 'ش' THEN 21 WHEN 'ت' THEN 22 WHEN 'ث' THEN 23 WHEN 'خ' THEN 24
-    WHEN 'ذ' THEN 25 WHEN 'ض' THEN 26 WHEN 'ظ' THEN 27 WHEN 'غ' THEN 28
-    ELSE 0
-  END;
-$$ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE;
+-- Drop the previous helper if a prior migration created it; the new
+-- abjadi_rank no longer needs it.
+DROP FUNCTION IF EXISTS abjadi_letter_rank(text);
 
--- 2. Composite root rank over the first three letters.
+-- Single self-contained abjadi rank function.
 CREATE OR REPLACE FUNCTION abjadi_rank(letters text) RETURNS int AS $$
-  WITH parts AS (
+  WITH ranks(ch, n) AS (
+    VALUES
+      ('ا', 1),  ('ب', 2),  ('ج', 3),  ('د', 4),
+      ('ه', 5),  ('و', 6),  ('ز', 7),  ('ح', 8),
+      ('ط', 9),  ('ي', 10), ('ك', 11), ('ل', 12),
+      ('م', 13), ('ن', 14), ('س', 15), ('ع', 16),
+      ('ف', 17), ('ص', 18), ('ق', 19), ('ر', 20),
+      ('ش', 21), ('ت', 22), ('ث', 23), ('خ', 24),
+      ('ذ', 25), ('ض', 26), ('ظ', 27), ('غ', 28)
+  ),
+  parts AS (
     SELECT string_to_array(letters, ' ') AS arr
   )
   SELECT
-    COALESCE(abjadi_letter_rank(arr[1]), 0) * 1000
-  + COALESCE(abjadi_letter_rank(arr[2]), 0) * 30
-  + COALESCE(abjadi_letter_rank(arr[3]), 0)
+      COALESCE((SELECT n FROM ranks WHERE ch = arr[1]), 0) * 1000
+    + COALESCE((SELECT n FROM ranks WHERE ch = arr[2]), 0) * 30
+    + COALESCE((SELECT n FROM ranks WHERE ch = arr[3]), 0)
   FROM parts;
 $$ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE;
 
--- 3. Materialized view aggregating distinct roots and their occurrence counts.
+-- Materialized view aggregating distinct roots and their occurrence counts.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'root_index_mv') THEN
@@ -54,7 +57,7 @@ BEGIN
   END IF;
 END $$;
 
--- 4. Indexes on the matview.
+-- Indexes on the matview.
 -- Unique index on letters: required for REFRESH MATERIALIZED VIEW CONCURRENTLY.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_root_index_mv_letters
   ON root_index_mv(letters);
