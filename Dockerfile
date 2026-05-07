@@ -33,11 +33,14 @@ RUN CGO_ENABLED=0 GOOS=linux \
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Runtime
-# distroless/static :debug-nonroot adds a busybox shell + wget so platform
-# healthchecks (Coolify, Kubernetes) that wrap calls in `sh -c "..."` work.
-# Same nonroot user, only a few MB larger than :nonroot.
+# Alpine ships /bin/sh, wget, and ca-certificates out of the box so platform
+# healthchecks (Coolify, Kubernetes) that wrap calls in `sh -c "wget ..."`
+# work without extra plumbing. Static Go binary so libc is unused.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:debug-nonroot
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates && \
+    addgroup -S nonroot && adduser -S -G nonroot nonroot
 
 # Migrations are embedded in the binary via //go:embed, so no extra COPY needed.
 COPY --from=builder /app/server /server
@@ -45,7 +48,6 @@ COPY --from=builder /app/server /server
 # Document the port; actual binding is controlled by the PORT env var.
 EXPOSE 8080
 
-# Run as the non-root user provided by the distroless image (uid 65532).
 USER nonroot
 
 ENTRYPOINT ["/server"]
