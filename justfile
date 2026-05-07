@@ -245,12 +245,26 @@ verify A B:
     set -euo pipefail
     ua="$(just url "$1")"; ub="$(just url "$2")"
     tables="languages chapters verses words chapter_text verse_text word_text appendices bible_books bible_chapters bible_verses bible_book_text bible_verse_text music_artists music_categories music_albums music_tracks"
+    # Build one query that returns all counts in a single round trip, so
+    # flaky networks (firewall connection-rate limits) only have to hold up
+    # once per side instead of once per table.
+    sql=""
+    for t in $tables; do
+      sql+="SELECT '$t' AS t, count(*)::text AS c FROM $t UNION ALL "
+    done
+    sql="${sql%UNION ALL }ORDER BY 1;"
+    fetch() {
+      psql "$1" -tAF $'\t' -c "$sql" 2>/dev/null \
+        | awk -F'\t' 'NF==2 {print $1"="$2}'
+    }
+    declare -A CA CB
+    while IFS='=' read -r k v; do CA["$k"]="$v"; done < <(fetch "$ua")
+    while IFS='=' read -r k v; do CB["$k"]="$v"; done < <(fetch "$ub")
     printf "%-22s %12s %12s %s\n" "table" "$1" "$2" "delta"
     printf "%-22s %12s %12s %s\n" "----------------------" "------------" "------------" "-----"
     diffs=0
     for t in $tables; do
-      ca=$(psql "$ua" -tAc "SELECT count(*) FROM $t" 2>/dev/null || echo "?")
-      cb=$(psql "$ub" -tAc "SELECT count(*) FROM $t" 2>/dev/null || echo "?")
+      ca="${CA[$t]:-?}"; cb="${CB[$t]:-?}"
       d=""
       if [ "$ca" != "$cb" ]; then d="MISMATCH"; diffs=$((diffs+1)); fi
       printf "%-22s %12s %12s %s\n" "$t" "$ca" "$cb" "$d"
