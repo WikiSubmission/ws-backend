@@ -25,6 +25,7 @@ import (
 	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
@@ -232,6 +233,15 @@ func StartServer(database *db.DB) {
 		SilenceServersWarning: true,
 	}
 
+	// Sanity proxy: webhook + image passthrough live OUTSIDE the OpenAPI surface.
+	// Register before the validator middleware so the validator does not 404 them.
+	sanityClient, err := sanity.NewFromEnv()
+	if err != nil {
+		slog.Error("Sanity client init failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+	registerSanityRoutes(r, sanityClient)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
@@ -249,7 +259,7 @@ func StartServer(database *db.DB) {
 	})
 
 	// 4. Register handlers using the BaseURL
-	serverImpl := &handlers.Server{DB: database}
+	serverImpl := &handlers.Server{DB: database, Sanity: sanityClient}
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		serverImpl.Embedder = apitembed.NewOpenAIEmbedder(apiKey)
 		slog.Info("Semantic search enabled", "model", "text-embedding-3-small", "dims", 512)
