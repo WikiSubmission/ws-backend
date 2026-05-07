@@ -4,6 +4,22 @@
 
 - ~~how to cache the response of /chapters and /appendices?~~ Done via `Cache-Control` headers.
 
+## Sanity proxy
+
+- [ ] **Auth on `/communities`**: currently public read. Decide whether to gate
+      reads behind a JWT once the consumer site needs user-specific filtering
+      (e.g. communities scoped to a logged-in user's region) or write access.
+- [ ] **Cloudflare cache rule for `/sanity/image/*`**: passthrough binary,
+      eligible for long edge TTL (response already sets `Cache-Control:
+      public, max-age=86400, stale-while-revalidate=604800`).
+- [ ] **Multi-replica cache**: in-process TTL cache only works for a single
+      instance. Move to Redis (or a Sanity-fronting CDN allow-list of GROQ
+      hashes) before scaling out.
+- [ ] **Sanity Studio webhook config**: project owner must register a webhook
+      pointing at `POST /webhooks/sanity` with projection
+      `{ "_id": _id, "_type": _type, "operation": delta::operation() }` and
+      the shared secret matching `SANITY_WEBHOOK_SECRET`.
+
 ## Cloudflare Cache Setup (CDN edge caching for public API)
 
 Backend already sends correct `Cache-Control` headers:

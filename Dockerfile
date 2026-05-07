@@ -32,10 +32,11 @@ RUN CGO_ENABLED=0 GOOS=linux \
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Runtime
-# distroless/static contains only root certificates and timezone data —
-# no shell, no package manager, minimal attack surface.
+# distroless/static :debug-nonroot adds a busybox shell + wget so platform
+# healthchecks (Coolify, Kubernetes) that wrap calls in `sh -c "..."` work.
+# Same nonroot user, only a few MB larger than :nonroot.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:debug-nonroot
 
 # Migrations are embedded in the binary via //go:embed, so no extra COPY needed.
 COPY --from=builder /app/server /server
