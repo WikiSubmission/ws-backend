@@ -73,7 +73,7 @@ func TestRootDetail_HappyPath(t *testing.T) {
 	ctx := context.Background()
 
 	root := "ك ت ب"
-	summary, derivs, occ, err := db.RootDetail(ctx, root)
+	summary, derivs, occ, _, err := db.RootDetail(ctx, root)
 	if err != nil {
 		t.Skipf("ك ت ب not present (matview not refreshed?): %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRootDetail_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	_, _, _, err := db.RootDetail(ctx, "ز ز ز ز ز")
+	_, _, _, _, err := db.RootDetail(ctx, "ز ز ز ز ز")
 	if err == nil {
 		t.Fatal("expected error for non-existent root, got nil")
 	}
@@ -117,7 +117,7 @@ func TestRootOccurrences_Pagination(t *testing.T) {
 	ctx := context.Background()
 
 	root := "ك ت ب"
-	page1, total1, err := db.RootOccurrences(ctx, root, 5, 0)
+	page1, total1, err := db.RootOccurrences(ctx, root, "", 5, 0)
 	if err != nil {
 		t.Skipf("RootOccurrences page1 failed (corpus not seeded?): %v", err)
 	}
@@ -128,7 +128,7 @@ func TestRootOccurrences_Pagination(t *testing.T) {
 		t.Errorf("page1 returned %d, want <= 5", len(page1))
 	}
 
-	page2, total2, err := db.RootOccurrences(ctx, root, 5, 5)
+	page2, total2, err := db.RootOccurrences(ctx, root, "", 5, 5)
 	if err != nil {
 		t.Fatalf("RootOccurrences page2: %v", err)
 	}
