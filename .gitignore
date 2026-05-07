@@ -7,3 +7,9 @@ aoeuenv
 bin/server
 seed_embeddings
 assets/db_dump.sql
+
+# DB snapshots (created by `just export`)
+db/dumps/
+
+# Scratch space (build_baseline.py, intermediate dumps)
+.tmp/

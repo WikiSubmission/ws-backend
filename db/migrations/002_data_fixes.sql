@@ -1,7 +1,8 @@
+-- 002_data_fixes.sql
 -- Production data corrections against the normalized schema.
--- Mirrors migration 012, which only targets the legacy ws_* source tables.
 -- All statements are idempotent: UPDATEs are exact-match SETs, and the 14:40
--- replace() becomes a no-op once the substring is gone.
+-- replace() becomes a no-op once the substring is gone. Add new fixes here as
+-- they come up; do not touch 001_baseline.sql for data changes.
 
 -- ---------------------------------------------------------------------------
 -- Word fixes (lookup by words.global_index, which equals the legacy index)
