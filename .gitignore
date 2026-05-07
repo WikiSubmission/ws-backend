@@ -7,3 +7,4 @@ aoeuenv
 bin/server
 seed_embeddings
 assets/db_dump.sql
+db/dumps/*
