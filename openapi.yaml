@@ -65,7 +65,7 @@ servers:
     description: Development server
   - url: https://ws-backend.wikisubmission.org/api/v1
     description: Production Server
-  - url: http://ws-backend.railway.internal/api/v1
+  - url: http://ws-backend.internal/api/v1
     description: Internal Production Server
   - url: https://ws-backend-vc.wikisubmission.org/api/v1
     description: railway, temp test
