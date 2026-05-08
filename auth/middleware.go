@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	ContextKeyUID   = "supabase_uid"
-	ContextKeyEmail = "supabase_email"
+	ContextKeyUID   = "user_id"
+	ContextKeyEmail = "user_email"
 	ContextKeyRole  = "user_role"
 )
 
-// RequireAuth validates the Bearer JWT and stores uid/email in the context.
-func RequireAuth(jwks *JWKSCache) gin.HandlerFunc {
+// RequireAuth validates the Bearer JWT and stores authID/email in the Gin context.
+func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
@@ -23,26 +23,26 @@ func RequireAuth(jwks *JWKSCache) gin.HandlerFunc {
 			return
 		}
 		token := strings.TrimPrefix(header, "Bearer ")
-		uid, email, err := jwks.VerifyToken(token)
+		authID, email, err := verifier.VerifyToken(token)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
-		c.Set(ContextKeyUID, uid)
+		c.Set(ContextKeyUID, authID)
 		c.Set(ContextKeyEmail, email)
 		c.Next()
 	}
 }
 
-// RequireAdmin additionally checks that the user has role=admin in the DB.
+// RequireAdmin additionally checks that the authenticated user has role=admin in the DB.
 func RequireAdmin(database *db.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uid, exists := c.Get(ContextKeyUID)
+		authID, exists := c.Get(ContextKeyUID)
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 			return
 		}
-		user, err := database.FetchUserBySupabaseUID(c.Request.Context(), uid.(string))
+		user, err := database.FetchUserByAuthID(c.Request.Context(), authID.(string))
 		if err != nil || user == nil {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "user not found"})
 			return

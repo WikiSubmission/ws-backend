@@ -20,7 +20,7 @@ type UserHandler struct {
 // UserResponse is the JSON shape returned for a single user.
 type UserResponse struct {
 	ID          int             `json:"id"`
-	SupabaseUID string          `json:"supabase_uid"`
+	AuthID      string          `json:"auth_id"`
 	Email       string          `json:"email"`
 	DisplayName *string         `json:"display_name,omitempty"`
 	Role        string          `json:"role"`
@@ -32,7 +32,6 @@ type UserResponse struct {
 
 // UpsertUserRequest is the body for POST /users.
 type UpsertUserRequest struct {
-	SupabaseUID string  `json:"supabase_uid" binding:"required"`
 	Email       string  `json:"email"        binding:"required"`
 	DisplayName *string `json:"display_name,omitempty"`
 }
@@ -47,7 +46,7 @@ type UpdateUserRequest struct {
 func userRowToResponse(u *db.UserRow) UserResponse {
 	return UserResponse{
 		ID:          u.ID,
-		SupabaseUID: u.SupabaseUID,
+		AuthID:      u.AuthID,
 		Email:       u.Email,
 		DisplayName: u.DisplayName,
 		Role:        u.Role,
@@ -89,16 +88,15 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 
 // GetUserByID handles GET /api/v1/users/:id.
 func (h *UserHandler) GetUserByID(c *gin.Context) {
-	// Allow fetching by numeric id or "me" (self lookup by JWT uid)
 	idParam := c.Param("id")
 
 	if idParam == "me" {
-		uid := c.GetString(auth.ContextKeyUID)
-		if uid == "" {
+		authID := c.GetString(auth.ContextKeyUID)
+		if authID == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "not authenticated"})
 			return
 		}
-		user, err := h.DB.FetchUserBySupabaseUID(c.Request.Context(), uid)
+		user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
 		if err != nil {
 			slog.Error("GetUserByID(me): DB error", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal server error"})
@@ -118,12 +116,10 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	// Non-admin users may only fetch their own record.
-	callerUID := c.GetString(auth.ContextKeyUID)
+	callerAuthID := c.GetString(auth.ContextKeyUID)
 	callerRole := c.GetString(auth.ContextKeyRole)
 	if callerRole != "admin" {
-		// Resolve caller's DB record to compare ids.
-		caller, err := h.DB.FetchUserBySupabaseUID(c.Request.Context(), callerUID)
+		caller, err := h.DB.FetchUserByAuthID(c.Request.Context(), callerAuthID)
 		if err != nil || caller == nil || caller.ID != id {
 			c.JSON(http.StatusForbidden, gin.H{"data": nil, "error": "forbidden"})
 			return
@@ -144,6 +140,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 }
 
 // UpsertUser handles POST /api/v1/users (upsert on first login).
+// The auth_id comes from the verified JWT; the body only provides optional display name.
 func (h *UserHandler) UpsertUser(c *gin.Context) {
 	var req UpsertUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,14 +148,17 @@ func (h *UserHandler) UpsertUser(c *gin.Context) {
 		return
 	}
 
-	// Verify the JWT uid matches the requested supabase_uid to prevent spoofing.
-	callerUID := c.GetString(auth.ContextKeyUID)
-	if callerUID != req.SupabaseUID {
-		c.JSON(http.StatusForbidden, gin.H{"data": nil, "error": "supabase_uid mismatch"})
+	authID := c.GetString(auth.ContextKeyUID)
+	email := c.GetString(auth.ContextKeyEmail)
+	if email == "" {
+		email = req.Email
+	}
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "email is required"})
 		return
 	}
 
-	user, err := h.DB.UpsertUser(c.Request.Context(), req.SupabaseUID, req.Email, req.DisplayName)
+	user, err := h.DB.UpsertUser(c.Request.Context(), authID, email, req.DisplayName)
 	if err != nil {
 		slog.Error("UpsertUser: DB error", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal server error"})
@@ -205,7 +205,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		}
 	}
 
-	// Return the updated user.
 	user, err := h.DB.FetchUserByID(c.Request.Context(), id)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})

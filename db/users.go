@@ -10,19 +10,19 @@ import (
 )
 
 type UserRow struct {
-	ID          int             `db:"id" json:"id"`
-	SupabaseUID string          `db:"supabase_uid" json:"supabase_uid"`
-	Email       string          `db:"email" json:"email"`
+	ID          int             `db:"id"           json:"id"`
+	AuthID      string          `db:"auth_id"      json:"auth_id"`
+	Email       string          `db:"email"        json:"email"`
 	DisplayName *string         `db:"display_name" json:"display_name,omitempty"`
-	Role        string          `db:"role" json:"role"`
-	Permissions json.RawMessage `db:"permissions" json:"permissions"`
-	IsActive    bool            `db:"is_active" json:"is_active"`
-	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	Role        string          `db:"role"         json:"role"`
+	Permissions json.RawMessage `db:"permissions"  json:"permissions"`
+	IsActive    bool            `db:"is_active"    json:"is_active"`
+	CreatedAt   time.Time       `db:"created_at"   json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at"   json:"updated_at"`
 }
 
 func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, error) {
-	query := `SELECT id, supabase_uid, email, display_name, role, permissions, is_active, created_at, updated_at
+	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
 	          FROM users ORDER BY id LIMIT $1 OFFSET $2`
 	rows, err := db.Pool.Query(ctx, query, limit, offset)
 	if err != nil {
@@ -32,10 +32,10 @@ func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, 
 	return pgx.CollectRows(rows, pgx.RowToStructByName[UserRow])
 }
 
-func (db *DB) FetchUserBySupabaseUID(ctx context.Context, uid string) (*UserRow, error) {
-	query := `SELECT id, supabase_uid, email, display_name, role, permissions, is_active, created_at, updated_at
-	          FROM users WHERE supabase_uid = $1`
-	rows, err := db.Pool.Query(ctx, query, uid)
+func (db *DB) FetchUserByAuthID(ctx context.Context, authID string) (*UserRow, error) {
+	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
+	          FROM users WHERE auth_id = $1`
+	rows, err := db.Pool.Query(ctx, query, authID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (db *DB) FetchUserBySupabaseUID(ctx context.Context, uid string) (*UserRow,
 }
 
 func (db *DB) FetchUserByID(ctx context.Context, id int) (*UserRow, error) {
-	query := `SELECT id, supabase_uid, email, display_name, role, permissions, is_active, created_at, updated_at
+	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
 	          FROM users WHERE id = $1`
 	rows, err := db.Pool.Query(ctx, query, id)
 	if err != nil {
@@ -68,12 +68,18 @@ func (db *DB) FetchUserByID(ctx context.Context, id int) (*UserRow, error) {
 	return &user, nil
 }
 
-func (db *DB) UpsertUser(ctx context.Context, uid, email string, displayName *string) (*UserRow, error) {
-	query := `INSERT INTO users (supabase_uid, email, display_name)
+// UpsertUser creates or updates a user, keyed by email.
+// If a row with this email already exists, its auth_id is updated to the new
+// value — this lets the same person sign in via different OAuth providers
+// and land on the same account.
+func (db *DB) UpsertUser(ctx context.Context, authID, email string, displayName *string) (*UserRow, error) {
+	query := `INSERT INTO users (auth_id, email, display_name)
 	          VALUES ($1, $2, $3)
-	          ON CONFLICT (supabase_uid) DO UPDATE SET email = EXCLUDED.email, updated_at = NOW()
-	          RETURNING id, supabase_uid, email, display_name, role, permissions, is_active, created_at, updated_at`
-	rows, err := db.Pool.Query(ctx, query, uid, email, displayName)
+	          ON CONFLICT (email) DO UPDATE
+	              SET auth_id = EXCLUDED.auth_id,
+	                  updated_at = NOW()
+	          RETURNING id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at`
+	rows, err := db.Pool.Query(ctx, query, authID, email, displayName)
 	if err != nil {
 		return nil, err
 	}

@@ -31,11 +31,11 @@ func StartServer(database *db.DB) {
 	swagger, _ := handlers.GetSwagger()
 
 	// ── Auth setup ───────────────────────────────────────────────────────────
-	jwksURL := os.Getenv("SUPABASE_JWKS_URL")
-	jwksCache, err := auth.NewJWKSCache(context.Background(), jwksURL)
+	jwtSecret := os.Getenv("WS_BACKEND_JWT_SECRET")
+	verifier, err := auth.NewAuthJSVerifier(jwtSecret)
 	if err != nil {
-		slog.Warn("JWKS cache init failed, auth endpoints will return errors", "error", err)
-		jwksCache = &auth.JWKSCache{} // no-op
+		slog.Warn("Auth.js verifier init failed, auth endpoints will return errors", "error", err)
+		verifier = &auth.AuthJSVerifier{}
 	}
 	userHandler := handlers.UserHandler{DB: database}
 
@@ -242,13 +242,13 @@ func StartServer(database *db.DB) {
 
 	// ── Authenticated routes ─────────────────────────────────────────────────
 	authed := r.Group("/api/v1")
-	authed.Use(auth.RequireAuth(jwksCache))
+	authed.Use(auth.RequireAuth(verifier))
 	authed.POST("/users", userHandler.UpsertUser)
 	authed.GET("/users/:id", userHandler.GetUserByID)
 
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")
-	admin.Use(auth.RequireAuth(jwksCache))
+	admin.Use(auth.RequireAuth(verifier))
 	admin.Use(auth.RequireAdmin(database))
 	admin.GET("/users", userHandler.GetUsers)
 	admin.PATCH("/users/:id", userHandler.UpdateUser)
