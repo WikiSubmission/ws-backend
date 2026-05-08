@@ -88,7 +88,9 @@ func StartServer(database *db.DB) {
 	}
 
 	// Rate limiting — 20 req/s per IP across all API routes.
-	r.Use(RateLimitMiddleware(20))
+	// INTERNAL_BYPASS_TOKEN, when set, lets trusted internal callers skip
+	// the limiter via the X-Internal-Auth header (e.g. SSR frontends).
+	r.Use(RateLimitMiddleware(20, os.Getenv("INTERNAL_BYPASS_TOKEN")))
 
 	// API Routes
 

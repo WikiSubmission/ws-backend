@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"sync"
 	"time"
@@ -60,9 +61,20 @@ func (l *ipRateLimiter) cleanup() {
 
 // RateLimitMiddleware returns a Gin middleware that limits each IP to
 // maxPerSec requests per second, responding with 429 when exceeded.
-func RateLimitMiddleware(maxPerSec int) gin.HandlerFunc {
+//
+// If bypassToken is non-empty, requests presenting a matching
+// X-Internal-Auth header skip the limiter — used so trusted internal
+// callers (e.g. SSR servers) are not throttled to 20 req/s shared.
+func RateLimitMiddleware(maxPerSec int, bypassToken string) gin.HandlerFunc {
 	limiter := newIPRateLimiter(maxPerSec)
 	return func(c *gin.Context) {
+		if bypassToken != "" && subtle.ConstantTimeCompare(
+			[]byte(c.GetHeader("X-Internal-Auth")),
+			[]byte(bypassToken),
+		) == 1 {
+			c.Next()
+			return
+		}
 		if !limiter.allow(c.ClientIP()) {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"message": "rate limit exceeded — please slow down",
