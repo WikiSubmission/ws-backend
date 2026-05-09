@@ -245,6 +245,16 @@ func StartServer(database *db.DB) {
 					return fmt.Errorf("invalid token")
 				}
 
+				// Propagate auth identity into the live Gin request/context so strict
+				// handlers can read it at runtime.
+				if gc := middleware.GetGinContext(ctx); gc != nil {
+					reqCtx := context.WithValue(gc.Request.Context(), auth.ContextKeyUID, authID)
+					reqCtx = context.WithValue(reqCtx, auth.ContextKeyEmail, email)
+					gc.Request = gc.Request.WithContext(reqCtx)
+					gc.Set(auth.ContextKeyUID, authID)
+					gc.Set(auth.ContextKeyEmail, email)
+				}
+
 				reqCtx := context.WithValue(req.Context(), auth.ContextKeyUID, authID)
 				reqCtx = context.WithValue(reqCtx, auth.ContextKeyEmail, email)
 				input.RequestValidationInput.Request = req.WithContext(reqCtx)
