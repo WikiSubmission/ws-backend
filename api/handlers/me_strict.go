@@ -6,14 +6,36 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
 func authIDFromContext(ctx context.Context) (string, bool) {
-	v := ctx.Value(auth.ContextKeyUID)
-	s, ok := v.(string)
-	return s, ok
+	if v := ctx.Value(auth.ContextKeyUID); v != nil {
+		if s, ok := v.(string); ok && s != "" {
+			return s, true
+		}
+	}
+
+	// Strict handlers receive context.Context, but at runtime this is usually
+	// *gin.Context. Read both Gin keys and the underlying request context.
+	if gc, ok := ctx.(*gin.Context); ok {
+		if v, exists := gc.Get(auth.ContextKeyUID); exists {
+			if s, ok := v.(string); ok && s != "" {
+				return s, true
+			}
+		}
+		if gc.Request != nil {
+			if v := gc.Request.Context().Value(auth.ContextKeyUID); v != nil {
+				if s, ok := v.(string); ok && s != "" {
+					return s, true
+				}
+			}
+		}
+	}
+
+	return "", false
 }
 
 func validScripture(scripture string) bool {
