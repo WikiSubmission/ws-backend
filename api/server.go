@@ -299,6 +299,18 @@ func StartServer(database *db.DB) {
 	authed.GET("/me/preferences", meHandler.GetPreferences)
 	authed.PUT("/me/preferences", meHandler.PutPreferences)
 
+	colHandler := handlers.CollectionsHandler{DB: database}
+	authed.GET("/me/collections", colHandler.ListCollections)
+	authed.POST("/me/collections", colHandler.CreateCollection)
+	authed.GET("/me/collections/:id", colHandler.GetCollectionDetail)
+	authed.PATCH("/me/collections/:id", colHandler.UpdateCollection)
+	authed.DELETE("/me/collections/:id", colHandler.DeleteCollection)
+	authed.POST("/me/collections/:id/verses", colHandler.AddVerse)
+	authed.DELETE("/me/collections/:id/verses/:verseId", colHandler.RemoveVerse)
+
+	// Public share link — no auth required.
+	r.GET("/api/v1/collections/share/:token", colHandler.GetSharedCollection)
+
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")
 	admin.Use(auth.RequireAuth(verifier))
