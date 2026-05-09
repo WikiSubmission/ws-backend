@@ -46,8 +46,44 @@ type CoverToCoverRequest struct {
 	VerseKey  string `json:"verse_key" binding:"required"`
 }
 
+// ── Note response types ────────────────────────────────────────────────────
+
+type NoteResponse struct {
+	ID        int64  `json:"id"`
+	Scripture string `json:"scripture"`
+	VerseKey  string `json:"verse_key"`
+	Lang      string `json:"lang"`
+	Content   string `json:"content"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type CreateNoteRequest struct {
+	Scripture string `json:"scripture" binding:"required"`
+	VerseKey  string `json:"verse_key" binding:"required"`
+	Lang      string `json:"lang"`
+	Content   string `json:"content" binding:"required"`
+}
+
+type UpdateNoteRequest struct {
+	Content string `json:"content" binding:"required"`
+}
+
 type ScriptureStateResponse struct {
-	Bookmarks map[string]BookmarkResponse `json:"bookmarks"`
+	Bookmarks map[string]BookmarkResponse   `json:"bookmarks"`
+	Notes     map[string][]NoteResponse     `json:"notes"`
+}
+
+func noteRowToResponse(n *db.NoteRow) NoteResponse {
+	return NoteResponse{
+		ID:        n.ID,
+		Scripture: n.Scripture,
+		VerseKey:  n.VerseKey,
+		Lang:      n.Lang,
+		Content:   n.Content,
+		CreatedAt: n.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt: n.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}
 }
 
 func bookmarkRowToResponse(b *db.BookmarkRow) BookmarkResponse {
@@ -240,7 +276,13 @@ func (h *MeHandler) GetScriptureState(c *gin.Context) {
 
 	bookmarks, err := h.DB.FetchChapterBookmarks(c.Request.Context(), authID, scripture, chapter)
 	if err != nil {
-		slog.Error("GetScriptureState: DB error", "error", err)
+		slog.Error("GetScriptureState: bookmarks DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	notes, err := h.DB.FetchChapterNotes(c.Request.Context(), authID, scripture, chapter)
+	if err != nil {
+		slog.Error("GetScriptureState: notes DB error", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -250,5 +292,111 @@ func (h *MeHandler) GetScriptureState(c *gin.Context) {
 		bm := &bookmarks[i]
 		bmMap[bm.VerseKey] = bookmarkRowToResponse(bm)
 	}
-	c.JSON(http.StatusOK, ScriptureStateResponse{Bookmarks: bmMap})
+	noteMap := make(map[string][]NoteResponse)
+	for i := range notes {
+		n := &notes[i]
+		noteMap[n.VerseKey] = append(noteMap[n.VerseKey], noteRowToResponse(n))
+	}
+	c.JSON(http.StatusOK, ScriptureStateResponse{Bookmarks: bmMap, Notes: noteMap})
+}
+
+// ── Note handlers ─────────────────────────────────────────────────────────
+
+// GetNotes handles GET /api/v1/me/notes?scripture=quran[&verse_key=1:1][&lang=en]
+func (h *MeHandler) GetNotes(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	scripture := c.DefaultQuery("scripture", "quran")
+	if scripture != "quran" && scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	var verseKey, lang *string
+	if v := c.Query("verse_key"); v != "" {
+		verseKey = &v
+	}
+	if l := c.Query("lang"); l != "" {
+		lang = &l
+	}
+	notes, err := h.DB.FetchNotes(c.Request.Context(), authID, scripture, verseKey, lang)
+	if err != nil {
+		slog.Error("GetNotes: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	result := make([]NoteResponse, len(notes))
+	for i := range notes {
+		result[i] = noteRowToResponse(&notes[i])
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+// CreateNote handles POST /api/v1/me/notes
+func (h *MeHandler) CreateNote(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	var req CreateNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Scripture != "quran" && req.Scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	if req.Lang == "" {
+		req.Lang = "en"
+	}
+	n, err := h.DB.CreateNote(c.Request.Context(), authID, req.Scripture, req.VerseKey, req.Lang, req.Content)
+	if err != nil {
+		slog.Error("CreateNote: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": noteRowToResponse(n)})
+}
+
+// UpdateNote handles PATCH /api/v1/me/notes/:id
+func (h *MeHandler) UpdateNote(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid note id"})
+		return
+	}
+	var req UpdateNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	n, err := h.DB.UpdateNote(c.Request.Context(), id, authID, req.Content)
+	if err != nil {
+		slog.Error("UpdateNote: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if n == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "note not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": noteRowToResponse(n)})
+}
+
+// DeleteNote handles DELETE /api/v1/me/notes/:id
+func (h *MeHandler) DeleteNote(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid note id"})
+		return
+	}
+	deleted, err := h.DB.DeleteNote(c.Request.Context(), id, authID)
+	if err != nil {
+		slog.Error("DeleteNote: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if !deleted {
+		c.JSON(http.StatusNotFound, gin.H{"error": "note not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": nil})
 }

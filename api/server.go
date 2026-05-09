@@ -288,6 +288,10 @@ func StartServer(database *db.DB) {
 	authed.DELETE("/me/bookmarks/:id", meHandler.DeleteBookmark)
 	authed.PUT("/me/cover-to-cover", meHandler.PutCoverToCover)
 	authed.GET("/me/scripture-state", meHandler.GetScriptureState)
+	authed.GET("/me/notes", meHandler.GetNotes)
+	authed.POST("/me/notes", meHandler.CreateNote)
+	authed.PATCH("/me/notes/:id", meHandler.UpdateNote)
+	authed.DELETE("/me/notes/:id", meHandler.DeleteNote)
 
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")
