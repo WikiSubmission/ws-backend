@@ -69,6 +69,17 @@ func StartServer(database *db.DB) {
 	}))
 
 	r.Use(gin.Logger())
+	r.Use(func(c *gin.Context) {
+		c.Next()
+		for _, e := range c.Errors {
+			slog.Error("gin request error",
+				"path", c.Request.URL.Path,
+				"method", c.Request.Method,
+				"status", c.Writer.Status(),
+				"error", e.Error(),
+			)
+		}
+	})
 	r.Use(gin.Recovery())
 	r.Use(SupportHEAD)
 
