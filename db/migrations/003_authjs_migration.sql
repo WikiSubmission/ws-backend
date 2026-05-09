@@ -27,18 +27,53 @@ EXCEPTION WHEN others THEN NULL;
 END $$;
 
 -- Unique constraint on auth_id (replaces supabase_uid unique constraint).
--- ADD CONSTRAINT IF NOT EXISTS is not valid SQL; use exception handling instead.
 DO $$
 BEGIN
-  ALTER TABLE users ADD CONSTRAINT users_auth_id_key UNIQUE (auth_id);
-EXCEPTION WHEN duplicate_object THEN NULL;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'users_auth_id_key'
+      AND conrelid = 'public.users'::regclass
+  ) THEN
+    NULL;
+  ELSIF EXISTS (
+    SELECT 1
+    FROM pg_class
+    WHERE relname = 'users_auth_id_key'
+      AND relkind = 'i'
+  ) THEN
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_auth_id_key UNIQUE USING INDEX users_auth_id_key;
+  ELSE
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_auth_id_key UNIQUE (auth_id);
+  END IF;
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
 -- Unique constraint on email (enables email-keyed upsert across providers).
 DO $$
 BEGIN
-  ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
-EXCEPTION WHEN duplicate_object THEN NULL;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'users_email_key'
+      AND conrelid = 'public.users'::regclass
+  ) THEN
+    NULL;
+  ELSIF EXISTS (
+    SELECT 1
+    FROM pg_class
+    WHERE relname = 'users_email_key'
+      AND relkind = 'i'
+  ) THEN
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_email_key UNIQUE USING INDEX users_email_key;
+  ELSE
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_email_key UNIQUE (email);
+  END IF;
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
 -- Remove the old column and its index.
