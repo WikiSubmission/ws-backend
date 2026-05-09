@@ -8,6 +8,25 @@
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_id TEXT;
 
+-- Ensure auth_id is TEXT even on legacy databases where auth_id may already
+-- exist as UUID (e.g. from an earlier partial migration/rename).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name = 'auth_id'
+      AND data_type <> 'text'
+  ) THEN
+    ALTER TABLE public.users
+      ALTER COLUMN auth_id TYPE TEXT
+      USING auth_id::TEXT;
+  END IF;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 -- Copy from supabase_uid only if that column still exists (idempotent).
 DO $$
 BEGIN
