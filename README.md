@@ -10,7 +10,7 @@ Single Go module (`github.com/wikiSubmission/ws-backend`) with three packages:
 | --- | --- |
 | `api/` | Gin HTTP server, OpenAPI handlers, route registration |
 | `db/` | PostgreSQL layer (pgx/v5), migrations, row structs |
-| `auth/` | Authentication module (stub, not yet implemented) |
+| `auth/` | Supabase JWT verification and route guards |
 
 **Request flow:**
 
@@ -23,8 +23,9 @@ api/server.go (Gin + OpenAPI validator) → handlers/Server.method() → db.DB.Q
 ## Prerequisites
 
 - Go 1.24+
-- PostgreSQL 14+
+- PostgreSQL 18 (with `vector` and `pg_trgm` extensions)
 - `oapi-codegen` (installed as a Go tool — `go tool oapi-codegen`)
+- [`just`](https://github.com/casey/just) (replaces the previous Makefile)
 
 ## Environment Variables
 
@@ -41,55 +42,67 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DATABASE_PORT` | PostgreSQL port | `5432` |
 | `DATABASE_NAME` | PostgreSQL database name | — |
 | `DATABASE_SSL_MODE` | `disable`, `require`, `verify-full` | — |
+| `SUPABASE_JWKS_URL` | Supabase project JWKS endpoint used to verify bearer tokens | — |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins for authenticated API calls | `*` |
+| `SANITY_PROJECT_ID` | Sanity project ID. When unset, the Sanity proxy and `/communities` endpoint return `502`. | *(unset = proxy disabled)* |
+| `SANITY_DATASET` | Sanity dataset name | `production` |
+| `SANITY_API_VERSION` | Sanity API version | `2024-01-01` |
+| `SANITY_READ_TOKEN` | Sanity read token (only required for private datasets / drafts) | *(none)* |
+| `SANITY_WEBHOOK_SECRET` | Shared secret used to verify `Sanity-Webhook-Signature` on `POST /webhooks/sanity` | *(none, but required for the webhook to accept any request)* |
+| `SANITY_CACHE_TTL` | TTL for in-process Sanity query cache (Go `time.Duration`, e.g. `5m`) | `5m` |
 
 ## First-Time Setup
 
 ```bash
-# 1. Create the PostgreSQL user and database
-make db-setup
+# 1. Create role + database + extensions on local PG 18
+just db-setup
 
-# 2. Load raw source data (Quran text dumps)
-make source-import
+# 2. Pull the latest snapshot from Railway and load it locally
+just export railway   # writes db/dumps/<ts>__railway.dump
+just import           # restores the most recent dump into local
 
-# 3. Run the data migration seed (transforms legacy schema → app schema)
-make seed
-
-# 4. Remove temporary source tables and asset files
-make source-cleanup
+# 3. Boot the API
+just run
 ```
 
-Or run everything at once (drop → setup → import → seed → cleanup):
+The migration runner (`db/migrations/001_baseline.sql` + `002_data_fixes.sql`) brings the schema up automatically on startup. `just import` only loads data.
+
+## Refreshing local from Railway
 
 ```bash
-make db-rebuild
+just export       # snapshot Railway → db/dumps/
+just import       # latest dump → local (no prompt)
+just verify railway local
 ```
+
+## Promoting a snapshot to a remote (Railway → Hetzner cutover)
+
+```bash
+just export railway       # capture truth
+just push hetzner         # restore into Hetzner (prompts for confirmation)
+just verify railway hetzner
+```
+
+The `push` recipe is target-agnostic: any `DATABASE_URL_<NAME>` set in `.env` is a valid target.
 
 ## Development
 
 ```bash
-# Start the API server with pretty slog output
-make run
-
-# Run all tests (DB tests require DATABASE_NAME to be set)
-make test
-
-# Tidy dependencies
-make tidy
+just run     # start the API (development mode, pretty slog)
+just test    # all tests (DB tests need DATABASE_NAME)
+just tidy    # tidy Go module
 ```
 
 ## Building
 
 ```bash
-# Compile a static binary to bin/server
-make build
+just build   # static binary at bin/server
 ```
 
 ## Code Generation
 
-The API types and server stubs are generated from `api/openapi.yaml`. Run from the **repo root**:
-
 ```bash
-make generate
+just generate
 ```
 
 > **Never hand-edit `api/handlers/api.gen.go`** — it is always overwritten on regeneration.
@@ -97,16 +110,26 @@ make generate
 ## Docker
 
 ```bash
-# Build the production image
-make docker-build
-
-# Run locally (reads .env for DB config)
-make docker-run
+just docker-build
+just docker-run    # reads .env for DB config
 ```
 
 The production image uses `gcr.io/distroless/static-debian12:nonroot` — no shell, minimal attack surface. Database migrations are embedded in the binary at build time.
 
 ## API Endpoints
+
+## Authentication
+
+Authenticated frontend calls use Supabase access tokens as bearer tokens. The backend verifies those JWTs against `SUPABASE_JWKS_URL`, then uses the token subject as the canonical `supabase_uid`.
+
+Protected endpoints currently include:
+
+- `POST /api/v1/users`
+- `GET /api/v1/users/:id`
+- `GET /api/v1/users`
+- `PATCH /api/v1/users/:id`
+
+`POST /api/v1/users` accepts first-login upserts from the Next.js app. For SSO flows such as Google and Apple, the backend will fall back to the JWT email claim when the frontend omits `email` from the sync payload.
 
 ### `GET /api/v1/languages`
 
@@ -178,6 +201,21 @@ Full-text search across all verse, word, and chapter title content. Also support
 
 **Root mode** (`root` + `scope=words`): returns every occurrence of the root across all verses. `sc` is `1.0` for all results (no ranking). `hl` contains the plain word text.
 
+### `GET /api/v1/communities`
+
+Sanity-backed directory of online and physical communities. Active entries
+only; results are cached server-side and invalidated by webhook on document
+changes.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `kind` | `string` | No | `online` or `physical` |
+| `language` | `string` | No | ISO 639-1 language code |
+| `country` | `string` | No | ISO 3166-1 alpha-2 country code (physical only) |
+
+Returns `502 Bad Gateway` when the Sanity proxy is not configured
+(`SANITY_PROJECT_ID` unset) or when the upstream is unreachable.
+
 ### Utility Endpoints
 
 | Endpoint | Description |
@@ -187,6 +225,21 @@ Full-text search across all verse, word, and chapter title content. Also support
 | `GET /robots.txt` | Crawler directives |
 | `GET /sitemap.xml` | Site map for search engines |
 | `GET /metrics` | Prometheus metrics |
+| `POST /webhooks/sanity` | Receives Sanity content-change events; verifies HMAC signature against `SANITY_WEBHOOK_SECRET` and busts the in-process cache by document type and ID. |
+| `GET /sanity/image/*path` | Image proxy for Sanity assets. Forwards the request to `cdn.sanity.io/images/{projectId}/{dataset}/...` and preserves the query string (so Sanity image transforms still work). Sets a 1-day public `Cache-Control` header for CDN caching. |
+
+### Sanity Studio webhook setup
+
+The webhook receiver is hardcoded to expect this projection — configure it in
+Sanity Studio (Manage → API → Webhooks → Create webhook):
+
+```
+{ "_id": _id, "_type": _type, "operation": delta::operation() }
+```
+
+Filter: `_type in ["community", "article", ...]` (whichever doc types you want
+to invalidate). Set the URL to `https://<your-host>/webhooks/sanity` and the
+secret to the same value used for `SANITY_WEBHOOK_SECRET` on the backend.
 
 ## Response Format
 
@@ -207,30 +260,48 @@ JSON keys are minified for bandwidth efficiency:
 ## Testing
 
 ```bash
-# All tests (unit + integration)
-make test
-
-# DB integration tests require a live database:
+just test
+# DB integration tests need a live database:
 DATABASE_NAME=your_db go test ./db/...
 ```
 
-## Makefile Reference
+## Justfile reference
 
-| Target | Description |
+Run `just` (no args) for the full list. Key recipes:
+
+| Recipe | Description |
 | --- | --- |
-| `make run` | Start API in development mode |
-| `make build` | Compile static binary to `bin/server` |
-| `make test` | Run all tests |
-| `make tidy` | Tidy Go module dependencies |
-| `make generate` | Regenerate OpenAPI types from `api/openapi.yaml` |
-| `make seed` | Run one-time data migration from legacy schema |
-| `make db-setup` | Create PostgreSQL user, database, and permissions |
-| `make db-drop` | Remove the database and user entirely |
-| `make db-rebuild` | Full rebuild: drop → setup → import → seed → cleanup |
-| `make source-import` | Load raw Supabase dumps into the database |
-| `make source-cleanup` | Drop temporary source tables and remove asset files |
-| `make seed-railway` | First-time seed of the Railway database (requires `DATABASE_URL` in `.env`) |
-| `make reseed-railway` | Re-seed Railway without dropping tables (truncates data, preserves schema) |
-| `make docker-build` | Build the production Docker image |
-| `make docker-run` | Build and run the container locally |
-| `make clean` | Remove compiled binaries and Go build cache |
+| `just run` | Start API in development mode |
+| `just build` | Compile static binary to `bin/server` |
+| `just test` | Run all tests |
+| `just tidy` | Tidy Go module dependencies |
+| `just generate` | Regenerate OpenAPI types from `openapi.yaml` |
+| `just db-setup` | Create local role + database + extensions |
+| `just db-drop` | Drop local role + database |
+| `just rebuild` | Drop → setup → legacy import → seed |
+| `just export [SOURCE]` | Snapshot a remote (default: `railway`) into `db/dumps/` |
+| `just import [VERSION]` | Restore latest (or named) dump into local |
+| `just push TARGET [VERSION]` | Restore a dump into a remote target (`railway`, `hetzner`, …) |
+| `just dumps` | List dumps in `db/dumps/`, newest first |
+| `just verify A B` | Diff row counts between two targets |
+| `just embed-quran` | Generate `verse_text` embeddings via OpenAI |
+| `just export-embeddings [SOURCE]` | Snapshot just the embedding column |
+| `just push-embeddings TARGET` | Upload latest embeddings CSV to a target |
+| `just source-import [TARGET]` | Load legacy Supabase dumps |
+| `just seed [TARGET]` | Legacy → normalized seed transformation |
+| `just seed-bible` | Seed Bible CSVs |
+| `just seed-music [TARGET]` | Seed music tables |
+| `just seed-admin EMAIL` | Promote a user to admin |
+| `just refresh-roots [TARGET]` | Refresh `root_index_mv` |
+| `just coolify-init` | Bootstrap a shared Postgres (Coolify/Hetzner) via `init.sql` |
+| `just docker-build` / `just docker-run` | Production image lifecycle |
+| `just clean` | Remove `bin/` + Go build cache |
+
+## Database migrations
+
+Schema lives in two SQL files, both embedded into the binary and applied at startup (alphabetical, idempotent):
+
+- `db/migrations/001_baseline.sql` — squashed from prior 13 migrations; baseline schema.
+- `db/migrations/002_data_fixes.sql` — production data corrections (Arabic glyphs, 14:40 EN, 105:3 transliteration). Add new fixes here.
+
+Snapshots (created by `just export`) are **data-only** — schema always comes from the migration runner.

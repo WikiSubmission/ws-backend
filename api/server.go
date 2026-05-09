@@ -22,8 +22,10 @@ import (
 	middleware "github.com/oapi-codegen/gin-middleware"
 	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
+	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
@@ -86,27 +88,28 @@ func StartServer(database *db.DB) {
 	}
 
 	// Rate limiting — 20 req/s per IP across all API routes.
-	r.Use(RateLimitMiddleware(20))
+	// INTERNAL_BYPASS_TOKEN, when set, lets trusted internal callers skip
+	// the limiter via the X-Internal-Auth header (e.g. SSR frontends).
+	r.Use(RateLimitMiddleware(20, os.Getenv("INTERNAL_BYPASS_TOKEN")))
 
 	// API Routes
-
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "alive"})
-	})
 
 	// r.GET("/favicon.ico", func (c *gin.Context)  {
 	// 	logo_key := "wikisubmission/media/images/logo.png"
 	// })
 
-	r.GET("/health", func(c *gin.Context) {
-		// Deep health check: verify DB connectivity
-		if err := database.Pool.Ping(c.Request.Context()); err != nil {
-			slog.Error("Health check failed: DB unreachable", slog.Any("error", err))
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "unhealthy", "error": "db error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
-	})
+	// Health endpoints — see wikisubmission-infra/runbooks/health-endpoints.md
+	healthDeps := health.New("ws-backend",
+		health.WithCheck("postgres", true, func(ctx context.Context) error {
+			return database.Pool.Ping(ctx)
+		}),
+		health.WithEnv("APP_ENV", os.Getenv("APP_ENV")),
+	)
+	healthDeps.Register(r, healthSecretsFromEnv)
+
+	// Legacy aliases — keep during cutover, remove after all monitors updated.
+	r.GET("/health", healthDeps.Liveness())
+	r.GET("/ping", healthDeps.Liveness())
 	r.GET("/robots.txt", func(c *gin.Context) {
 		c.String(http.StatusOK,
 			"User-agent: *\n"+
@@ -119,6 +122,7 @@ func StartServer(database *db.DB) {
 				"\n"+
 				"# Block utility endpoints\n"+
 				"Disallow: /health\n"+
+				"Disallow: /healthz\n"+
 				"Disallow: /ping\n"+
 				"\n"+
 				"# Allow everything else (UI routes)\n"+
@@ -181,6 +185,11 @@ func StartServer(database *db.DB) {
 	// match against the servers block. Behind a reverse proxy (Railway, etc.)
 	// c.Request.URL.Scheme and .Host are empty — kin-openapi returns 404 if it
 	// can't match any server URL.
+	//
+	// After setting scheme/host from headers we scan the spec's servers list and
+	// snap the URL to whichever entry shares the same hostname (port-insensitive).
+	// This means every server in the servers: block works automatically — adding a
+	// new domain only requires an entry in openapi.yaml, no code change needed.
 	isProd := appEnv == "production"
 	r.Use(func(c *gin.Context) {
 		if c.Request.URL.Scheme == "" {
@@ -198,6 +207,23 @@ func StartServer(database *db.DB) {
 		if c.Request.URL.Host == "" {
 			c.Request.URL.Host = c.Request.Host
 		}
+
+		// Snap scheme+host to the matching spec server so kin-openapi always finds
+		// an exact match. Comparison is hostname-only (ignores port) so that e.g.
+		// localhost:8080 matches the spec entry localhost:8082.
+		reqHostname := c.Request.URL.Hostname()
+		for _, s := range swagger.Servers {
+			u, err := url.Parse(s.URL)
+			if err != nil {
+				continue
+			}
+			if u.Hostname() == reqHostname {
+				c.Request.URL.Scheme = u.Scheme
+				c.Request.URL.Host = u.Host
+				break
+			}
+		}
+
 		c.Next()
 	})
 
@@ -208,6 +234,15 @@ func StartServer(database *db.DB) {
 		},
 		SilenceServersWarning: true,
 	}
+
+	// Sanity proxy: webhook + image passthrough live OUTSIDE the OpenAPI surface.
+	// Register before the validator middleware so the validator does not 404 them.
+	sanityClient, err := sanity.NewFromEnv()
+	if err != nil {
+		slog.Error("Sanity client init failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+	registerSanityRoutes(r, sanityClient)
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
@@ -226,7 +261,7 @@ func StartServer(database *db.DB) {
 	})
 
 	// 4. Register handlers using the BaseURL
-	serverImpl := &handlers.Server{DB: database}
+	serverImpl := &handlers.Server{DB: database, Sanity: sanityClient}
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		serverImpl.Embedder = apitembed.NewOpenAIEmbedder(apiKey)
 		slog.Info("Semantic search enabled", "model", "text-embedding-3-small", "dims", 512)

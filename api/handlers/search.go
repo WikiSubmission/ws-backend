@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/wikiSubmission/ws-backend/db"
@@ -117,12 +119,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			}
 		}
 
-		go func() {
-			n, err := s.DB.CountSearchVerses(ctx, q, searchLangs)
-			countCh <- countResult{n, err}
-		}()
-
-		// Embed the query when an Embedder is configured and semantic=true (default).
+		// Embed first so we can launch the matching count strategy concurrently.
 		var queryEmbedding []float32
 		if s.Embedder != nil && (p.Semantic == nil || *p.Semantic) {
 			embedCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -135,9 +132,26 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 			}
 		}
 
+		// Cosine distance ceiling for the vector leg. Verses with distance >= threshold
+		// are excluded before RRF fusion. Default 0.65 (similarity > 0.35).
+		// Tune via VECTOR_DISTANCE_THRESHOLD env var (e.g. "0.55" for stricter).
+		vecThreshold := 0.65
+		if v := os.Getenv("VECTOR_DISTANCE_THRESHOLD"); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				vecThreshold = f
+			}
+		}
+
+		// Count concurrently using the same strategy as the search (hybrid or FTS).
+		// CountSearchVersesHybrid delegates to CountSearchVerses when no embedding.
+		go func() {
+			n, err := s.DB.CountSearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, vecThreshold)
+			countCh <- countResult{n, err}
+		}()
+
 		// Phase A: hybrid (FTS + vector RRF) or pure FTS when no embedding available.
 		// SearchVersesHybrid falls back to SearchVerses when queryEmbedding is nil.
-		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset)
+		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset, vecThreshold)
 		if err != nil {
 			searchErr = err
 		} else {
@@ -173,6 +187,25 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 					searchErr = phaseBErr
 				} else {
 					groupVerseResultsFromContent(phaseBRows, verseScores, verseHighlights, chapterTitleMatches, chapterMap, verseRefMap)
+
+					// Phase C: optional word hydration. The verse-scope path
+					// only returns translations; when callers request words
+					// (so they can render word-by-word in search results), we
+					// graft them on the same way /quran does.
+					if p.IncludeWords != nil && *p.IncludeWords {
+						wordLangs := responseLangs
+						if p.WordLangs != nil && len(*p.WordLangs) > 0 {
+							wordLangs = *p.WordLangs
+						}
+						wordsRaw, wErr := s.DB.FetchWordsForVersesByRefs(ctx, chNums, viNums, wordLangs)
+						if wErr != nil {
+							slog.Warn("search: failed to hydrate words", "q", queryLabel, "error", wErr)
+						} else {
+							includeRoot := p.IncludeRoot != nil && *p.IncludeRoot
+							includeMeaning := p.IncludeMeaning != nil && *p.IncludeMeaning
+							attachWordsToVerses(wordsRaw, verseRefMap, includeRoot, includeMeaning)
+						}
+					}
 				}
 			}
 		}
@@ -220,6 +253,11 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 
 	total := cr.n
 	resultCount := len(verseRefMap)
+	// Hybrid/vector search can return results that FTS count doesn't cover.
+	// Ensure total is at least as large as what we're returning on this page.
+	if total < offset+resultCount {
+		total = offset + resultCount
+	}
 	return Search200JSONResponse{
 		Info: &QuranResponseInfo{
 			Q:           p.Q,
@@ -360,6 +398,53 @@ func groupWordResults(
 		(*targetWord.Hl)[row.LangCode] = row.Headline
 	}
 	return nil
+}
+
+// attachWordsToVerses grafts per-word data onto an existing verseRefMap
+// (built from translation rows). Used by both /quran and /search so the
+// shape of `w` returned across endpoints stays consistent.
+func attachWordsToVerses(
+	rows []db.WordRow,
+	verseRefMap map[string]*VerseData,
+	includeRoot bool,
+	includeMeaning bool,
+) {
+	for _, wRow := range rows {
+		vKey := fmt.Sprintf("%d:%d", wRow.ChapterNumber, wRow.VerseIndex)
+		vData, exists := verseRefMap[vKey]
+		if !exists {
+			continue
+		}
+		if vData.W == nil {
+			vData.W = &[]WordData{}
+		}
+
+		var targetWord *WordData
+		for i := range *vData.W {
+			if (*vData.W)[i].Wi != nil && *(*vData.W)[i].Wi == wRow.WordIndex {
+				targetWord = &(*vData.W)[i]
+				break
+			}
+		}
+
+		if targetWord == nil {
+			wIdx, gIdx := wRow.WordIndex, wRow.GlobalIndex
+			newWord := WordData{
+				Wi: &wIdx,
+				Gi: &gIdx,
+				Tx: &map[string]string{},
+			}
+			if includeRoot {
+				newWord.R = wRow.WordRoot
+			}
+			*vData.W = append(*vData.W, newWord)
+			targetWord = &(*vData.W)[len(*vData.W)-1]
+		}
+		if includeMeaning && wRow.Meaning != nil {
+			targetWord.M = wRow.Meaning
+		}
+		(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
+	}
 }
 
 // bestScore returns the highest verse score in a chapter (for chapter sorting).

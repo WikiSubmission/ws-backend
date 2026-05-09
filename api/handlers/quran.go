@@ -133,44 +133,9 @@ func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (G
 		if wErr != nil {
 			slog.Warn("Failed to fetch words for verses", "from", fmt.Sprintf("%d:%d", startCh, startV), "to", fmt.Sprintf("%d:%d", endCh, endV), "error", wErr)
 		} else {
-			for _, wRow := range wordsRaw {
-				vKey := fmt.Sprintf("%d:%d", wRow.ChapterNumber, wRow.VerseIndex)
-				vData, exists := verseRefMap[vKey]
-				if !exists {
-					continue
-				}
-
-				if vData.W == nil {
-					vData.W = &[]WordData{}
-				}
-
-				var targetWord *WordData
-				for i := range *vData.W {
-					if (*vData.W)[i].Wi != nil && *(*vData.W)[i].Wi == wRow.WordIndex {
-						targetWord = &(*vData.W)[i]
-						break
-					}
-				}
-
-				if targetWord == nil {
-					wIdx, gIdx := wRow.WordIndex, wRow.GlobalIndex
-					newWord := WordData{
-						Wi: &wIdx,
-						Gi: &gIdx,
-						Tx: &map[string]string{},
-					}
-					if p.IncludeRoot != nil && *p.IncludeRoot {
-						newWord.R = wRow.WordRoot
-					}
-
-					*vData.W = append(*vData.W, newWord)
-					targetWord = &(*vData.W)[len(*vData.W)-1]
-				}
-				if p.IncludeMeaning != nil && *p.IncludeMeaning && wRow.Meaning != nil {
-					targetWord.M = wRow.Meaning // meaning -> M (pick first non-nil across langs)
-				}
-				(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
-			}
+			includeRoot := p.IncludeRoot != nil && *p.IncludeRoot
+			includeMeaning := p.IncludeMeaning != nil && *p.IncludeMeaning
+			attachWordsToVerses(wordsRaw, verseRefMap, includeRoot, includeMeaning)
 		}
 	}
 

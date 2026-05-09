@@ -15,9 +15,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the rest of the source.
-COPY api/  ./api/
-COPY auth/ ./auth/
-COPY db/   ./db/
+COPY api/    ./api/
+COPY db/     ./db/
+COPY auth/   ./auth/
+COPY sanity/ ./sanity/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).
@@ -32,10 +33,14 @@ RUN CGO_ENABLED=0 GOOS=linux \
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Runtime
-# distroless/static contains only root certificates and timezone data —
-# no shell, no package manager, minimal attack surface.
+# Alpine ships /bin/sh, wget, and ca-certificates out of the box so platform
+# healthchecks (Coolify, Kubernetes) that wrap calls in `sh -c "wget ..."`
+# work without extra plumbing. Static Go binary so libc is unused.
 # ---------------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates && \
+    addgroup -S nonroot && adduser -S -G nonroot nonroot
 
 # Migrations are embedded in the binary via //go:embed, so no extra COPY needed.
 COPY --from=builder /app/server /server
@@ -43,7 +48,6 @@ COPY --from=builder /app/server /server
 # Document the port; actual binding is controlled by the PORT env var.
 EXPOSE 8080
 
-# Run as the non-root user provided by the distroless image (uid 65532).
 USER nonroot
 
 ENTRYPOINT ["/server"]

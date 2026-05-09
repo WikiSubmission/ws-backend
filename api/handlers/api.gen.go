@@ -40,6 +40,93 @@ func (e BibleTranslationContentD) Valid() bool {
 	}
 }
 
+// Defines values for CommunityKind.
+const (
+	CommunityKindOnline   CommunityKind = "online"
+	CommunityKindPhysical CommunityKind = "physical"
+)
+
+// Valid indicates whether the value is a known member of the CommunityKind enum.
+func (e CommunityKind) Valid() bool {
+	switch e {
+	case CommunityKindOnline:
+		return true
+	case CommunityKindPhysical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommunityPlatform.
+const (
+	Discord  CommunityPlatform = "discord"
+	Facebook CommunityPlatform = "facebook"
+	Other    CommunityPlatform = "other"
+	Telegram CommunityPlatform = "telegram"
+	Whatsapp CommunityPlatform = "whatsapp"
+	X        CommunityPlatform = "x"
+	Youtube  CommunityPlatform = "youtube"
+)
+
+// Valid indicates whether the value is a known member of the CommunityPlatform enum.
+func (e CommunityPlatform) Valid() bool {
+	switch e {
+	case Discord:
+		return true
+	case Facebook:
+		return true
+	case Other:
+		return true
+	case Telegram:
+		return true
+	case Whatsapp:
+		return true
+	case X:
+		return true
+	case Youtube:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DerivativeP.
+const (
+	ADJ  DerivativeP = "ADJ"
+	N    DerivativeP = "N"
+	NEG  DerivativeP = "NEG"
+	P    DerivativeP = "P"
+	PASS DerivativeP = "PASS"
+	PRO  DerivativeP = "PRO"
+	REL  DerivativeP = "REL"
+	V    DerivativeP = "V"
+)
+
+// Valid indicates whether the value is a known member of the DerivativeP enum.
+func (e DerivativeP) Valid() bool {
+	switch e {
+	case ADJ:
+		return true
+	case N:
+		return true
+	case NEG:
+		return true
+	case P:
+		return true
+	case PASS:
+		return true
+	case PRO:
+		return true
+	case REL:
+		return true
+	case V:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LanguageDirection.
 const (
 	LanguageDirectionLtr LanguageDirection = "ltr"
@@ -76,6 +163,45 @@ func (e TranslationContentD) Valid() bool {
 	}
 }
 
+// Defines values for GetCommunitiesParamsKind.
+const (
+	GetCommunitiesParamsKindOnline   GetCommunitiesParamsKind = "online"
+	GetCommunitiesParamsKindPhysical GetCommunitiesParamsKind = "physical"
+)
+
+// Valid indicates whether the value is a known member of the GetCommunitiesParamsKind enum.
+func (e GetCommunitiesParamsKind) Valid() bool {
+	switch e {
+	case GetCommunitiesParamsKindOnline:
+		return true
+	case GetCommunitiesParamsKindPhysical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRootsParamsSort.
+const (
+	Abjadi    GetRootsParamsSort = "abjadi"
+	Frequency GetRootsParamsSort = "frequency"
+	Reverse   GetRootsParamsSort = "reverse"
+)
+
+// Valid indicates whether the value is a known member of the GetRootsParamsSort enum.
+func (e GetRootsParamsSort) Valid() bool {
+	switch e {
+	case Abjadi:
+		return true
+	case Frequency:
+		return true
+	case Reverse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchParamsScope.
 const (
 	Verses SearchParamsScope = "verses"
@@ -94,299 +220,530 @@ func (e SearchParamsScope) Valid() bool {
 	}
 }
 
-// Appendix defines model for Appendix.
+// Appendix Metadata for a single Quranic appendix.
 type Appendix struct {
-	Code    *int    `json:"code,omitempty"`
+	// Code Numeric code identifying the appendix.
+	Code *int `json:"code,omitempty"`
+
+	// Snippet Short introductory excerpt from the appendix body.
 	Snippet *string `json:"snippet,omitempty"`
-	Title   *string `json:"title,omitempty"`
+
+	// Title Title of the appendix in the requested language.
+	Title *string `json:"title,omitempty"`
 }
 
-// AppendixMetadata defines model for AppendixMetadata.
+// AppendixMetadata List of metadata objects for all Quranic appendices.
 type AppendixMetadata = []Appendix
 
-// BibleBook Summary metadata for one Bible book.
+// BibleBook Summary metadata for one Bible book, as returned by `/bible/books`.
 type BibleBook struct {
-	// Bk book_name
+	// Bk book_name — full English name of the book.
 	Bk *string `json:"bk,omitempty"`
 
-	// Bn book_number
+	// Bn book_number — 1-based index: 1 = Genesis, 40 = Matthew, 66 = Revelation. Use this value as the `book` parameter in `/bible`.
 	Bn *int `json:"bn,omitempty"`
 
-	// Cc chapter_count
+	// Cc chapter_count — total number of chapters in this book.
 	Cc *int `json:"cc,omitempty"`
 
-	// T testament (OT or NT)
+	// T testament — `OT` for Old Testament (books 1–39), `NT` for New Testament (books 40–66).
 	T *string `json:"t,omitempty"`
 
-	// Vc verse_count
+	// Vc verse_count — total number of verses in this book.
 	Vc *int `json:"vc,omitempty"`
 }
 
-// BibleBookData A Bible book with nested chapters, returned by /bible and /bible/search.
+// BibleBookData A Bible book with nested chapters returned by `/bible` and `/bible/search`. In reader mode all chapters/verses in the requested range are included. In search mode only chapters/verses that matched the query are included.
 type BibleBookData struct {
-	// Bk book_name
+	// Bk book_name — full English name of the book.
 	Bk *string `json:"bk,omitempty"`
 
-	// Bn book_number
+	// Bn book_number — 1-based book index (1 = Genesis … 66 = Revelation).
 	Bn       *int                `json:"bn,omitempty"`
 	Chapters *[]BibleChapterData `json:"chapters,omitempty"`
 
-	// T testament (OT or NT)
+	// T testament — `OT` for Old Testament (books 1–39), `NT` for New Testament (books 40–66).
 	T *string `json:"t,omitempty"`
 }
 
-// BibleChapterData defines model for BibleChapterData.
+// BibleChapterData A single Bible chapter with its matching verses.
 type BibleChapterData struct {
-	// Cn chapter_number (within the book)
+	// Cn chapter_number — 1-based chapter number within the book.
 	Cn *int `json:"cn,omitempty"`
 
-	// Hits Number of matching verses in this chapter (search only).
+	// Hits Number of verses in this chapter that matched the search query (search only). Absent from `/bible` reader responses.
 	Hits   *int              `json:"hits,omitempty"`
 	Verses *[]BibleVerseData `json:"verses,omitempty"`
 }
 
-// BibleResponse defines model for BibleResponse.
+// BibleResponse Top-level envelope for both `/bible` (reader) and `/bible/search` (FTS) responses. The `info` object describes the resolved query; `books` contains the matching verses grouped by book and chapter.
 type BibleResponse struct {
 	Books *[]BibleBookData `json:"books,omitempty"`
 
-	// Info Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+	// Info Metadata envelope for Bible responses. Reader fields (`book`, `chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/bible`; search fields (`q`, `total`, `limit`, `offset`) are populated by `/bible/search`.
 	Info *BibleResponseInfo `json:"info,omitempty"`
 }
 
-// BibleResponseInfo Metadata envelope. Reader fields (book, chapter_start/end, verse_start/end) are populated by /bible; search fields (q, total, limit, offset) are populated by /bible/search.
+// BibleResponseInfo Metadata envelope for Bible responses. Reader fields (`book`, `chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/bible`; search fields (`q`, `total`, `limit`, `offset`) are populated by `/bible/search`.
 type BibleResponseInfo struct {
-	// Book Requested book number (reader only).
-	Book         *int `json:"book,omitempty"`
-	ChapterEnd   *int `json:"chapter_end,omitempty"`
+	// Book Requested book number (reader only). 1-based: 1 = Genesis, 40 = Matthew, 66 = Revelation.
+	Book *int `json:"book,omitempty"`
+
+	// ChapterEnd Resolved last chapter of the query range (reader only).
+	ChapterEnd *int `json:"chapter_end,omitempty"`
+
+	// ChapterStart Resolved first chapter of the query range (reader only).
 	ChapterStart *int `json:"chapter_start,omitempty"`
-	Limit        *int `json:"limit,omitempty"`
-	Offset       *int `json:"offset,omitempty"`
+
+	// Limit Page size used for this response (search only).
+	Limit *int `json:"limit,omitempty"`
+
+	// Offset Number of results skipped before this page (search only).
+	Offset *int `json:"offset,omitempty"`
 
 	// Q The search query as submitted (search only).
 	Q *string `json:"q,omitempty"`
 
-	// ResultCount Number of matching verses in this response page.
+	// ResultCount Number of verses returned in this response page.
 	ResultCount *int `json:"result_count,omitempty"`
 
-	// Total Total matching results across all pages (search only).
-	Total      *int `json:"total,omitempty"`
-	VerseEnd   *int `json:"verse_end,omitempty"`
+	// Total Total matching results across all pages (search only). Use with `limit` and `offset` for pagination.
+	Total *int `json:"total,omitempty"`
+
+	// VerseEnd Resolved last verse of the query range (reader only).
+	VerseEnd *int `json:"verse_end,omitempty"`
+
+	// VerseStart Resolved first verse of the query range (reader only).
 	VerseStart *int `json:"verse_start,omitempty"`
 }
 
-// BibleTranslationContent defines model for BibleTranslationContent.
+// BibleTranslationContent A single translation of a Bible verse in one language. Field names follow the same minified key convention as the Quran API.
 type BibleTranslationContent struct {
-	// D direction
+	// D direction — text direction for this language. `ltr` for Latin scripts; `rtl` for Arabic / Hebrew.
 	D *BibleTranslationContentD `json:"d,omitempty"`
 
-	// F footer/footnote
+	// F footer — short translator's footnote or clarification appended after the verse text (nullable).
 	F *string `json:"f,omitempty"`
 
-	// Fn theological footnotes
+	// Fn Theological footnotes — array of extended commentary strings (nullable). Distinct from `f` (short inline footnote): `fn` entries are longer annotations, cross-references, or theological explanations associated with this verse.
 	Fn *[]string `json:"fn,omitempty"`
 
-	// Hl highlight with <b> tags (search only)
+	// Hl Highlighted snippet with `<b>…</b>` tags wrapping matched terms (search only). `null` in `/bible` reader responses.
 	Hl *string `json:"hl,omitempty"`
 
-	// Lc lang_code
+	// Lc lang_code — ISO 639-1 language code, e.g. `en`.
 	Lc *string `json:"lc,omitempty"`
 
-	// Li lang_id
+	// Li lang_id — internal integer identifier for this language.
 	Li *int `json:"li,omitempty"`
 
-	// Tx text
+	// Tx Full translation text of this verse in this language.
 	Tx *string `json:"tx,omitempty"`
 }
 
-// BibleTranslationContentD direction
+// BibleTranslationContentD direction — text direction for this language. `ltr` for Latin scripts; `rtl` for Arabic / Hebrew.
 type BibleTranslationContentD string
 
-// BibleVerseData defines model for BibleVerseData.
+// BibleVerseData A single Bible verse with its translations and optional relevance score.
 type BibleVerseData struct {
-	// Sc Relevance score (search only).
+	// Sc Relevance score assigned by the FTS ranker (search only). Higher values indicate stronger relevance. Absent from `/bible` responses.
 	Sc *float32 `json:"sc,omitempty"`
 
-	// Tr translations keyed by language code
+	// Tr Translations keyed by ISO 639-1 language code. Only the codes requested via `langs` are present.
 	Tr *map[string]BibleTranslationContent `json:"tr,omitempty"`
 
-	// Vk verse_key — book_number:chapter_number:verse_number
+	// Vk verse_key — `book_number:chapter_number:verse_number` (all 1-based), e.g. `40:5:3` for Matthew 5:3 or `1:1:1` for Genesis 1:1.
 	Vk *string `json:"vk,omitempty"`
 
-	// Vn verse_number
+	// Vn verse_number — 1-based verse number within its chapter.
 	Vn *int `json:"vn,omitempty"`
 }
 
-// Chapter defines model for Chapter.
+// Chapter Metadata for a single Quranic chapter.
 type Chapter struct {
-	ChapterNumber   *int    `json:"chapter_number,omitempty"`
-	RevelationOrder *int    `json:"revelation_order,omitempty"`
-	Title           *string `json:"title,omitempty"`
-	VerseCount      *int    `json:"verse_count,omitempty"`
+	// ChapterNumber Chapter number, 1-based (1–114). Also known as Surah number.
+	ChapterNumber *int `json:"chapter_number,omitempty"`
+
+	// RevelationOrder Chronological order in which the chapter was revealed (1-based). Distinct from the canonical chapter_number ordering.
+	RevelationOrder *int `json:"revelation_order,omitempty"`
+
+	// Title Chapter title in the language requested via the `lang` parameter (or the default language if omitted).
+	Title *string `json:"title,omitempty"`
+
+	// VerseCount Total number of verses in this chapter.
+	VerseCount *int `json:"verse_count,omitempty"`
 }
 
-// ChapterData defines model for ChapterData.
+// ChapterData A single Quranic chapter with its matching verses. In reader mode all verses within the requested range are included. In search mode only verses that matched the query are included, and the `hits` and `tm` fields are populated.
 type ChapterData struct {
-	// Cn chapter_number
+	// Cn chapter_number — Quranic chapter number, 1-based (1–114).
 	Cn *int `json:"cn,omitempty"`
 
-	// Hits Number of matching verses in this chapter (search only).
-	Hits   *int               `json:"hits,omitempty"`
+	// Hits Number of verses in this chapter that matched the search query (search only). Absent from `/quran` responses.
+	Hits *int `json:"hits,omitempty"`
+
+	// Titles Map of chapter titles keyed by ISO 639-1 language code. Only codes that were requested in `langs` (or all available codes for `/chapters`) are present.
 	Titles *map[string]string `json:"titles,omitempty"`
 
-	// Tm title_match — true when the chapter title matched the query (search only).
+	// Tm title_match — `true` when the chapter title itself matched the search query, not just verse content (search only). Absent from `/quran` responses.
 	Tm     *bool        `json:"tm,omitempty"`
 	Verses *[]VerseData `json:"verses,omitempty"`
 }
 
-// ChapterMetadata defines model for ChapterMetadata.
+// ChapterMetadata List of metadata objects for all 114 Quranic chapters.
 type ChapterMetadata = []Chapter
 
-// Language defines model for Language.
-type Language struct {
-	Code      *string            `json:"code,omitempty"`
-	Direction *LanguageDirection `json:"direction,omitempty"`
-	Id        *int               `json:"id,omitempty"`
-	Name      *string            `json:"name,omitempty"`
+// Community A community entry sourced from Sanity. The `kind` discriminator determines which optional fields are populated: `online` communities carry `platform`/`url`/`inviteCode`/`memberCount`; `physical` communities carry `address`/`city`/`country`/`geo`/`contactEmail`/ `contactPhone`/`meetingSchedule`. The `imageUrl`, when present, points at the ws-backend image proxy and not directly at Sanity's CDN.
+type Community struct {
+	// UnderscoreId Sanity document ID.
+	UnderscoreId string               `json:"_id"`
+	Address      *string              `json:"address,omitempty"`
+	City         *string              `json:"city,omitempty"`
+	ContactEmail *openapi_types.Email `json:"contactEmail,omitempty"`
+	ContactPhone *string              `json:"contactPhone,omitempty"`
+
+	// Country ISO 3166-1 alpha-2 country code.
+	Country     *string `json:"country,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// Geo Latitude/longitude pair for a physical community.
+	Geo *GeoPoint `json:"geo,omitempty"`
+
+	// ImageUrl Proxied image URL routed through `/sanity/image/...`. Preserves Sanity's image transform query string when present.
+	ImageUrl   *string       `json:"imageUrl,omitempty"`
+	InviteCode *string       `json:"inviteCode,omitempty"`
+	IsActive   bool          `json:"isActive"`
+	Kind       CommunityKind `json:"kind"`
+
+	// Language ISO 639-1 language code.
+	Language        *string            `json:"language,omitempty"`
+	MeetingSchedule *string            `json:"meetingSchedule,omitempty"`
+	MemberCount     *int               `json:"memberCount,omitempty"`
+	Name            string             `json:"name"`
+	Platform        *CommunityPlatform `json:"platform,omitempty"`
+	Slug            *string            `json:"slug,omitempty"`
+	Tags            *[]string          `json:"tags,omitempty"`
+	Url             *string            `json:"url,omitempty"`
 }
 
-// LanguageDirection defines model for Language.Direction.
+// CommunityKind defines model for Community.Kind.
+type CommunityKind string
+
+// CommunityPlatform defines model for Community.Platform.
+type CommunityPlatform string
+
+// Derivative A distinct surface form (token spelling) of a root, with its occurrence count. `tr` is the Latin transliteration of the surface form, sourced from `word_text` rows tagged with the `tl` language (most-common value when multiple readings exist). `en` and `p` (POS) remain reserved for Phase 2 morphology data and are still `null`.
+type Derivative struct {
+	// Ar Surface form (Arabic word as it appears in the corpus).
+	Ar string `json:"ar"`
+
+	// C Number of occurrences of this exact surface form.
+	C int `json:"c"`
+
+	// En English gloss for this surface form (Phase 2; always `null`).
+	En *string `json:"en,omitempty"`
+
+	// P Part-of-speech tag (Phase 2; always `null`).
+	P *DerivativeP `json:"p,omitempty"`
+
+	// Tr Latin transliteration of the surface form (e.g. "kitāb"). Drawn from the per-word `tl` entry in `word_text`. May be `null` if no transliteration row exists for that word.
+	Tr *string `json:"tr,omitempty"`
+}
+
+// DerivativeP Part-of-speech tag (Phase 2; always `null`).
+type DerivativeP string
+
+// GeoPoint Latitude/longitude pair for a physical community.
+type GeoPoint struct {
+	Lat *float64 `json:"lat,omitempty"`
+	Lng *float64 `json:"lng,omitempty"`
+}
+
+// Language A language supported by the API for translations and word text.
+type Language struct {
+	// Code ISO 639-1 language code. Use this value in `langs`, `word_langs`, and `lang` parameters throughout the API.
+	Code *string `json:"code,omitempty"`
+
+	// Direction Text direction for this language. `ltr` for left-to-right scripts; `rtl` for right-to-left scripts (Arabic, Hebrew, Urdu, Persian).
+	Direction *LanguageDirection `json:"direction,omitempty"`
+
+	// Id Internal integer identifier. Used internally; prefer `code` for all API calls.
+	Id *int `json:"id,omitempty"`
+
+	// Name Human-readable language name in English.
+	Name *string `json:"name,omitempty"`
+}
+
+// LanguageDirection Text direction for this language. `ltr` for left-to-right scripts; `rtl` for right-to-left scripts (Arabic, Hebrew, Urdu, Persian).
 type LanguageDirection string
 
-// MusicAlbum defines model for MusicAlbum.
+// MusicAlbum A music album in the catalogue.
 type MusicAlbum struct {
-	ArtistId    int                `json:"artist_id"`
-	Description *string            `json:"description,omitempty"`
-	Id          int                `json:"id"`
-	Name        string             `json:"name"`
+	// ArtistId ID of the artist this album belongs to. Matches `id` in `MusicArtist`.
+	ArtistId int `json:"artist_id"`
+
+	// Description Short description of the album (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// Id Internal album identifier. Use this as `album_id` in the tracks filter.
+	Id int `json:"id"`
+
+	// Name Album title.
+	Name string `json:"name"`
+
+	// ReleaseDate Album release date in ISO 8601 format (`YYYY-MM-DD`).
 	ReleaseDate openapi_types.Date `json:"release_date"`
 }
 
-// MusicArtist defines model for MusicArtist.
+// MusicArtist A music artist in the catalogue.
 type MusicArtist struct {
-	Description     *string `json:"description,omitempty"`
-	DisplayPriority int     `json:"display_priority"`
-	Id              int     `json:"id"`
-	ImageUrl        string  `json:"image_url"`
-	Name            string  `json:"name"`
+	// Description Short biography or description of the artist (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// DisplayPriority Sort order for display; lower values appear first.
+	DisplayPriority int `json:"display_priority"`
+
+	// Id Internal artist identifier. Use this as `artist_id` in albums and tracks filters.
+	Id int `json:"id"`
+
+	// ImageUrl URL to the artist's cover / profile image.
+	ImageUrl string `json:"image_url"`
+
+	// Name Display name of the artist.
+	Name string `json:"name"`
 }
 
-// MusicCategory defines model for MusicCategory.
+// MusicCategory A music category (genre / theme) used to classify tracks.
 type MusicCategory struct {
-	Description     *string `json:"description,omitempty"`
-	DisplayPriority int     `json:"display_priority"`
-	Id              int     `json:"id"`
-	Name            string  `json:"name"`
+	// Description Short description of the category (nullable).
+	Description *string `json:"description,omitempty"`
+
+	// DisplayPriority Sort order for display; lower values appear first.
+	DisplayPriority int `json:"display_priority"`
+
+	// Id Internal category identifier. Use this as `category_id` in the tracks filter.
+	Id int `json:"id"`
+
+	// Name Display name of the category.
+	Name string `json:"name"`
 }
 
-// MusicTrack defines model for MusicTrack.
+// MusicTrack A single music track in the catalogue.
 type MusicTrack struct {
-	AlbumId     *int               `json:"album_id,omitempty"`
-	ArtistId    int                `json:"artist_id"`
-	CategoryId  *int               `json:"category_id,omitempty"`
-	Featured    bool               `json:"featured"`
-	Id          int                `json:"id"`
-	Lyrics      *string            `json:"lyrics,omitempty"`
-	Name        string             `json:"name"`
+	// AlbumId ID of the album (nullable). Matches `id` in `MusicAlbum`.
+	AlbumId *int `json:"album_id,omitempty"`
+
+	// ArtistId ID of the artist. Matches `id` in `MusicArtist`.
+	ArtistId int `json:"artist_id"`
+
+	// CategoryId ID of the category (nullable). Matches `id` in `MusicCategory`.
+	CategoryId *int `json:"category_id,omitempty"`
+
+	// Featured Whether this track is hand-picked as featured. Featured tracks are highlighted in the UI and can be filtered with `featured=true`.
+	Featured bool `json:"featured"`
+
+	// Id Internal track identifier.
+	Id int `json:"id"`
+
+	// Lyrics Full song lyrics (nullable). May contain newlines for line breaks.
+	Lyrics *string `json:"lyrics,omitempty"`
+
+	// Name Track title.
+	Name string `json:"name"`
+
+	// ReleaseDate Track release date in ISO 8601 format (`YYYY-MM-DD`).
 	ReleaseDate openapi_types.Date `json:"release_date"`
-	Url         string             `json:"url"`
+
+	// Url Direct URL to the audio file or streaming resource.
+	Url string `json:"url"`
 }
 
-// QuranResponse defines model for QuranResponse.
+// Occurrence One verse occurrence of a root. `vk` is the verse_key (`chapter_number:verse_number`); `ar` is the full Arabic verse text; `en` is the primary English translation when available; `hl` is the exact surface form to highlight inside `ar` on the client.
+type Occurrence struct {
+	// Ar Full Arabic verse text.
+	Ar string `json:"ar"`
+
+	// En Primary English translation of the verse (nullable).
+	En *string `json:"en,omitempty"`
+
+	// Hl Surface form (matched word) to highlight inside `ar`. Best-effort: the client may need to handle diacritics when locating the substring.
+	Hl *string `json:"hl,omitempty"`
+
+	// Tl Latin transliteration of the matched surface form (`hl`). Drawn from the per-word `tl` entry in `word_text`. May be `null` if no transliteration row exists for that word.
+	Tl *string `json:"tl,omitempty"`
+
+	// Vk verse_key — `chapter_number:verse_number`, both 1-based.
+	Vk string `json:"vk"`
+
+	// Wi 1-based word index of the matched word inside its verse. Lets the client highlight the exact token without resorting to substring matching (which mis-targets short surface forms like `مِن` that embed inside longer words like `مُؤْمِن`).
+	Wi *int `json:"wi,omitempty"`
+}
+
+// OccurrencesResponse Paginated occurrences for a single root.
+type OccurrencesResponse struct {
+	Items []Occurrence `json:"items"`
+
+	// Total Total number of occurrences of this root in the corpus.
+	Total int `json:"total"`
+}
+
+// QuranResponse Top-level envelope for both `/quran` (reader) and `/search` (FTS) responses. The `info` object describes the query parameters that were resolved; `chapters` contains the matching verses grouped by chapter.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
 
-	// Info Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+	// Info Metadata envelope describing the resolved query. Reader fields (`chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/quran` and absent from `/search` responses. Search fields (`q`, `total`, `limit`, `offset`, `scope`) are populated by `/search` and absent from `/quran` responses.
 	Info *QuranResponseInfo `json:"info,omitempty"`
 }
 
-// QuranResponseInfo Metadata envelope. Reader fields (chapter_start/end, verse_start/end) are populated by /quran; search fields (q, total, limit, offset, scope) are populated by /search.
+// QuranResponseInfo Metadata envelope describing the resolved query. Reader fields (`chapter_start`, `chapter_end`, `verse_start`, `verse_end`) are populated by `/quran` and absent from `/search` responses. Search fields (`q`, `total`, `limit`, `offset`, `scope`) are populated by `/search` and absent from `/quran` responses.
 type QuranResponseInfo struct {
-	ChapterEnd   *int `json:"chapter_end,omitempty"`
-	ChapterStart *int `json:"chapter_start,omitempty"`
-	Limit        *int `json:"limit,omitempty"`
-	Offset       *int `json:"offset,omitempty"`
+	// ChapterEnd Resolved last chapter of the query range (reader only). Equal to `chapter_start` when no end chapter was requested.
+	ChapterEnd *int `json:"chapter_end,omitempty"`
 
-	// Q The search query as submitted.
+	// ChapterStart Resolved first chapter of the query range (reader only). Reflects the `chapter_number_start` param after server validation.
+	ChapterStart *int `json:"chapter_start,omitempty"`
+
+	// Limit Page size used for this response (search only).
+	Limit *int `json:"limit,omitempty"`
+
+	// Offset Number of results skipped before this page (search only).
+	Offset *int `json:"offset,omitempty"`
+
+	// Q The search query as submitted by the client (search only).
 	Q *string `json:"q,omitempty"`
 
-	// ResultCount Number of matching verses in this response page.
+	// ResultCount Number of verses returned in this response page. For `/quran` this equals the total number of matching verses (no pagination); for `/search` this is the number of verses on the current page (≤ `limit`).
 	ResultCount *int `json:"result_count,omitempty"`
 
-	// Scope Search scope used (verses or words).
+	// Scope Search scope that was applied (search only). `verses` means verse translation text was searched; `words` means word-level Arabic / transliteration text was searched.
 	Scope *string `json:"scope,omitempty"`
 
-	// Total Total matching results across all pages.
-	Total      *int `json:"total,omitempty"`
-	VerseEnd   *int `json:"verse_end,omitempty"`
+	// Total Total number of matching verses across ALL pages (search only). Use together with `limit` and `offset` to calculate the total page count and navigate paginated results.
+	Total *int `json:"total,omitempty"`
+
+	// VerseEnd Resolved last verse of the query range (reader only). Defaults to the final verse of the chapter when the param was omitted.
+	VerseEnd *int `json:"verse_end,omitempty"`
+
+	// VerseStart Resolved first verse of the query range (reader only). Defaults to 1 when the param was omitted.
 	VerseStart *int `json:"verse_start,omitempty"`
 }
 
-// TranslationContent defines model for TranslationContent.
-type TranslationContent struct {
-	// D direction
-	D *TranslationContentD `json:"d,omitempty"`
+// RootRecord defines model for RootRecord.
+type RootRecord struct {
+	// C Total occurrence count of this root across the corpus.
+	C int `json:"c"`
 
-	// F footer
-	F *string `json:"f,omitempty"`
+	// Dv Distinct derived surface forms of this root, capped at 20 and ordered by descending count.
+	Dv *[]Derivative `json:"dv,omitempty"`
 
-	// Hl Highlighted snippet with <b>…</b> tags around matching terms (search only).
-	Hl *string `json:"hl,omitempty"`
+	// M Per-root meaning string. The `meaning` column in `word_text` is denormalized — every surface form sharing this root carries the same string. The server returns one canonical row's value here. Senses are typically separated by `;`. May be `null` when no English meaning row exists for the root.
+	M *string `json:"m,omitempty"`
 
-	// Lc lang_code
-	Lc *string `json:"lc,omitempty"`
+	// Mp Morphology note for the root (Phase 2; always `null` for now).
+	Mp *string `json:"mp,omitempty"`
 
-	// Li lang_id
-	Li *int `json:"li,omitempty"`
+	// Oc First 20 verse occurrences of this root, ordered by canonical reading order (`global_index`).
+	Oc *[]Occurrence `json:"oc,omitempty"`
 
-	// S subtitle
+	// R Root letters, space-separated Arabic (storage form).
+	R string `json:"r"`
+
+	// S Editorial sense gloss for this root (Phase 2; always `null` for now).
 	S *string `json:"s,omitempty"`
 
-	// Tx text
+	// Tr Latin Buckwalter transliteration of the root, lowercase letters joined with `-`. Computed server-side from `r`.
+	Tr string `json:"tr"`
+}
+
+// RootSummary Compact record for one Quranic Arabic root, returned by the index endpoint. `r` is the storage form (space-separated Arabic letters); `tr` is the server-computed Latin Buckwalter transliteration joined with hyphens (e.g. `k-t-b`). `s` is reserved for an editorial sense gloss and is always `null` until Phase 2 morphology data lands.
+type RootSummary struct {
+	// C Total occurrence count of this root across the corpus.
+	C int `json:"c"`
+
+	// R Root letters, space-separated Arabic (storage form).
+	R string `json:"r"`
+
+	// S Editorial sense gloss for this root (Phase 2; always `null` for now).
+	S *string `json:"s,omitempty"`
+
+	// Tr Latin Buckwalter transliteration of the root, lowercase letters joined with `-`. Computed server-side from `r`.
+	Tr string `json:"tr"`
+}
+
+// RootsIndexResponse Paginated index of roots returned by `/roots`.
+type RootsIndexResponse struct {
+	Items []RootSummary `json:"items"`
+
+	// Total Total number of distinct roots matching the optional `q` filter.
+	Total int `json:"total"`
+}
+
+// TranslationContent A single translation of a verse in one language. All short field names follow the minified key convention documented in the info section.
+type TranslationContent struct {
+	// D direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
+	D *TranslationContentD `json:"d,omitempty"`
+
+	// F footer — translator's footnote or clarification appended after the verse text (nullable). May contain cross-references or explanatory notes.
+	F *string `json:"f,omitempty"`
+
+	// Hl Highlighted snippet with `<b>…</b>` tags wrapping the matched terms (search only). Suitable for rendering search result previews. `null` in `/quran` responses.
+	Hl *string `json:"hl,omitempty"`
+
+	// Lc lang_code — ISO 639-1 language code, e.g. `en`, `ar`, `fr`.
+	Lc *string `json:"lc,omitempty"`
+
+	// Li lang_id — internal integer identifier for this language.
+	Li *int `json:"li,omitempty"`
+
+	// S subtitle — chapter-level subtitle or section heading associated with this verse (Quran-specific, nullable). Typically appears only on verse 1 of a chapter.
+	S *string `json:"s,omitempty"`
+
+	// Tx Full translation text of this verse in this language.
 	Tx *string `json:"tx,omitempty"`
 }
 
-// TranslationContentD direction
+// TranslationContentD direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
 type TranslationContentD string
 
-// VerseData defines model for VerseData.
+// VerseData A single Quranic verse with its translations in the requested languages, and optionally word-by-word data.
 type VerseData struct {
-	// Sc Relevance score (search only).
+	// Sc Relevance score assigned by the FTS / semantic ranker (search only). Higher values indicate stronger relevance to the query. Absent from `/quran` responses.
 	Sc *float32 `json:"sc,omitempty"`
 
-	// Tr translations keyed by language code
+	// Tr Translations keyed by ISO 639-1 language code. Only the codes requested via `langs` are present. Example: `{ "en": { ... }, "ar": { ... } }`.
 	Tr *map[string]TranslationContent `json:"tr,omitempty"`
 
-	// Vi verse_index
+	// Vi verse_index — 0-based position of this verse within its chapter. The first verse (`vi: 0`) is verse 1.
 	Vi *int `json:"vi,omitempty"`
 
-	// Vk verse_key
+	// Vk verse_key — `chapter_number:verse_number` (1-based), e.g. `2:255` for Ayat al-Kursi or `1:1` for the Fatiha opening verse.
 	Vk *string `json:"vk,omitempty"`
 
-	// W words
+	// W Word-by-word breakdown of the verse (present only when `include_words=true`). Each element represents one Arabic word in reading order.
 	W *[]WordData `json:"w,omitempty"`
 }
 
-// WordData defines model for WordData.
+// WordData Data for a single Arabic word within a verse. Returned only when `include_words=true`. Fields `r` and `m` require their respective `include_root` / `include_meaning` params to be `true`.
 type WordData struct {
-	// Gi global_index
+	// Gi global_index — unique 1-based index of this word across the entire Quran (all chapters, all verses, in reading order).
 	Gi *int `json:"gi,omitempty"`
 
-	// Hl Highlighted word text keyed by language code, with <b>…</b> tags (word search only).
+	// Hl Highlighted word text keyed by language code, with `<b>` tags around the matched portion (word search only). `null` for non-search responses or when the word did not match.
 	Hl *map[string]string `json:"hl,omitempty"`
 
-	// M meaning
+	// M meaning — English gloss / meaning of this specific word form (e.g. `"in the name of"`). `null` unless `include_meaning=true`.
 	M *string `json:"m,omitempty"`
 
-	// Meta metadata
+	// Meta Arbitrary metadata object containing morphological tags, grammar notes, or other word-level annotations. Structure may vary and should be treated as opaque unless documented separately.
 	Meta *map[string]interface{} `json:"meta,omitempty"`
 
-	// R root
+	// R root — Arabic root of the word (3–4 letter root form, e.g. `رحم` for words related to mercy). `null` unless `include_root=true`.
 	R *string `json:"r,omitempty"`
 
-	// Tx word text keyed by language code
+	// Tx Word text keyed by language code (e.g. `{ "ar": "بِسْمِ" }`). Only codes requested via `word_langs` are present. `null` if no `word_langs` were requested.
 	Tx *map[string]string `json:"tx,omitempty"`
 
-	// Wi word_index
+	// Wi word_index — 0-based position of this word within its verse. The first word of the verse is `wi: 0`.
 	Wi *int `json:"wi,omitempty"`
 }
 
@@ -401,6 +758,11 @@ type IncludeWordsParam = bool
 
 // WordLangsParam defines model for WordLangsParam.
 type WordLangsParam = []string
+
+// BadGateway defines model for BadGateway.
+type BadGateway struct {
+	Message string `json:"message"`
+}
 
 // BadRequest defines model for BadRequest.
 type BadRequest struct {
@@ -430,122 +792,186 @@ type NotImplementedError struct {
 
 // GetAppendicesParams defines parameters for GetAppendices.
 type GetAppendicesParams struct {
+	// Lang ISO 639-1 language code for the appendix title and snippet (e.g. `en`, `ar`). Must be a code returned by `/languages`.
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetBibleParams defines parameters for GetBible.
 type GetBibleParams struct {
-	// Book Book number (1 = Genesis, 40 = Matthew, …, 66 = Revelation).
+	// Book 1-based Bible book number. 1 = Genesis, 40 = Matthew, 66 = Revelation. Use `/bible/books` to retrieve the full list of book numbers and names.
 	Book int `form:"book" json:"book"`
 
-	// ChapterStart First chapter to include (1-based, within the book).
+	// ChapterStart First chapter to include, 1-based and within the bounds of the requested book. Use `/bible/books` to find each book's `cc` (chapter_count).
 	ChapterStart int `form:"chapter_start" json:"chapter_start"`
 
-	// ChapterEnd Last chapter to include. Defaults to chapter_start.
+	// ChapterEnd Last chapter to include (inclusive), 1-based. Must be ≥ `chapter_start`. Defaults to `chapter_start` when omitted (single chapter).
 	ChapterEnd *int `form:"chapter_end,omitempty" json:"chapter_end,omitempty"`
 
-	// VerseStart First verse to include. Defaults to 1.
+	// VerseStart First verse to include within `chapter_start`, 1-based. Defaults to 1 (beginning of the chapter) when omitted.
 	VerseStart *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
 
-	// VerseEnd Last verse to include. Defaults to end of chapter.
+	// VerseEnd Last verse to include within `chapter_end` (or `chapter_start`), 1-based. Defaults to the last verse of the chapter when omitted.
 	VerseEnd *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Langs Language codes to include (e.g. en).
+	// Langs One or more ISO 639-1 language codes to include. Each code must be returned by `/languages`. Currently the primary supported code is `en` (English).
 	Langs []string `form:"langs" json:"langs"`
 }
 
 // SearchBibleParams defines parameters for SearchBible.
 type SearchBibleParams struct {
-	// Q Search query (2–200 characters).
+	// Q Search query (2–200 characters). Matched against verse text and footnotes using PostgreSQL full-text search. Supports quoted phrases.
 	Q string `form:"q" json:"q"`
 
-	// Langs Language codes to search in. Omit for all languages.
-	Langs  *[]string `form:"langs,omitempty" json:"langs,omitempty"`
-	Limit  *int      `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int      `form:"offset,omitempty" json:"offset,omitempty"`
+	// Langs ISO 639-1 language codes to search in. When omitted, all indexed languages are searched. Currently the primary supported code is `en`.
+	Langs *[]string `form:"langs,omitempty" json:"langs,omitempty"`
+
+	// Limit Maximum number of verses to return per page (1–100). Defaults to 20.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of results to skip before returning the page. Use with `limit` and `total` for pagination.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // GetChaptersParams defines parameters for GetChapters.
 type GetChaptersParams struct {
+	// Lang ISO 639-1 language code for the chapter title (e.g. `en`, `ar`, `fr`). Must be a code returned by `/languages`. Defaults to `en` when omitted.
 	Lang *string `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// GetCommunitiesParams defines parameters for GetCommunities.
+type GetCommunitiesParams struct {
+	// Kind Filter by community kind.
+	Kind *GetCommunitiesParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Language ISO 639-1 language code of the community.
+	Language *string `form:"language,omitempty" json:"language,omitempty"`
+
+	// Country ISO 3166-1 alpha-2 country code (physical communities only).
+	Country *string `form:"country,omitempty" json:"country,omitempty"`
+}
+
+// GetCommunitiesParamsKind defines parameters for GetCommunities.
+type GetCommunitiesParamsKind string
+
 // GetMusicAlbumsParams defines parameters for GetMusicAlbums.
 type GetMusicAlbumsParams struct {
-	// ArtistId Filter by artist ID.
+	// ArtistId Filter results to albums belonging to this artist. Must be an `id` returned by `/music/artists`. Omit to return all albums.
 	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
 }
 
 // GetMusicTracksParams defines parameters for GetMusicTracks.
 type GetMusicTracksParams struct {
-	// ArtistId Filter by artist ID.
+	// ArtistId Return only tracks by this artist. Must be an `id` returned by `/music/artists`.
 	ArtistId *int `form:"artist_id,omitempty" json:"artist_id,omitempty"`
 
-	// CategoryId Filter by category ID.
+	// CategoryId Return only tracks in this category. Must be an `id` returned by `/music/categories`.
 	CategoryId *int `form:"category_id,omitempty" json:"category_id,omitempty"`
 
-	// AlbumId Filter by album ID.
+	// AlbumId Return only tracks from this album. Must be an `id` returned by `/music/albums`.
 	AlbumId *int `form:"album_id,omitempty" json:"album_id,omitempty"`
 
-	// Featured Filter to featured tracks only.
+	// Featured When `true`, return only featured (hand-picked) tracks. When omitted or `false`, featured and non-featured tracks are both included.
 	Featured *bool `form:"featured,omitempty" json:"featured,omitempty"`
 }
 
 // GetQuranParams defines parameters for GetQuran.
 type GetQuranParams struct {
+	// ChapterNumberStart First (or only) chapter to include, 1-based (1–114). When `chapter_number_end` is omitted, only this chapter is queried. Ignored when `verses` is provided.
 	ChapterNumberStart *int `form:"chapter_number_start,omitempty" json:"chapter_number_start,omitempty"`
-	ChapterNumberEnd   *int `form:"chapter_number_end,omitempty" json:"chapter_number_end,omitempty"`
-	VerseStart         *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
-	VerseEnd           *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
 
-	// Verses Compact verse references. Single verse (1:1), range within a chapter (1:1-3), or comma-separated list (1:2,1:4-5,4:2). When present, takes priority over chapter_number_start/verse_start/verse_end. Max 300 verses.
+	// ChapterNumberEnd Last chapter to include (inclusive), 1-based (1–114). Must be ≥ `chapter_number_start`. Ignored when `verses` is provided.
+	ChapterNumberEnd *int `form:"chapter_number_end,omitempty" json:"chapter_number_end,omitempty"`
+
+	// VerseStart First verse to include within `chapter_number_start`. Use `0` for the Basmallah; `1` and above for numbered verses. Defaults to 1 when omitted. Ignored when `verses` is provided.
+	VerseStart *int `form:"verse_start,omitempty" json:"verse_start,omitempty"`
+
+	// VerseEnd Last verse to include within `chapter_number_end` (or `chapter_number_start` if no end chapter), 1-based. Defaults to the last verse of the chapter when omitted. Ignored when `verses` is provided.
+	VerseEnd *int `form:"verse_end,omitempty" json:"verse_end,omitempty"`
+
+	// Verses Compact verse reference string. Takes priority over all chapter/verse range params when present. Supported formats:
+	// - Single verse: `1:1` - Range within a chapter: `1:1-7` - Comma-separated list: `1:2,2:255,2:285-286`
+	// Maximum 300 verses per request.
 	Verses *string `form:"verses,omitempty" json:"verses,omitempty"`
 
-	// Langs Language codes to include (e.g. en, ar, fr).
+	// Langs One or more ISO 639-1 language codes to include in the response. Each code must be a value returned by `/languages`. Translations for each code appear inside every verse's `tr` map.
 	Langs []string `form:"langs" json:"langs"`
 
-	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	// WordLangs Language codes for word-level text. Must be a subset of the `langs` array. Only words in these languages are included in the `tx` map of each `WordData` object. Typically set to `["ar"]` to include Arabic word text alongside an English translation.
 	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
 
-	// IncludeWords Include word-by-word breakdown for each verse.
+	// IncludeWords When `true`, each verse includes a `w` array of `WordData` objects with per-word text (and optionally root / meaning). When `false` (default), the `w` array is entirely omitted from each verse, keeping the response compact.
 	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
 
-	// IncludeRoot Include Arabic root for each word (requires include_words).
+	// IncludeRoot When `true`, each `WordData` object includes the `r` field containing the Arabic root (3–4 letters). Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
 
-	// IncludeMeaning Include word meaning for each word (requires include_words).
+	// IncludeMeaning When `true`, each `WordData` object includes the `m` field containing an English gloss / meaning for the word. Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
+}
+
+// GetRootsParams defines parameters for GetRoots.
+type GetRootsParams struct {
+	// Q Arabic prefix filter against root letters. The frontend MUST send space-separated Arabic letters matching the storage form (e.g. `ك ت` or `ك ت ب`); Latin or Buckwalter input is not accepted on the server.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Sort Ordering mode. `frequency` orders by descending occurrence count (most-attested first). `abjadi` orders by classical abjadi rank (composite over the first three letters). `reverse` is the inverse abjadi ordering.
+	Sort *GetRootsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Limit Page size. Default 50. No upper bound — paginate via `offset` for large pulls.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip before returning the page.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetRootsParamsSort defines parameters for GetRoots.
+type GetRootsParamsSort string
+
+// GetRootOccurrencesParams defines parameters for GetRootOccurrences.
+type GetRootOccurrencesParams struct {
+	// Limit Page size. Default 50. No upper bound.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of occurrences to skip before returning the page.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Surface Optional Arabic surface form filter. When provided, narrows the result set to occurrences where the matched word equals this exact string (used by the Word Lab "click derivative chip" flow). The `total` field reflects the filtered universe.
+	Surface *string `form:"surface,omitempty" json:"surface,omitempty"`
 }
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
-	// Q Search query (2–200 characters). Supports quoted phrases and exclusions. Optional when `root` is provided with scope=words.
+	// Q Search query (2–200 characters). Supports quoted phrases and exclusions (e.g. `"mercy of God" -punishment`). Required unless `root` is provided with `scope=words`.
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
-	// Root Arabic root string (e.g. رحم). When provided with scope=words, performs an exact match on word_root instead of full-text search. Takes priority over q.
+	// Root Arabic root string (3–4 letters, e.g. `رحم`). When provided with `scope=words`, performs an exact match on `word_root` instead of running FTS. Takes priority over `q`.
 	Root *string `form:"root,omitempty" json:"root,omitempty"`
 
-	// Langs Language codes to search in. Omit for all languages.
+	// Langs ISO 639-1 language codes to search in. When omitted, all indexed languages are searched simultaneously. Only affects which translation columns are queried — returned verse objects always include the translations for these codes.
 	Langs *[]string `form:"langs,omitempty" json:"langs,omitempty"`
 
-	// Scope Whether to search verse translations or word-level text.
-	Scope  *SearchParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
-	Limit  *int               `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int               `form:"offset,omitempty" json:"offset,omitempty"`
+	// Scope Whether to search verse translations (`verses`) or word-level Arabic / transliteration text (`words`). Defaults to `verses`.
+	Scope *SearchParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
 
-	// Semantic Enable hybrid semantic search (FTS + vector RRF) when the server has an embedding model configured. Defaults to true when OPENAI_API_KEY is set. Set to false to force pure keyword FTS.
+	// Limit Maximum number of verses to return per page (1–100). Defaults to 20.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of results to skip before returning the page. Use with `limit` and the `total` field for pagination.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Semantic Enable hybrid semantic search (FTS + vector RRF fusion) when the server has an embedding model configured. Defaults to `true` when `OPENAI_API_KEY` is set, otherwise `false`. Set to `false` to force pure keyword FTS regardless of server configuration.
 	Semantic *bool `form:"semantic,omitempty" json:"semantic,omitempty"`
 
-	// WordLangs Language codes for word-level text (subset of langs, e.g. only "ar").
+	// WordLangs Language codes for word-level text. Must be a subset of the `langs` array. Only words in these languages are included in the `tx` map of each `WordData` object. Typically set to `["ar"]` to include Arabic word text alongside an English translation.
 	WordLangs *WordLangsParam `form:"word_langs,omitempty" json:"word_langs,omitempty"`
 
-	// IncludeWords Include word-by-word breakdown for each verse.
+	// IncludeWords When `true`, each verse includes a `w` array of `WordData` objects with per-word text (and optionally root / meaning). When `false` (default), the `w` array is entirely omitted from each verse, keeping the response compact.
 	IncludeWords *IncludeWordsParam `form:"include_words,omitempty" json:"include_words,omitempty"`
 
-	// IncludeRoot Include Arabic root for each word (requires include_words).
+	// IncludeRoot When `true`, each `WordData` object includes the `r` field containing the Arabic root (3–4 letters). Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeRoot *IncludeRootParam `form:"include_root,omitempty" json:"include_root,omitempty"`
 
-	// IncludeMeaning Include word meaning for each word (requires include_words).
+	// IncludeMeaning When `true`, each `WordData` object includes the `m` field containing an English gloss / meaning for the word. Requires `include_words=true`. Has no effect when `include_words=false`.
 	IncludeMeaning *IncludeMeaningParam `form:"include_meaning,omitempty" json:"include_meaning,omitempty"`
 }
 
@@ -554,7 +980,7 @@ type SearchParamsScope string
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// fetches appendix Metadata
+	// Fetch appendix metadata
 	// (GET /appendices)
 	GetAppendices(c *gin.Context, params GetAppendicesParams)
 	// Fetch Bible verses by range
@@ -566,9 +992,12 @@ type ServerInterface interface {
 	// Full-text search across the Bible
 	// (GET /bible/search)
 	SearchBible(c *gin.Context, params SearchBibleParams)
-	// fetches chapter Metadata
+	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(c *gin.Context, params GetChaptersParams)
+	// List communities (online and physical)
+	// (GET /communities)
+	GetCommunities(c *gin.Context, params GetCommunitiesParams)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
@@ -587,6 +1016,15 @@ type ServerInterface interface {
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(c *gin.Context, params GetQuranParams)
+	// Paginated roots index
+	// (GET /roots)
+	GetRoots(c *gin.Context, params GetRootsParams)
+	// Full root record
+	// (GET /roots/{letters})
+	GetRootDetail(c *gin.Context, letters string)
+	// Paginated occurrences for a single root
+	// (GET /roots/{letters}/occurrences)
+	GetRootOccurrences(c *gin.Context, letters string, params GetRootOccurrencesParams)
 	// Full-text search across the Quran
 	// (GET /search)
 	Search(c *gin.Context, params SearchParams)
@@ -810,6 +1248,48 @@ func (siw *ServerInterfaceWrapper) GetChapters(c *gin.Context) {
 	siw.Handler.GetChapters(c, params)
 }
 
+// GetCommunities operation middleware
+func (siw *ServerInterfaceWrapper) GetCommunities(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCommunitiesParams
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", c.Request.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter kind: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "language" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "language", c.Request.URL.Query(), &params.Language, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter language: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "country" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "country", c.Request.URL.Query(), &params.Country, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter country: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCommunities(c, params)
+}
+
 // GetLanguages operation middleware
 func (siw *ServerInterfaceWrapper) GetLanguages(c *gin.Context) {
 
@@ -1030,6 +1510,131 @@ func (siw *ServerInterfaceWrapper) GetQuran(c *gin.Context) {
 	siw.Handler.GetQuran(c, params)
 }
 
+// GetRoots operation middleware
+func (siw *ServerInterfaceWrapper) GetRoots(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetRootsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", c.Request.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRoots(c, params)
+}
+
+// GetRootDetail operation middleware
+func (siw *ServerInterfaceWrapper) GetRootDetail(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "letters" -------------
+	var letters string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "letters", c.Param("letters"), &letters, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter letters: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRootDetail(c, letters)
+}
+
+// GetRootOccurrences operation middleware
+func (siw *ServerInterfaceWrapper) GetRootOccurrences(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "letters" -------------
+	var letters string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "letters", c.Param("letters"), &letters, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter letters: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetRootOccurrencesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "surface" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "surface", c.Request.URL.Query(), &params.Surface, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter surface: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRootOccurrences(c, letters, params)
+}
+
 // Search operation middleware
 func (siw *ServerInterfaceWrapper) Search(c *gin.Context) {
 
@@ -1168,13 +1773,21 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/bible/books", wrapper.GetBibleBooks)
 	router.GET(options.BaseURL+"/bible/search", wrapper.SearchBible)
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
+	router.GET(options.BaseURL+"/communities", wrapper.GetCommunities)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
 	router.GET(options.BaseURL+"/music/albums", wrapper.GetMusicAlbums)
 	router.GET(options.BaseURL+"/music/artists", wrapper.GetMusicArtists)
 	router.GET(options.BaseURL+"/music/categories", wrapper.GetMusicCategories)
 	router.GET(options.BaseURL+"/music/tracks", wrapper.GetMusicTracks)
 	router.GET(options.BaseURL+"/quran", wrapper.GetQuran)
+	router.GET(options.BaseURL+"/roots", wrapper.GetRoots)
+	router.GET(options.BaseURL+"/roots/:letters", wrapper.GetRootDetail)
+	router.GET(options.BaseURL+"/roots/:letters/occurrences", wrapper.GetRootOccurrences)
 	router.GET(options.BaseURL+"/search", wrapper.Search)
+}
+
+type BadGatewayJSONResponse struct {
+	Message string `json:"message"`
 }
 
 type BadRequestJSONResponse struct {
@@ -1431,6 +2044,52 @@ func (response GetChapters501JSONResponse) VisitGetChaptersResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetCommunitiesRequestObject struct {
+	Params GetCommunitiesParams
+}
+
+type GetCommunitiesResponseObject interface {
+	VisitGetCommunitiesResponse(w http.ResponseWriter) error
+}
+
+type GetCommunities200JSONResponse []Community
+
+func (response GetCommunities200JSONResponse) VisitGetCommunitiesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCommunities400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetCommunities400JSONResponse) VisitGetCommunitiesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCommunities500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetCommunities500JSONResponse) VisitGetCommunitiesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCommunities502JSONResponse struct{ BadGatewayJSONResponse }
+
+func (response GetCommunities502JSONResponse) VisitGetCommunitiesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetLanguagesRequestObject struct {
 }
 
@@ -1634,6 +2293,136 @@ func (response GetQuran501JSONResponse) VisitGetQuranResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetRootsRequestObject struct {
+	Params GetRootsParams
+}
+
+type GetRootsResponseObject interface {
+	VisitGetRootsResponse(w http.ResponseWriter) error
+}
+
+type GetRoots200JSONResponse RootsIndexResponse
+
+func (response GetRoots200JSONResponse) VisitGetRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRoots400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetRoots400JSONResponse) VisitGetRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRoots500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetRoots500JSONResponse) VisitGetRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootDetailRequestObject struct {
+	Letters string `json:"letters"`
+}
+
+type GetRootDetailResponseObject interface {
+	VisitGetRootDetailResponse(w http.ResponseWriter) error
+}
+
+type GetRootDetail200JSONResponse RootRecord
+
+func (response GetRootDetail200JSONResponse) VisitGetRootDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootDetail400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetRootDetail400JSONResponse) VisitGetRootDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootDetail404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetRootDetail404JSONResponse) VisitGetRootDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootDetail500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetRootDetail500JSONResponse) VisitGetRootDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootOccurrencesRequestObject struct {
+	Letters string `json:"letters"`
+	Params  GetRootOccurrencesParams
+}
+
+type GetRootOccurrencesResponseObject interface {
+	VisitGetRootOccurrencesResponse(w http.ResponseWriter) error
+}
+
+type GetRootOccurrences200JSONResponse OccurrencesResponse
+
+func (response GetRootOccurrences200JSONResponse) VisitGetRootOccurrencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootOccurrences400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetRootOccurrences400JSONResponse) VisitGetRootOccurrencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootOccurrences404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetRootOccurrences404JSONResponse) VisitGetRootOccurrencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootOccurrences500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetRootOccurrences500JSONResponse) VisitGetRootOccurrencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchRequestObject struct {
 	Params SearchParams
 }
@@ -1684,7 +2473,7 @@ func (response Search501JSONResponse) VisitSearchResponse(w http.ResponseWriter)
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// fetches appendix Metadata
+	// Fetch appendix metadata
 	// (GET /appendices)
 	GetAppendices(ctx context.Context, request GetAppendicesRequestObject) (GetAppendicesResponseObject, error)
 	// Fetch Bible verses by range
@@ -1696,9 +2485,12 @@ type StrictServerInterface interface {
 	// Full-text search across the Bible
 	// (GET /bible/search)
 	SearchBible(ctx context.Context, request SearchBibleRequestObject) (SearchBibleResponseObject, error)
-	// fetches chapter Metadata
+	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
+	// List communities (online and physical)
+	// (GET /communities)
+	GetCommunities(ctx context.Context, request GetCommunitiesRequestObject) (GetCommunitiesResponseObject, error)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
@@ -1717,6 +2509,15 @@ type StrictServerInterface interface {
 	// Fetch a range of verses
 	// (GET /quran)
 	GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error)
+	// Paginated roots index
+	// (GET /roots)
+	GetRoots(ctx context.Context, request GetRootsRequestObject) (GetRootsResponseObject, error)
+	// Full root record
+	// (GET /roots/{letters})
+	GetRootDetail(ctx context.Context, request GetRootDetailRequestObject) (GetRootDetailResponseObject, error)
+	// Paginated occurrences for a single root
+	// (GET /roots/{letters}/occurrences)
+	GetRootOccurrences(ctx context.Context, request GetRootOccurrencesRequestObject) (GetRootOccurrencesResponseObject, error)
 	// Full-text search across the Quran
 	// (GET /search)
 	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
@@ -1860,6 +2661,33 @@ func (sh *strictHandler) GetChapters(ctx *gin.Context, params GetChaptersParams)
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetChaptersResponseObject); ok {
 		if err := validResponse.VisitGetChaptersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCommunities operation middleware
+func (sh *strictHandler) GetCommunities(ctx *gin.Context, params GetCommunitiesParams) {
+	var request GetCommunitiesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCommunities(ctx, request.(GetCommunitiesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCommunities")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetCommunitiesResponseObject); ok {
+		if err := validResponse.VisitGetCommunitiesResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -2023,6 +2851,88 @@ func (sh *strictHandler) GetQuran(ctx *gin.Context, params GetQuranParams) {
 	}
 }
 
+// GetRoots operation middleware
+func (sh *strictHandler) GetRoots(ctx *gin.Context, params GetRootsParams) {
+	var request GetRootsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRoots(ctx, request.(GetRootsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRoots")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetRootsResponseObject); ok {
+		if err := validResponse.VisitGetRootsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRootDetail operation middleware
+func (sh *strictHandler) GetRootDetail(ctx *gin.Context, letters string) {
+	var request GetRootDetailRequestObject
+
+	request.Letters = letters
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRootDetail(ctx, request.(GetRootDetailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRootDetail")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetRootDetailResponseObject); ok {
+		if err := validResponse.VisitGetRootDetailResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRootOccurrences operation middleware
+func (sh *strictHandler) GetRootOccurrences(ctx *gin.Context, letters string, params GetRootOccurrencesParams) {
+	var request GetRootOccurrencesRequestObject
+
+	request.Letters = letters
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRootOccurrences(ctx, request.(GetRootOccurrencesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRootOccurrences")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetRootOccurrencesResponseObject); ok {
+		if err := validResponse.VisitGetRootOccurrencesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Search operation middleware
 func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 	var request SearchRequestObject
@@ -2053,71 +2963,221 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
