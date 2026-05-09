@@ -296,6 +296,8 @@ func StartServer(database *db.DB) {
 	authed.PUT("/me/reading-progress", meHandler.PutReadingProgress)
 	authed.GET("/me/streak", meHandler.GetStreak)
 	authed.POST("/me/reading-log", meHandler.PostReadingLog)
+	authed.GET("/me/preferences", meHandler.GetPreferences)
+	authed.PUT("/me/preferences", meHandler.PutPreferences)
 
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")

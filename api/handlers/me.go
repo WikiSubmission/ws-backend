@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -522,6 +523,60 @@ func (h *MeHandler) PostReadingLog(c *gin.Context) {
 	}
 	if err := h.DB.IncrementReadingLog(c.Request.Context(), authID, req.Scripture, req.Day, req.VersesRead); err != nil {
 		slog.Error("PostReadingLog: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": nil})
+}
+
+// ── Preferences handlers ──────────────────────────────────────────────────
+
+type UpsertPreferencesRequest struct {
+	Scripture string          `json:"scripture" binding:"required"`
+	Payload   json.RawMessage `json:"payload" binding:"required"`
+}
+
+// GetPreferences handles GET /api/v1/me/preferences?scripture=quran|bible
+func (h *MeHandler) GetPreferences(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	scripture := c.DefaultQuery("scripture", "quran")
+	if scripture != "quran" && scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	row, err := h.DB.GetPreferences(c.Request.Context(), authID, scripture)
+	if err != nil {
+		slog.Error("GetPreferences: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if row == nil {
+		c.JSON(http.StatusOK, gin.H{"data": nil})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": json.RawMessage(row.Payload)})
+}
+
+// PutPreferences handles PUT /api/v1/me/preferences
+func (h *MeHandler) PutPreferences(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	var req UpsertPreferencesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Scripture != "quran" && req.Scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	payload, err := req.Payload.MarshalJSON()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload JSON"})
+		return
+	}
+	_, err = h.DB.UpsertPreferences(c.Request.Context(), authID, req.Scripture, payload)
+	if err != nil {
+		slog.Error("PutPreferences: DB error", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
