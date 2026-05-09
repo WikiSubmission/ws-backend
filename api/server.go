@@ -230,7 +230,26 @@ func StartServer(database *db.DB) {
 	// 2. Define validator options
 	validatorOptions := &middleware.Options{
 		Options: openapi3filter.Options{
-			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+			AuthenticationFunc: func(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
+				if input.SecuritySchemeName != "bearerAuth" {
+					return nil
+				}
+				req := input.RequestValidationInput.Request
+				header := req.Header.Get("Authorization")
+				if !strings.HasPrefix(header, "Bearer ") {
+					return fmt.Errorf("missing bearer token")
+				}
+				token := strings.TrimPrefix(header, "Bearer ")
+				authID, email, err := verifier.VerifyToken(token)
+				if err != nil {
+					return fmt.Errorf("invalid token")
+				}
+
+				reqCtx := context.WithValue(req.Context(), auth.ContextKeyUID, authID)
+				reqCtx = context.WithValue(reqCtx, auth.ContextKeyEmail, email)
+				input.RequestValidationInput.Request = req.WithContext(reqCtx)
+				return nil
+			},
 		},
 		SilenceServersWarning: true,
 	}
@@ -280,36 +299,6 @@ func StartServer(database *db.DB) {
 	authed.Use(auth.RequireAuth(verifier))
 	authed.POST("/users", userHandler.UpsertUser)
 	authed.GET("/users/:id", userHandler.GetUserByID)
-
-	meHandler := handlers.MeHandler{DB: database}
-	authed.GET("/me/bookmarks", meHandler.GetBookmarks)
-	authed.POST("/me/bookmarks", meHandler.CreateBookmark)
-	authed.PATCH("/me/bookmarks/:id", meHandler.UpdateBookmark)
-	authed.DELETE("/me/bookmarks/:id", meHandler.DeleteBookmark)
-	authed.PUT("/me/cover-to-cover", meHandler.PutCoverToCover)
-	authed.GET("/me/scripture-state", meHandler.GetScriptureState)
-	authed.GET("/me/notes", meHandler.GetNotes)
-	authed.POST("/me/notes", meHandler.CreateNote)
-	authed.PATCH("/me/notes/:id", meHandler.UpdateNote)
-	authed.DELETE("/me/notes/:id", meHandler.DeleteNote)
-	authed.GET("/me/reading-progress", meHandler.GetReadingProgress)
-	authed.PUT("/me/reading-progress", meHandler.PutReadingProgress)
-	authed.GET("/me/streak", meHandler.GetStreak)
-	authed.POST("/me/reading-log", meHandler.PostReadingLog)
-	authed.GET("/me/preferences", meHandler.GetPreferences)
-	authed.PUT("/me/preferences", meHandler.PutPreferences)
-
-	colHandler := handlers.CollectionsHandler{DB: database}
-	authed.GET("/me/collections", colHandler.ListCollections)
-	authed.POST("/me/collections", colHandler.CreateCollection)
-	authed.GET("/me/collections/:id", colHandler.GetCollectionDetail)
-	authed.PATCH("/me/collections/:id", colHandler.UpdateCollection)
-	authed.DELETE("/me/collections/:id", colHandler.DeleteCollection)
-	authed.POST("/me/collections/:id/verses", colHandler.AddVerse)
-	authed.DELETE("/me/collections/:id/verses/:verseId", colHandler.RemoveVerse)
-
-	// Public share link — no auth required.
-	r.GET("/api/v1/collections/share/:token", colHandler.GetSharedCollection)
 
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")

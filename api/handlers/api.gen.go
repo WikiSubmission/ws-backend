@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,28 @@ import (
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+const (
+	BearerAuthScopes = "bearerAuth.Scopes"
+)
+
+// Defines values for AddCollectionVerseRequestScripture.
+const (
+	AddCollectionVerseRequestScriptureBible AddCollectionVerseRequestScripture = "bible"
+	AddCollectionVerseRequestScriptureQuran AddCollectionVerseRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the AddCollectionVerseRequestScripture enum.
+func (e AddCollectionVerseRequestScripture) Valid() bool {
+	switch e {
+	case AddCollectionVerseRequestScriptureBible:
+		return true
+	case AddCollectionVerseRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for BibleTranslationContentD.
 const (
@@ -34,6 +57,60 @@ func (e BibleTranslationContentD) Valid() bool {
 	case BibleTranslationContentDLtr:
 		return true
 	case BibleTranslationContentDRtl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BookmarkKind.
+const (
+	BookmarkKindCoverToCover BookmarkKind = "cover_to_cover"
+	BookmarkKindNormal       BookmarkKind = "normal"
+)
+
+// Valid indicates whether the value is a known member of the BookmarkKind enum.
+func (e BookmarkKind) Valid() bool {
+	switch e {
+	case BookmarkKindCoverToCover:
+		return true
+	case BookmarkKindNormal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BookmarkScripture.
+const (
+	BookmarkScriptureBible BookmarkScripture = "bible"
+	BookmarkScriptureQuran BookmarkScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the BookmarkScripture enum.
+func (e BookmarkScripture) Valid() bool {
+	switch e {
+	case BookmarkScriptureBible:
+		return true
+	case BookmarkScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CollectionVerseScripture.
+const (
+	CollectionVerseScriptureBible CollectionVerseScripture = "bible"
+	CollectionVerseScriptureQuran CollectionVerseScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the CollectionVerseScripture enum.
+func (e CollectionVerseScripture) Valid() bool {
+	switch e {
+	case CollectionVerseScriptureBible:
+		return true
+	case CollectionVerseScriptureQuran:
 		return true
 	default:
 		return false
@@ -85,6 +162,78 @@ func (e CommunityPlatform) Valid() bool {
 	case X:
 		return true
 	case Youtube:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverToCoverRequestScripture.
+const (
+	CoverToCoverRequestScriptureBible CoverToCoverRequestScripture = "bible"
+	CoverToCoverRequestScriptureQuran CoverToCoverRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the CoverToCoverRequestScripture enum.
+func (e CoverToCoverRequestScripture) Valid() bool {
+	switch e {
+	case CoverToCoverRequestScriptureBible:
+		return true
+	case CoverToCoverRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateBookmarkRequestKind.
+const (
+	CreateBookmarkRequestKindCoverToCover CreateBookmarkRequestKind = "cover_to_cover"
+	CreateBookmarkRequestKindNormal       CreateBookmarkRequestKind = "normal"
+)
+
+// Valid indicates whether the value is a known member of the CreateBookmarkRequestKind enum.
+func (e CreateBookmarkRequestKind) Valid() bool {
+	switch e {
+	case CreateBookmarkRequestKindCoverToCover:
+		return true
+	case CreateBookmarkRequestKindNormal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateBookmarkRequestScripture.
+const (
+	CreateBookmarkRequestScriptureBible CreateBookmarkRequestScripture = "bible"
+	CreateBookmarkRequestScriptureQuran CreateBookmarkRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the CreateBookmarkRequestScripture enum.
+func (e CreateBookmarkRequestScripture) Valid() bool {
+	switch e {
+	case CreateBookmarkRequestScriptureBible:
+		return true
+	case CreateBookmarkRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateNoteRequestScripture.
+const (
+	CreateNoteRequestScriptureBible CreateNoteRequestScripture = "bible"
+	CreateNoteRequestScriptureQuran CreateNoteRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the CreateNoteRequestScripture enum.
+func (e CreateNoteRequestScripture) Valid() bool {
+	switch e {
+	case CreateNoteRequestScriptureBible:
+		return true
+	case CreateNoteRequestScriptureQuran:
 		return true
 	default:
 		return false
@@ -145,6 +294,96 @@ func (e LanguageDirection) Valid() bool {
 	}
 }
 
+// Defines values for NoteScripture.
+const (
+	NoteScriptureBible NoteScripture = "bible"
+	NoteScriptureQuran NoteScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the NoteScripture enum.
+func (e NoteScripture) Valid() bool {
+	switch e {
+	case NoteScriptureBible:
+		return true
+	case NoteScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostReadingLogRequestScripture.
+const (
+	PostReadingLogRequestScriptureBible PostReadingLogRequestScripture = "bible"
+	PostReadingLogRequestScriptureQuran PostReadingLogRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the PostReadingLogRequestScripture enum.
+func (e PostReadingLogRequestScripture) Valid() bool {
+	switch e {
+	case PostReadingLogRequestScriptureBible:
+		return true
+	case PostReadingLogRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutPreferencesRequestScripture.
+const (
+	PutPreferencesRequestScriptureBible PutPreferencesRequestScripture = "bible"
+	PutPreferencesRequestScriptureQuran PutPreferencesRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the PutPreferencesRequestScripture enum.
+func (e PutPreferencesRequestScripture) Valid() bool {
+	switch e {
+	case PutPreferencesRequestScriptureBible:
+		return true
+	case PutPreferencesRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutReadingProgressRequestScripture.
+const (
+	PutReadingProgressRequestScriptureBible PutReadingProgressRequestScripture = "bible"
+	PutReadingProgressRequestScriptureQuran PutReadingProgressRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the PutReadingProgressRequestScripture enum.
+func (e PutReadingProgressRequestScripture) Valid() bool {
+	switch e {
+	case PutReadingProgressRequestScriptureBible:
+		return true
+	case PutReadingProgressRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadingProgressScripture.
+const (
+	ReadingProgressScriptureBible ReadingProgressScripture = "bible"
+	ReadingProgressScriptureQuran ReadingProgressScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the ReadingProgressScripture enum.
+func (e ReadingProgressScripture) Valid() bool {
+	switch e {
+	case ReadingProgressScriptureBible:
+		return true
+	case ReadingProgressScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TranslationContentD.
 const (
 	Ltr TranslationContentD = "ltr"
@@ -163,6 +402,24 @@ func (e TranslationContentD) Valid() bool {
 	}
 }
 
+// Defines values for MeScriptureParam.
+const (
+	MeScriptureParamBible MeScriptureParam = "bible"
+	MeScriptureParamQuran MeScriptureParam = "quran"
+)
+
+// Valid indicates whether the value is a known member of the MeScriptureParam enum.
+func (e MeScriptureParam) Valid() bool {
+	switch e {
+	case MeScriptureParamBible:
+		return true
+	case MeScriptureParamQuran:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetCommunitiesParamsKind.
 const (
 	GetCommunitiesParamsKindOnline   GetCommunitiesParamsKind = "online"
@@ -175,6 +432,114 @@ func (e GetCommunitiesParamsKind) Valid() bool {
 	case GetCommunitiesParamsKindOnline:
 		return true
 	case GetCommunitiesParamsKindPhysical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeBookmarksParamsScripture.
+const (
+	GetMeBookmarksParamsScriptureBible GetMeBookmarksParamsScripture = "bible"
+	GetMeBookmarksParamsScriptureQuran GetMeBookmarksParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeBookmarksParamsScripture enum.
+func (e GetMeBookmarksParamsScripture) Valid() bool {
+	switch e {
+	case GetMeBookmarksParamsScriptureBible:
+		return true
+	case GetMeBookmarksParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeNotesParamsScripture.
+const (
+	GetMeNotesParamsScriptureBible GetMeNotesParamsScripture = "bible"
+	GetMeNotesParamsScriptureQuran GetMeNotesParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeNotesParamsScripture enum.
+func (e GetMeNotesParamsScripture) Valid() bool {
+	switch e {
+	case GetMeNotesParamsScriptureBible:
+		return true
+	case GetMeNotesParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMePreferencesParamsScripture.
+const (
+	GetMePreferencesParamsScriptureBible GetMePreferencesParamsScripture = "bible"
+	GetMePreferencesParamsScriptureQuran GetMePreferencesParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMePreferencesParamsScripture enum.
+func (e GetMePreferencesParamsScripture) Valid() bool {
+	switch e {
+	case GetMePreferencesParamsScriptureBible:
+		return true
+	case GetMePreferencesParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeReadingProgressParamsScripture.
+const (
+	GetMeReadingProgressParamsScriptureBible GetMeReadingProgressParamsScripture = "bible"
+	GetMeReadingProgressParamsScriptureQuran GetMeReadingProgressParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeReadingProgressParamsScripture enum.
+func (e GetMeReadingProgressParamsScripture) Valid() bool {
+	switch e {
+	case GetMeReadingProgressParamsScriptureBible:
+		return true
+	case GetMeReadingProgressParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeScriptureStateParamsScripture.
+const (
+	GetMeScriptureStateParamsScriptureBible GetMeScriptureStateParamsScripture = "bible"
+	GetMeScriptureStateParamsScriptureQuran GetMeScriptureStateParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeScriptureStateParamsScripture enum.
+func (e GetMeScriptureStateParamsScripture) Valid() bool {
+	switch e {
+	case GetMeScriptureStateParamsScriptureBible:
+		return true
+	case GetMeScriptureStateParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeStreakParamsScripture.
+const (
+	GetMeStreakParamsScriptureBible GetMeStreakParamsScripture = "bible"
+	GetMeStreakParamsScriptureQuran GetMeStreakParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeStreakParamsScripture enum.
+func (e GetMeStreakParamsScripture) Valid() bool {
+	switch e {
+	case GetMeStreakParamsScriptureBible:
+		return true
+	case GetMeStreakParamsScriptureQuran:
 		return true
 	default:
 		return false
@@ -219,6 +584,16 @@ func (e SearchParamsScope) Valid() bool {
 		return false
 	}
 }
+
+// AddCollectionVerseRequest defines model for AddCollectionVerseRequest.
+type AddCollectionVerseRequest struct {
+	Note      *string                            `json:"note,omitempty"`
+	Scripture AddCollectionVerseRequestScripture `json:"scripture"`
+	VerseKey  string                             `json:"verse_key"`
+}
+
+// AddCollectionVerseRequestScripture defines model for AddCollectionVerseRequest.Scripture.
+type AddCollectionVerseRequestScripture string
 
 // Appendix Metadata for a single Quranic appendix.
 type Appendix struct {
@@ -359,6 +734,34 @@ type BibleVerseData struct {
 	Vn *int `json:"vn,omitempty"`
 }
 
+// Bookmark defines model for Bookmark.
+type Bookmark struct {
+	Color     string            `json:"color"`
+	CreatedAt time.Time         `json:"created_at"`
+	Id        int64             `json:"id"`
+	Kind      BookmarkKind      `json:"kind"`
+	Name      string            `json:"name"`
+	Scripture BookmarkScripture `json:"scripture"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	VerseKey  string            `json:"verse_key"`
+}
+
+// BookmarkKind defines model for Bookmark.Kind.
+type BookmarkKind string
+
+// BookmarkScripture defines model for Bookmark.Scripture.
+type BookmarkScripture string
+
+// BookmarkEnvelope defines model for BookmarkEnvelope.
+type BookmarkEnvelope struct {
+	Data Bookmark `json:"data"`
+}
+
+// BookmarkListEnvelope defines model for BookmarkListEnvelope.
+type BookmarkListEnvelope struct {
+	Data []Bookmark `json:"data"`
+}
+
 // Chapter Metadata for a single Quranic chapter.
 type Chapter struct {
 	// ChapterNumber Chapter number, 1-based (1–114). Also known as Surah number.
@@ -392,6 +795,63 @@ type ChapterData struct {
 
 // ChapterMetadata List of metadata objects for all 114 Quranic chapters.
 type ChapterMetadata = []Chapter
+
+// Collection defines model for Collection.
+type Collection struct {
+	CreatedAt   time.Time `json:"created_at"`
+	Description string    `json:"description"`
+	Id          int64     `json:"id"`
+	IsPublic    bool      `json:"is_public"`
+	Name        string    `json:"name"`
+	ShareToken  *string   `json:"share_token,omitempty"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// CollectionDetail defines model for CollectionDetail.
+type CollectionDetail struct {
+	CreatedAt   time.Time         `json:"created_at"`
+	Description string            `json:"description"`
+	Id          int64             `json:"id"`
+	IsPublic    bool              `json:"is_public"`
+	Name        string            `json:"name"`
+	ShareToken  *string           `json:"share_token,omitempty"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	Verses      []CollectionVerse `json:"verses"`
+}
+
+// CollectionDetailEnvelope defines model for CollectionDetailEnvelope.
+type CollectionDetailEnvelope struct {
+	Data CollectionDetail `json:"data"`
+}
+
+// CollectionEnvelope defines model for CollectionEnvelope.
+type CollectionEnvelope struct {
+	Data Collection `json:"data"`
+}
+
+// CollectionListEnvelope defines model for CollectionListEnvelope.
+type CollectionListEnvelope struct {
+	Data []Collection `json:"data"`
+}
+
+// CollectionVerse defines model for CollectionVerse.
+type CollectionVerse struct {
+	CollectionId int64                    `json:"collection_id"`
+	CreatedAt    time.Time                `json:"created_at"`
+	Id           int64                    `json:"id"`
+	Note         string                   `json:"note"`
+	Position     int                      `json:"position"`
+	Scripture    CollectionVerseScripture `json:"scripture"`
+	VerseKey     string                   `json:"verse_key"`
+}
+
+// CollectionVerseScripture defines model for CollectionVerse.Scripture.
+type CollectionVerseScripture string
+
+// CollectionVerseEnvelope defines model for CollectionVerseEnvelope.
+type CollectionVerseEnvelope struct {
+	Data CollectionVerse `json:"data"`
+}
 
 // Community A community entry sourced from Sanity. The `kind` discriminator determines which optional fields are populated: `online` communities carry `platform`/`url`/`inviteCode`/`memberCount`; `physical` communities carry `address`/`city`/`country`/`geo`/`contactEmail`/ `contactPhone`/`meetingSchedule`. The `imageUrl`, when present, points at the ws-backend image proxy and not directly at Sanity's CDN.
 type Community struct {
@@ -431,6 +891,48 @@ type CommunityKind string
 
 // CommunityPlatform defines model for Community.Platform.
 type CommunityPlatform string
+
+// CoverToCoverRequest defines model for CoverToCoverRequest.
+type CoverToCoverRequest struct {
+	Scripture CoverToCoverRequestScripture `json:"scripture"`
+	VerseKey  string                       `json:"verse_key"`
+}
+
+// CoverToCoverRequestScripture defines model for CoverToCoverRequest.Scripture.
+type CoverToCoverRequestScripture string
+
+// CreateBookmarkRequest defines model for CreateBookmarkRequest.
+type CreateBookmarkRequest struct {
+	Color     *string                        `json:"color,omitempty"`
+	Kind      *CreateBookmarkRequestKind     `json:"kind,omitempty"`
+	Name      *string                        `json:"name,omitempty"`
+	Scripture CreateBookmarkRequestScripture `json:"scripture"`
+	VerseKey  string                         `json:"verse_key"`
+}
+
+// CreateBookmarkRequestKind defines model for CreateBookmarkRequest.Kind.
+type CreateBookmarkRequestKind string
+
+// CreateBookmarkRequestScripture defines model for CreateBookmarkRequest.Scripture.
+type CreateBookmarkRequestScripture string
+
+// CreateCollectionRequest defines model for CreateCollectionRequest.
+type CreateCollectionRequest struct {
+	Description *string `json:"description,omitempty"`
+	IsPublic    *bool   `json:"is_public,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// CreateNoteRequest defines model for CreateNoteRequest.
+type CreateNoteRequest struct {
+	Content   string                     `json:"content"`
+	Lang      *string                    `json:"lang,omitempty"`
+	Scripture CreateNoteRequestScripture `json:"scripture"`
+	VerseKey  string                     `json:"verse_key"`
+}
+
+// CreateNoteRequestScripture defines model for CreateNoteRequest.Scripture.
+type CreateNoteRequestScripture string
 
 // Derivative A distinct surface form (token spelling) of a root, with its occurrence count. `tr` is the Latin transliteration of the surface form, sourced from `word_text` rows tagged with the `tl` language (most-common value when multiple readings exist). `en` and `p` (POS) remain reserved for Phase 2 morphology data and are still `null`.
 type Derivative struct {
@@ -558,6 +1060,35 @@ type MusicTrack struct {
 	Url string `json:"url"`
 }
 
+// Note defines model for Note.
+type Note struct {
+	Content   string        `json:"content"`
+	CreatedAt time.Time     `json:"created_at"`
+	Id        int64         `json:"id"`
+	Lang      string        `json:"lang"`
+	Scripture NoteScripture `json:"scripture"`
+	UpdatedAt time.Time     `json:"updated_at"`
+	VerseKey  string        `json:"verse_key"`
+}
+
+// NoteScripture defines model for Note.Scripture.
+type NoteScripture string
+
+// NoteEnvelope defines model for NoteEnvelope.
+type NoteEnvelope struct {
+	Data Note `json:"data"`
+}
+
+// NoteListEnvelope defines model for NoteListEnvelope.
+type NoteListEnvelope struct {
+	Data []Note `json:"data"`
+}
+
+// NullDataEnvelope defines model for NullDataEnvelope.
+type NullDataEnvelope struct {
+	Data *map[string]interface{} `json:"data"`
+}
+
 // Occurrence One verse occurrence of a root. `vk` is the verse_key (`chapter_number:verse_number`); `ar` is the full Arabic verse text; `en` is the primary English translation when available; `hl` is the exact surface form to highlight inside `ar` on the client.
 type Occurrence struct {
 	// Ar Full Arabic verse text.
@@ -586,6 +1117,39 @@ type OccurrencesResponse struct {
 	// Total Total number of occurrences of this root in the corpus.
 	Total int `json:"total"`
 }
+
+// PostReadingLogRequest defines model for PostReadingLogRequest.
+type PostReadingLogRequest struct {
+	Day        *openapi_types.Date            `json:"day,omitempty"`
+	Scripture  PostReadingLogRequestScripture `json:"scripture"`
+	VersesRead *int                           `json:"verses_read,omitempty"`
+}
+
+// PostReadingLogRequestScripture defines model for PostReadingLogRequest.Scripture.
+type PostReadingLogRequestScripture string
+
+// PreferencesEnvelope defines model for PreferencesEnvelope.
+type PreferencesEnvelope struct {
+	Data *map[string]interface{} `json:"data"`
+}
+
+// PutPreferencesRequest defines model for PutPreferencesRequest.
+type PutPreferencesRequest struct {
+	Payload   map[string]interface{}         `json:"payload"`
+	Scripture PutPreferencesRequestScripture `json:"scripture"`
+}
+
+// PutPreferencesRequestScripture defines model for PutPreferencesRequest.Scripture.
+type PutPreferencesRequestScripture string
+
+// PutReadingProgressRequest defines model for PutReadingProgressRequest.
+type PutReadingProgressRequest struct {
+	Scripture PutReadingProgressRequestScripture `json:"scripture"`
+	VerseKey  string                             `json:"verse_key"`
+}
+
+// PutReadingProgressRequestScripture defines model for PutReadingProgressRequest.Scripture.
+type PutReadingProgressRequestScripture string
 
 // QuranResponse Top-level envelope for both `/quran` (reader) and `/search` (FTS) responses. The `info` object describes the query parameters that were resolved; `chapters` contains the matching verses grouped by chapter.
 type QuranResponse struct {
@@ -626,6 +1190,26 @@ type QuranResponseInfo struct {
 
 	// VerseStart Resolved first verse of the query range (reader only). Defaults to 1 when the param was omitted.
 	VerseStart *int `json:"verse_start,omitempty"`
+}
+
+// ReadingProgress defines model for ReadingProgress.
+type ReadingProgress struct {
+	Scripture ReadingProgressScripture `json:"scripture"`
+	UpdatedAt time.Time                `json:"updated_at"`
+	VerseKey  string                   `json:"verse_key"`
+}
+
+// ReadingProgressScripture defines model for ReadingProgress.Scripture.
+type ReadingProgressScripture string
+
+// ReadingProgressEnvelope defines model for ReadingProgressEnvelope.
+type ReadingProgressEnvelope struct {
+	Data *ReadingProgress `json:"data"`
+}
+
+// ReadingProgressRequiredEnvelope defines model for ReadingProgressRequiredEnvelope.
+type ReadingProgressRequiredEnvelope struct {
+	Data ReadingProgress `json:"data"`
 }
 
 // RootRecord defines model for RootRecord.
@@ -678,6 +1262,25 @@ type RootsIndexResponse struct {
 	Total int `json:"total"`
 }
 
+// ScriptureState defines model for ScriptureState.
+type ScriptureState struct {
+	Bookmarks map[string]Bookmark `json:"bookmarks"`
+	Notes     map[string][]Note   `json:"notes"`
+}
+
+// Streak defines model for Streak.
+type Streak struct {
+	CurrentStreak   int     `json:"current_streak"`
+	LastActiveDay   *string `json:"last_active_day,omitempty"`
+	LongestStreak   int     `json:"longest_streak"`
+	TotalVersesRead int     `json:"total_verses_read"`
+}
+
+// StreakEnvelope defines model for StreakEnvelope.
+type StreakEnvelope struct {
+	Data Streak `json:"data"`
+}
+
 // TranslationContent A single translation of a verse in one language. All short field names follow the minified key convention documented in the info section.
 type TranslationContent struct {
 	// D direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
@@ -704,6 +1307,25 @@ type TranslationContent struct {
 
 // TranslationContentD direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
 type TranslationContentD string
+
+// UpdateBookmarkRequest defines model for UpdateBookmarkRequest.
+type UpdateBookmarkRequest struct {
+	Color *string `json:"color,omitempty"`
+	Name  *string `json:"name,omitempty"`
+}
+
+// UpdateCollectionRequest defines model for UpdateCollectionRequest.
+type UpdateCollectionRequest struct {
+	Description     *string `json:"description,omitempty"`
+	IsPublic        *bool   `json:"is_public,omitempty"`
+	Name            string  `json:"name"`
+	RegenerateToken *bool   `json:"regenerate_token,omitempty"`
+}
+
+// UpdateNoteRequest defines model for UpdateNoteRequest.
+type UpdateNoteRequest struct {
+	Content string `json:"content"`
+}
 
 // VerseData A single Quranic verse with its translations in the requested languages, and optionally word-by-word data.
 type VerseData struct {
@@ -755,6 +1377,9 @@ type IncludeRootParam = bool
 
 // IncludeWordsParam defines model for IncludeWordsParam.
 type IncludeWordsParam = bool
+
+// MeScriptureParam defines model for MeScriptureParam.
+type MeScriptureParam string
 
 // WordLangsParam defines model for WordLangsParam.
 type WordLangsParam = []string
@@ -852,6 +1477,63 @@ type GetCommunitiesParams struct {
 
 // GetCommunitiesParamsKind defines parameters for GetCommunities.
 type GetCommunitiesParamsKind string
+
+// GetMeBookmarksParams defines parameters for GetMeBookmarks.
+type GetMeBookmarksParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMeBookmarksParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+}
+
+// GetMeBookmarksParamsScripture defines parameters for GetMeBookmarks.
+type GetMeBookmarksParamsScripture string
+
+// GetMeNotesParams defines parameters for GetMeNotes.
+type GetMeNotesParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMeNotesParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+	VerseKey  *string                    `form:"verse_key,omitempty" json:"verse_key,omitempty"`
+	Lang      *string                    `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
+// GetMeNotesParamsScripture defines parameters for GetMeNotes.
+type GetMeNotesParamsScripture string
+
+// GetMePreferencesParams defines parameters for GetMePreferences.
+type GetMePreferencesParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMePreferencesParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+}
+
+// GetMePreferencesParamsScripture defines parameters for GetMePreferences.
+type GetMePreferencesParamsScripture string
+
+// GetMeReadingProgressParams defines parameters for GetMeReadingProgress.
+type GetMeReadingProgressParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMeReadingProgressParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+}
+
+// GetMeReadingProgressParamsScripture defines parameters for GetMeReadingProgress.
+type GetMeReadingProgressParamsScripture string
+
+// GetMeScriptureStateParams defines parameters for GetMeScriptureState.
+type GetMeScriptureStateParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMeScriptureStateParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+	Chapter   int                                 `form:"chapter" json:"chapter"`
+}
+
+// GetMeScriptureStateParamsScripture defines parameters for GetMeScriptureState.
+type GetMeScriptureStateParamsScripture string
+
+// GetMeStreakParams defines parameters for GetMeStreak.
+type GetMeStreakParams struct {
+	// Scripture Scripture scope for user data.
+	Scripture *GetMeStreakParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+}
+
+// GetMeStreakParamsScripture defines parameters for GetMeStreak.
+type GetMeStreakParamsScripture string
 
 // GetMusicAlbumsParams defines parameters for GetMusicAlbums.
 type GetMusicAlbumsParams struct {
@@ -978,6 +1660,39 @@ type SearchParams struct {
 // SearchParamsScope defines parameters for Search.
 type SearchParamsScope string
 
+// CreateMeBookmarkJSONRequestBody defines body for CreateMeBookmark for application/json ContentType.
+type CreateMeBookmarkJSONRequestBody = CreateBookmarkRequest
+
+// UpdateMeBookmarkJSONRequestBody defines body for UpdateMeBookmark for application/json ContentType.
+type UpdateMeBookmarkJSONRequestBody = UpdateBookmarkRequest
+
+// CreateMeCollectionJSONRequestBody defines body for CreateMeCollection for application/json ContentType.
+type CreateMeCollectionJSONRequestBody = CreateCollectionRequest
+
+// UpdateMeCollectionJSONRequestBody defines body for UpdateMeCollection for application/json ContentType.
+type UpdateMeCollectionJSONRequestBody = UpdateCollectionRequest
+
+// AddVerseToMeCollectionJSONRequestBody defines body for AddVerseToMeCollection for application/json ContentType.
+type AddVerseToMeCollectionJSONRequestBody = AddCollectionVerseRequest
+
+// PutMeCoverToCoverJSONRequestBody defines body for PutMeCoverToCover for application/json ContentType.
+type PutMeCoverToCoverJSONRequestBody = CoverToCoverRequest
+
+// CreateMeNoteJSONRequestBody defines body for CreateMeNote for application/json ContentType.
+type CreateMeNoteJSONRequestBody = CreateNoteRequest
+
+// UpdateMeNoteJSONRequestBody defines body for UpdateMeNote for application/json ContentType.
+type UpdateMeNoteJSONRequestBody = UpdateNoteRequest
+
+// PutMePreferencesJSONRequestBody defines body for PutMePreferences for application/json ContentType.
+type PutMePreferencesJSONRequestBody = PutPreferencesRequest
+
+// PostMeReadingLogJSONRequestBody defines body for PostMeReadingLog for application/json ContentType.
+type PostMeReadingLogJSONRequestBody = PostReadingLogRequest
+
+// PutMeReadingProgressJSONRequestBody defines body for PutMeReadingProgress for application/json ContentType.
+type PutMeReadingProgressJSONRequestBody = PutReadingProgressRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Fetch appendix metadata
@@ -995,12 +1710,84 @@ type ServerInterface interface {
 	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(c *gin.Context, params GetChaptersParams)
+	// Get publicly shared collection by token
+	// (GET /collections/share/{token})
+	GetSharedCollection(c *gin.Context, token string)
 	// List communities (online and physical)
 	// (GET /communities)
 	GetCommunities(c *gin.Context, params GetCommunitiesParams)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
+	// List current user's bookmarks
+	// (GET /me/bookmarks)
+	GetMeBookmarks(c *gin.Context, params GetMeBookmarksParams)
+	// Create a bookmark for the current user
+	// (POST /me/bookmarks)
+	CreateMeBookmark(c *gin.Context)
+	// Delete a bookmark
+	// (DELETE /me/bookmarks/{id})
+	DeleteMeBookmark(c *gin.Context, id int64)
+	// Update a bookmark
+	// (PATCH /me/bookmarks/{id})
+	UpdateMeBookmark(c *gin.Context, id int64)
+	// List current user's collections
+	// (GET /me/collections)
+	ListMeCollections(c *gin.Context)
+	// Create a collection
+	// (POST /me/collections)
+	CreateMeCollection(c *gin.Context)
+	// Delete a collection
+	// (DELETE /me/collections/{id})
+	DeleteMeCollection(c *gin.Context, id int64)
+	// Get collection with verses
+	// (GET /me/collections/{id})
+	GetMeCollectionDetail(c *gin.Context, id int64)
+	// Update a collection
+	// (PATCH /me/collections/{id})
+	UpdateMeCollection(c *gin.Context, id int64)
+	// Add or upsert verse in a collection
+	// (POST /me/collections/{id}/verses)
+	AddVerseToMeCollection(c *gin.Context, id int64)
+	// Remove a verse from a collection
+	// (DELETE /me/collections/{id}/verses/{verseId})
+	RemoveVerseFromMeCollection(c *gin.Context, id int64, verseId int64)
+	// Upsert cover-to-cover bookmark
+	// (PUT /me/cover-to-cover)
+	PutMeCoverToCover(c *gin.Context)
+	// List current user's notes
+	// (GET /me/notes)
+	GetMeNotes(c *gin.Context, params GetMeNotesParams)
+	// Create a note
+	// (POST /me/notes)
+	CreateMeNote(c *gin.Context)
+	// Delete a note
+	// (DELETE /me/notes/{id})
+	DeleteMeNote(c *gin.Context, id int64)
+	// Update a note
+	// (PATCH /me/notes/{id})
+	UpdateMeNote(c *gin.Context, id int64)
+	// Get per-scripture preferences
+	// (GET /me/preferences)
+	GetMePreferences(c *gin.Context, params GetMePreferencesParams)
+	// Upsert per-scripture preferences
+	// (PUT /me/preferences)
+	PutMePreferences(c *gin.Context)
+	// Increment daily reading log
+	// (POST /me/reading-log)
+	PostMeReadingLog(c *gin.Context)
+	// Get current reading position
+	// (GET /me/reading-progress)
+	GetMeReadingProgress(c *gin.Context, params GetMeReadingProgressParams)
+	// Upsert reading position
+	// (PUT /me/reading-progress)
+	PutMeReadingProgress(c *gin.Context)
+	// Get bookmark and note state for a chapter
+	// (GET /me/scripture-state)
+	GetMeScriptureState(c *gin.Context, params GetMeScriptureStateParams)
+	// Get reading streak metrics
+	// (GET /me/streak)
+	GetMeStreak(c *gin.Context, params GetMeStreakParams)
 	// List music albums
 	// (GET /music/albums)
 	GetMusicAlbums(c *gin.Context, params GetMusicAlbumsParams)
@@ -1248,6 +2035,30 @@ func (siw *ServerInterfaceWrapper) GetChapters(c *gin.Context) {
 	siw.Handler.GetChapters(c, params)
 }
 
+// GetSharedCollection operation middleware
+func (siw *ServerInterfaceWrapper) GetSharedCollection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", c.Param("token"), &token, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter token: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetSharedCollection(c, token)
+}
+
 // GetCommunities operation middleware
 func (siw *ServerInterfaceWrapper) GetCommunities(c *gin.Context) {
 
@@ -1301,6 +2112,568 @@ func (siw *ServerInterfaceWrapper) GetLanguages(c *gin.Context) {
 	}
 
 	siw.Handler.GetLanguages(c)
+}
+
+// GetMeBookmarks operation middleware
+func (siw *ServerInterfaceWrapper) GetMeBookmarks(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeBookmarksParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeBookmarks(c, params)
+}
+
+// CreateMeBookmark operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeBookmark(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateMeBookmark(c)
+}
+
+// DeleteMeBookmark operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeBookmark(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteMeBookmark(c, id)
+}
+
+// UpdateMeBookmark operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMeBookmark(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateMeBookmark(c, id)
+}
+
+// ListMeCollections operation middleware
+func (siw *ServerInterfaceWrapper) ListMeCollections(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListMeCollections(c)
+}
+
+// CreateMeCollection operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeCollection(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateMeCollection(c)
+}
+
+// DeleteMeCollection operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeCollection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteMeCollection(c, id)
+}
+
+// GetMeCollectionDetail operation middleware
+func (siw *ServerInterfaceWrapper) GetMeCollectionDetail(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeCollectionDetail(c, id)
+}
+
+// UpdateMeCollection operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMeCollection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateMeCollection(c, id)
+}
+
+// AddVerseToMeCollection operation middleware
+func (siw *ServerInterfaceWrapper) AddVerseToMeCollection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.AddVerseToMeCollection(c, id)
+}
+
+// RemoveVerseFromMeCollection operation middleware
+func (siw *ServerInterfaceWrapper) RemoveVerseFromMeCollection(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "verseId" -------------
+	var verseId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "verseId", c.Param("verseId"), &verseId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verseId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RemoveVerseFromMeCollection(c, id, verseId)
+}
+
+// PutMeCoverToCover operation middleware
+func (siw *ServerInterfaceWrapper) PutMeCoverToCover(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutMeCoverToCover(c)
+}
+
+// GetMeNotes operation middleware
+func (siw *ServerInterfaceWrapper) GetMeNotes(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeNotesParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "verse_key" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "verse_key", c.Request.URL.Query(), &params.VerseKey, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verse_key: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeNotes(c, params)
+}
+
+// CreateMeNote operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeNote(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateMeNote(c)
+}
+
+// DeleteMeNote operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeNote(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteMeNote(c, id)
+}
+
+// UpdateMeNote operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMeNote(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateMeNote(c, id)
+}
+
+// GetMePreferences operation middleware
+func (siw *ServerInterfaceWrapper) GetMePreferences(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMePreferencesParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMePreferences(c, params)
+}
+
+// PutMePreferences operation middleware
+func (siw *ServerInterfaceWrapper) PutMePreferences(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutMePreferences(c)
+}
+
+// PostMeReadingLog operation middleware
+func (siw *ServerInterfaceWrapper) PostMeReadingLog(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostMeReadingLog(c)
+}
+
+// GetMeReadingProgress operation middleware
+func (siw *ServerInterfaceWrapper) GetMeReadingProgress(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeReadingProgressParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeReadingProgress(c, params)
+}
+
+// PutMeReadingProgress operation middleware
+func (siw *ServerInterfaceWrapper) PutMeReadingProgress(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutMeReadingProgress(c)
+}
+
+// GetMeScriptureState operation middleware
+func (siw *ServerInterfaceWrapper) GetMeScriptureState(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeScriptureStateParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "chapter" -------------
+
+	if paramValue := c.Query("chapter"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument chapter is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "chapter", c.Request.URL.Query(), &params.Chapter, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeScriptureState(c, params)
+}
+
+// GetMeStreak operation middleware
+func (siw *ServerInterfaceWrapper) GetMeStreak(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeStreakParams
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeStreak(c, params)
 }
 
 // GetMusicAlbums operation middleware
@@ -1773,8 +3146,32 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/bible/books", wrapper.GetBibleBooks)
 	router.GET(options.BaseURL+"/bible/search", wrapper.SearchBible)
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
+	router.GET(options.BaseURL+"/collections/share/:token", wrapper.GetSharedCollection)
 	router.GET(options.BaseURL+"/communities", wrapper.GetCommunities)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
+	router.GET(options.BaseURL+"/me/bookmarks", wrapper.GetMeBookmarks)
+	router.POST(options.BaseURL+"/me/bookmarks", wrapper.CreateMeBookmark)
+	router.DELETE(options.BaseURL+"/me/bookmarks/:id", wrapper.DeleteMeBookmark)
+	router.PATCH(options.BaseURL+"/me/bookmarks/:id", wrapper.UpdateMeBookmark)
+	router.GET(options.BaseURL+"/me/collections", wrapper.ListMeCollections)
+	router.POST(options.BaseURL+"/me/collections", wrapper.CreateMeCollection)
+	router.DELETE(options.BaseURL+"/me/collections/:id", wrapper.DeleteMeCollection)
+	router.GET(options.BaseURL+"/me/collections/:id", wrapper.GetMeCollectionDetail)
+	router.PATCH(options.BaseURL+"/me/collections/:id", wrapper.UpdateMeCollection)
+	router.POST(options.BaseURL+"/me/collections/:id/verses", wrapper.AddVerseToMeCollection)
+	router.DELETE(options.BaseURL+"/me/collections/:id/verses/:verseId", wrapper.RemoveVerseFromMeCollection)
+	router.PUT(options.BaseURL+"/me/cover-to-cover", wrapper.PutMeCoverToCover)
+	router.GET(options.BaseURL+"/me/notes", wrapper.GetMeNotes)
+	router.POST(options.BaseURL+"/me/notes", wrapper.CreateMeNote)
+	router.DELETE(options.BaseURL+"/me/notes/:id", wrapper.DeleteMeNote)
+	router.PATCH(options.BaseURL+"/me/notes/:id", wrapper.UpdateMeNote)
+	router.GET(options.BaseURL+"/me/preferences", wrapper.GetMePreferences)
+	router.PUT(options.BaseURL+"/me/preferences", wrapper.PutMePreferences)
+	router.POST(options.BaseURL+"/me/reading-log", wrapper.PostMeReadingLog)
+	router.GET(options.BaseURL+"/me/reading-progress", wrapper.GetMeReadingProgress)
+	router.PUT(options.BaseURL+"/me/reading-progress", wrapper.PutMeReadingProgress)
+	router.GET(options.BaseURL+"/me/scripture-state", wrapper.GetMeScriptureState)
+	router.GET(options.BaseURL+"/me/streak", wrapper.GetMeStreak)
 	router.GET(options.BaseURL+"/music/albums", wrapper.GetMusicAlbums)
 	router.GET(options.BaseURL+"/music/artists", wrapper.GetMusicArtists)
 	router.GET(options.BaseURL+"/music/categories", wrapper.GetMusicCategories)
@@ -2044,6 +3441,43 @@ func (response GetChapters501JSONResponse) VisitGetChaptersResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetSharedCollectionRequestObject struct {
+	Token string `json:"token"`
+}
+
+type GetSharedCollectionResponseObject interface {
+	VisitGetSharedCollectionResponse(w http.ResponseWriter) error
+}
+
+type GetSharedCollection200JSONResponse CollectionDetailEnvelope
+
+func (response GetSharedCollection200JSONResponse) VisitGetSharedCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSharedCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetSharedCollection404JSONResponse) VisitGetSharedCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSharedCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetSharedCollection500JSONResponse) VisitGetSharedCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCommunitiesRequestObject struct {
 	Params GetCommunitiesParams
 }
@@ -2111,6 +3545,924 @@ type GetLanguages500JSONResponse struct {
 }
 
 func (response GetLanguages500JSONResponse) VisitGetLanguagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeBookmarksRequestObject struct {
+	Params GetMeBookmarksParams
+}
+
+type GetMeBookmarksResponseObject interface {
+	VisitGetMeBookmarksResponse(w http.ResponseWriter) error
+}
+
+type GetMeBookmarks200JSONResponse BookmarkListEnvelope
+
+func (response GetMeBookmarks200JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeBookmarks400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeBookmarks400JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeBookmarks500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeBookmarks500JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmarkRequestObject struct {
+	Body *CreateMeBookmarkJSONRequestBody
+}
+
+type CreateMeBookmarkResponseObject interface {
+	VisitCreateMeBookmarkResponse(w http.ResponseWriter) error
+}
+
+type CreateMeBookmark201JSONResponse BookmarkEnvelope
+
+func (response CreateMeBookmark201JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateMeBookmark400JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmark500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateMeBookmark500JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmarkRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteMeBookmarkResponseObject interface {
+	VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error
+}
+
+type DeleteMeBookmark200JSONResponse NullDataEnvelope
+
+func (response DeleteMeBookmark200JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteMeBookmark400JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmark404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteMeBookmark404JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmark500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response DeleteMeBookmark500JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeBookmarkRequestObject struct {
+	Id   int64 `json:"id"`
+	Body *UpdateMeBookmarkJSONRequestBody
+}
+
+type UpdateMeBookmarkResponseObject interface {
+	VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error
+}
+
+type UpdateMeBookmark200JSONResponse BookmarkEnvelope
+
+func (response UpdateMeBookmark200JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateMeBookmark400JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeBookmark404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateMeBookmark404JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeBookmark500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpdateMeBookmark500JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeCollectionsRequestObject struct {
+}
+
+type ListMeCollectionsResponseObject interface {
+	VisitListMeCollectionsResponse(w http.ResponseWriter) error
+}
+
+type ListMeCollections200JSONResponse CollectionListEnvelope
+
+func (response ListMeCollections200JSONResponse) VisitListMeCollectionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeCollections500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListMeCollections500JSONResponse) VisitListMeCollectionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeCollectionRequestObject struct {
+	Body *CreateMeCollectionJSONRequestBody
+}
+
+type CreateMeCollectionResponseObject interface {
+	VisitCreateMeCollectionResponse(w http.ResponseWriter) error
+}
+
+type CreateMeCollection201JSONResponse CollectionEnvelope
+
+func (response CreateMeCollection201JSONResponse) VisitCreateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateMeCollection400JSONResponse) VisitCreateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateMeCollection500JSONResponse) VisitCreateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeCollectionRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteMeCollectionResponseObject interface {
+	VisitDeleteMeCollectionResponse(w http.ResponseWriter) error
+}
+
+type DeleteMeCollection200JSONResponse NullDataEnvelope
+
+func (response DeleteMeCollection200JSONResponse) VisitDeleteMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteMeCollection400JSONResponse) VisitDeleteMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteMeCollection404JSONResponse) VisitDeleteMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response DeleteMeCollection500JSONResponse) VisitDeleteMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeCollectionDetailRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type GetMeCollectionDetailResponseObject interface {
+	VisitGetMeCollectionDetailResponse(w http.ResponseWriter) error
+}
+
+type GetMeCollectionDetail200JSONResponse CollectionDetailEnvelope
+
+func (response GetMeCollectionDetail200JSONResponse) VisitGetMeCollectionDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeCollectionDetail400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeCollectionDetail400JSONResponse) VisitGetMeCollectionDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeCollectionDetail404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetMeCollectionDetail404JSONResponse) VisitGetMeCollectionDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeCollectionDetail500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeCollectionDetail500JSONResponse) VisitGetMeCollectionDetailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeCollectionRequestObject struct {
+	Id   int64 `json:"id"`
+	Body *UpdateMeCollectionJSONRequestBody
+}
+
+type UpdateMeCollectionResponseObject interface {
+	VisitUpdateMeCollectionResponse(w http.ResponseWriter) error
+}
+
+type UpdateMeCollection200JSONResponse CollectionEnvelope
+
+func (response UpdateMeCollection200JSONResponse) VisitUpdateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateMeCollection400JSONResponse) VisitUpdateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateMeCollection404JSONResponse) VisitUpdateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpdateMeCollection500JSONResponse) VisitUpdateMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddVerseToMeCollectionRequestObject struct {
+	Id   int64 `json:"id"`
+	Body *AddVerseToMeCollectionJSONRequestBody
+}
+
+type AddVerseToMeCollectionResponseObject interface {
+	VisitAddVerseToMeCollectionResponse(w http.ResponseWriter) error
+}
+
+type AddVerseToMeCollection201JSONResponse CollectionVerseEnvelope
+
+func (response AddVerseToMeCollection201JSONResponse) VisitAddVerseToMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddVerseToMeCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddVerseToMeCollection400JSONResponse) VisitAddVerseToMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddVerseToMeCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response AddVerseToMeCollection500JSONResponse) VisitAddVerseToMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveVerseFromMeCollectionRequestObject struct {
+	Id      int64 `json:"id"`
+	VerseId int64 `json:"verseId"`
+}
+
+type RemoveVerseFromMeCollectionResponseObject interface {
+	VisitRemoveVerseFromMeCollectionResponse(w http.ResponseWriter) error
+}
+
+type RemoveVerseFromMeCollection200JSONResponse NullDataEnvelope
+
+func (response RemoveVerseFromMeCollection200JSONResponse) VisitRemoveVerseFromMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveVerseFromMeCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RemoveVerseFromMeCollection400JSONResponse) VisitRemoveVerseFromMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveVerseFromMeCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveVerseFromMeCollection404JSONResponse) VisitRemoveVerseFromMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveVerseFromMeCollection500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RemoveVerseFromMeCollection500JSONResponse) VisitRemoveVerseFromMeCollectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeCoverToCoverRequestObject struct {
+	Body *PutMeCoverToCoverJSONRequestBody
+}
+
+type PutMeCoverToCoverResponseObject interface {
+	VisitPutMeCoverToCoverResponse(w http.ResponseWriter) error
+}
+
+type PutMeCoverToCover200JSONResponse BookmarkEnvelope
+
+func (response PutMeCoverToCover200JSONResponse) VisitPutMeCoverToCoverResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeCoverToCover400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutMeCoverToCover400JSONResponse) VisitPutMeCoverToCoverResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeCoverToCover500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response PutMeCoverToCover500JSONResponse) VisitPutMeCoverToCoverResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeNotesRequestObject struct {
+	Params GetMeNotesParams
+}
+
+type GetMeNotesResponseObject interface {
+	VisitGetMeNotesResponse(w http.ResponseWriter) error
+}
+
+type GetMeNotes200JSONResponse NoteListEnvelope
+
+func (response GetMeNotes200JSONResponse) VisitGetMeNotesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeNotes400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeNotes400JSONResponse) VisitGetMeNotesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeNotes500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeNotes500JSONResponse) VisitGetMeNotesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeNoteRequestObject struct {
+	Body *CreateMeNoteJSONRequestBody
+}
+
+type CreateMeNoteResponseObject interface {
+	VisitCreateMeNoteResponse(w http.ResponseWriter) error
+}
+
+type CreateMeNote201JSONResponse NoteEnvelope
+
+func (response CreateMeNote201JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeNote400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateMeNote400JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeNote500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateMeNote500JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeNoteRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteMeNoteResponseObject interface {
+	VisitDeleteMeNoteResponse(w http.ResponseWriter) error
+}
+
+type DeleteMeNote200JSONResponse NullDataEnvelope
+
+func (response DeleteMeNote200JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeNote400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteMeNote400JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeNote404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteMeNote404JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeNote500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response DeleteMeNote500JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeNoteRequestObject struct {
+	Id   int64 `json:"id"`
+	Body *UpdateMeNoteJSONRequestBody
+}
+
+type UpdateMeNoteResponseObject interface {
+	VisitUpdateMeNoteResponse(w http.ResponseWriter) error
+}
+
+type UpdateMeNote200JSONResponse NoteEnvelope
+
+func (response UpdateMeNote200JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeNote400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateMeNote400JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeNote404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateMeNote404JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMeNote500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpdateMeNote500JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMePreferencesRequestObject struct {
+	Params GetMePreferencesParams
+}
+
+type GetMePreferencesResponseObject interface {
+	VisitGetMePreferencesResponse(w http.ResponseWriter) error
+}
+
+type GetMePreferences200JSONResponse PreferencesEnvelope
+
+func (response GetMePreferences200JSONResponse) VisitGetMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMePreferences400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMePreferences400JSONResponse) VisitGetMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMePreferences500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMePreferences500JSONResponse) VisitGetMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMePreferencesRequestObject struct {
+	Body *PutMePreferencesJSONRequestBody
+}
+
+type PutMePreferencesResponseObject interface {
+	VisitPutMePreferencesResponse(w http.ResponseWriter) error
+}
+
+type PutMePreferences200JSONResponse NullDataEnvelope
+
+func (response PutMePreferences200JSONResponse) VisitPutMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMePreferences400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutMePreferences400JSONResponse) VisitPutMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMePreferences500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response PutMePreferences500JSONResponse) VisitPutMePreferencesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostMeReadingLogRequestObject struct {
+	Body *PostMeReadingLogJSONRequestBody
+}
+
+type PostMeReadingLogResponseObject interface {
+	VisitPostMeReadingLogResponse(w http.ResponseWriter) error
+}
+
+type PostMeReadingLog200JSONResponse NullDataEnvelope
+
+func (response PostMeReadingLog200JSONResponse) VisitPostMeReadingLogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostMeReadingLog400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PostMeReadingLog400JSONResponse) VisitPostMeReadingLogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostMeReadingLog500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response PostMeReadingLog500JSONResponse) VisitPostMeReadingLogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeReadingProgressRequestObject struct {
+	Params GetMeReadingProgressParams
+}
+
+type GetMeReadingProgressResponseObject interface {
+	VisitGetMeReadingProgressResponse(w http.ResponseWriter) error
+}
+
+type GetMeReadingProgress200JSONResponse ReadingProgressEnvelope
+
+func (response GetMeReadingProgress200JSONResponse) VisitGetMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeReadingProgress400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeReadingProgress400JSONResponse) VisitGetMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeReadingProgress500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeReadingProgress500JSONResponse) VisitGetMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeReadingProgressRequestObject struct {
+	Body *PutMeReadingProgressJSONRequestBody
+}
+
+type PutMeReadingProgressResponseObject interface {
+	VisitPutMeReadingProgressResponse(w http.ResponseWriter) error
+}
+
+type PutMeReadingProgress200JSONResponse ReadingProgressRequiredEnvelope
+
+func (response PutMeReadingProgress200JSONResponse) VisitPutMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeReadingProgress400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutMeReadingProgress400JSONResponse) VisitPutMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMeReadingProgress500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response PutMeReadingProgress500JSONResponse) VisitPutMeReadingProgressResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeScriptureStateRequestObject struct {
+	Params GetMeScriptureStateParams
+}
+
+type GetMeScriptureStateResponseObject interface {
+	VisitGetMeScriptureStateResponse(w http.ResponseWriter) error
+}
+
+type GetMeScriptureState200JSONResponse ScriptureState
+
+func (response GetMeScriptureState200JSONResponse) VisitGetMeScriptureStateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeScriptureState400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeScriptureState400JSONResponse) VisitGetMeScriptureStateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeScriptureState500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeScriptureState500JSONResponse) VisitGetMeScriptureStateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeStreakRequestObject struct {
+	Params GetMeStreakParams
+}
+
+type GetMeStreakResponseObject interface {
+	VisitGetMeStreakResponse(w http.ResponseWriter) error
+}
+
+type GetMeStreak200JSONResponse StreakEnvelope
+
+func (response GetMeStreak200JSONResponse) VisitGetMeStreakResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeStreak400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeStreak400JSONResponse) VisitGetMeStreakResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeStreak500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeStreak500JSONResponse) VisitGetMeStreakResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2488,12 +4840,84 @@ type StrictServerInterface interface {
 	// Fetch chapter metadata
 	// (GET /chapters)
 	GetChapters(ctx context.Context, request GetChaptersRequestObject) (GetChaptersResponseObject, error)
+	// Get publicly shared collection by token
+	// (GET /collections/share/{token})
+	GetSharedCollection(ctx context.Context, request GetSharedCollectionRequestObject) (GetSharedCollectionResponseObject, error)
 	// List communities (online and physical)
 	// (GET /communities)
 	GetCommunities(ctx context.Context, request GetCommunitiesRequestObject) (GetCommunitiesResponseObject, error)
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
+	// List current user's bookmarks
+	// (GET /me/bookmarks)
+	GetMeBookmarks(ctx context.Context, request GetMeBookmarksRequestObject) (GetMeBookmarksResponseObject, error)
+	// Create a bookmark for the current user
+	// (POST /me/bookmarks)
+	CreateMeBookmark(ctx context.Context, request CreateMeBookmarkRequestObject) (CreateMeBookmarkResponseObject, error)
+	// Delete a bookmark
+	// (DELETE /me/bookmarks/{id})
+	DeleteMeBookmark(ctx context.Context, request DeleteMeBookmarkRequestObject) (DeleteMeBookmarkResponseObject, error)
+	// Update a bookmark
+	// (PATCH /me/bookmarks/{id})
+	UpdateMeBookmark(ctx context.Context, request UpdateMeBookmarkRequestObject) (UpdateMeBookmarkResponseObject, error)
+	// List current user's collections
+	// (GET /me/collections)
+	ListMeCollections(ctx context.Context, request ListMeCollectionsRequestObject) (ListMeCollectionsResponseObject, error)
+	// Create a collection
+	// (POST /me/collections)
+	CreateMeCollection(ctx context.Context, request CreateMeCollectionRequestObject) (CreateMeCollectionResponseObject, error)
+	// Delete a collection
+	// (DELETE /me/collections/{id})
+	DeleteMeCollection(ctx context.Context, request DeleteMeCollectionRequestObject) (DeleteMeCollectionResponseObject, error)
+	// Get collection with verses
+	// (GET /me/collections/{id})
+	GetMeCollectionDetail(ctx context.Context, request GetMeCollectionDetailRequestObject) (GetMeCollectionDetailResponseObject, error)
+	// Update a collection
+	// (PATCH /me/collections/{id})
+	UpdateMeCollection(ctx context.Context, request UpdateMeCollectionRequestObject) (UpdateMeCollectionResponseObject, error)
+	// Add or upsert verse in a collection
+	// (POST /me/collections/{id}/verses)
+	AddVerseToMeCollection(ctx context.Context, request AddVerseToMeCollectionRequestObject) (AddVerseToMeCollectionResponseObject, error)
+	// Remove a verse from a collection
+	// (DELETE /me/collections/{id}/verses/{verseId})
+	RemoveVerseFromMeCollection(ctx context.Context, request RemoveVerseFromMeCollectionRequestObject) (RemoveVerseFromMeCollectionResponseObject, error)
+	// Upsert cover-to-cover bookmark
+	// (PUT /me/cover-to-cover)
+	PutMeCoverToCover(ctx context.Context, request PutMeCoverToCoverRequestObject) (PutMeCoverToCoverResponseObject, error)
+	// List current user's notes
+	// (GET /me/notes)
+	GetMeNotes(ctx context.Context, request GetMeNotesRequestObject) (GetMeNotesResponseObject, error)
+	// Create a note
+	// (POST /me/notes)
+	CreateMeNote(ctx context.Context, request CreateMeNoteRequestObject) (CreateMeNoteResponseObject, error)
+	// Delete a note
+	// (DELETE /me/notes/{id})
+	DeleteMeNote(ctx context.Context, request DeleteMeNoteRequestObject) (DeleteMeNoteResponseObject, error)
+	// Update a note
+	// (PATCH /me/notes/{id})
+	UpdateMeNote(ctx context.Context, request UpdateMeNoteRequestObject) (UpdateMeNoteResponseObject, error)
+	// Get per-scripture preferences
+	// (GET /me/preferences)
+	GetMePreferences(ctx context.Context, request GetMePreferencesRequestObject) (GetMePreferencesResponseObject, error)
+	// Upsert per-scripture preferences
+	// (PUT /me/preferences)
+	PutMePreferences(ctx context.Context, request PutMePreferencesRequestObject) (PutMePreferencesResponseObject, error)
+	// Increment daily reading log
+	// (POST /me/reading-log)
+	PostMeReadingLog(ctx context.Context, request PostMeReadingLogRequestObject) (PostMeReadingLogResponseObject, error)
+	// Get current reading position
+	// (GET /me/reading-progress)
+	GetMeReadingProgress(ctx context.Context, request GetMeReadingProgressRequestObject) (GetMeReadingProgressResponseObject, error)
+	// Upsert reading position
+	// (PUT /me/reading-progress)
+	PutMeReadingProgress(ctx context.Context, request PutMeReadingProgressRequestObject) (PutMeReadingProgressResponseObject, error)
+	// Get bookmark and note state for a chapter
+	// (GET /me/scripture-state)
+	GetMeScriptureState(ctx context.Context, request GetMeScriptureStateRequestObject) (GetMeScriptureStateResponseObject, error)
+	// Get reading streak metrics
+	// (GET /me/streak)
+	GetMeStreak(ctx context.Context, request GetMeStreakRequestObject) (GetMeStreakResponseObject, error)
 	// List music albums
 	// (GET /music/albums)
 	GetMusicAlbums(ctx context.Context, request GetMusicAlbumsRequestObject) (GetMusicAlbumsResponseObject, error)
@@ -2668,6 +5092,33 @@ func (sh *strictHandler) GetChapters(ctx *gin.Context, params GetChaptersParams)
 	}
 }
 
+// GetSharedCollection operation middleware
+func (sh *strictHandler) GetSharedCollection(ctx *gin.Context, token string) {
+	var request GetSharedCollectionRequestObject
+
+	request.Token = token
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSharedCollection(ctx, request.(GetSharedCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSharedCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetSharedCollectionResponseObject); ok {
+		if err := validResponse.VisitGetSharedCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetCommunities operation middleware
 func (sh *strictHandler) GetCommunities(ctx *gin.Context, params GetCommunitiesParams) {
 	var request GetCommunitiesRequestObject
@@ -2713,6 +5164,700 @@ func (sh *strictHandler) GetLanguages(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetLanguagesResponseObject); ok {
 		if err := validResponse.VisitGetLanguagesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeBookmarks operation middleware
+func (sh *strictHandler) GetMeBookmarks(ctx *gin.Context, params GetMeBookmarksParams) {
+	var request GetMeBookmarksRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeBookmarks(ctx, request.(GetMeBookmarksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeBookmarks")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeBookmarksResponseObject); ok {
+		if err := validResponse.VisitGetMeBookmarksResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMeBookmark operation middleware
+func (sh *strictHandler) CreateMeBookmark(ctx *gin.Context) {
+	var request CreateMeBookmarkRequestObject
+
+	var body CreateMeBookmarkJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMeBookmark(ctx, request.(CreateMeBookmarkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMeBookmark")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateMeBookmarkResponseObject); ok {
+		if err := validResponse.VisitCreateMeBookmarkResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteMeBookmark operation middleware
+func (sh *strictHandler) DeleteMeBookmark(ctx *gin.Context, id int64) {
+	var request DeleteMeBookmarkRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMeBookmark(ctx, request.(DeleteMeBookmarkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMeBookmark")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteMeBookmarkResponseObject); ok {
+		if err := validResponse.VisitDeleteMeBookmarkResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMeBookmark operation middleware
+func (sh *strictHandler) UpdateMeBookmark(ctx *gin.Context, id int64) {
+	var request UpdateMeBookmarkRequestObject
+
+	request.Id = id
+
+	var body UpdateMeBookmarkJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMeBookmark(ctx, request.(UpdateMeBookmarkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMeBookmark")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpdateMeBookmarkResponseObject); ok {
+		if err := validResponse.VisitUpdateMeBookmarkResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMeCollections operation middleware
+func (sh *strictHandler) ListMeCollections(ctx *gin.Context) {
+	var request ListMeCollectionsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMeCollections(ctx, request.(ListMeCollectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMeCollections")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListMeCollectionsResponseObject); ok {
+		if err := validResponse.VisitListMeCollectionsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMeCollection operation middleware
+func (sh *strictHandler) CreateMeCollection(ctx *gin.Context) {
+	var request CreateMeCollectionRequestObject
+
+	var body CreateMeCollectionJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMeCollection(ctx, request.(CreateMeCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMeCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateMeCollectionResponseObject); ok {
+		if err := validResponse.VisitCreateMeCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteMeCollection operation middleware
+func (sh *strictHandler) DeleteMeCollection(ctx *gin.Context, id int64) {
+	var request DeleteMeCollectionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMeCollection(ctx, request.(DeleteMeCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMeCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteMeCollectionResponseObject); ok {
+		if err := validResponse.VisitDeleteMeCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeCollectionDetail operation middleware
+func (sh *strictHandler) GetMeCollectionDetail(ctx *gin.Context, id int64) {
+	var request GetMeCollectionDetailRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeCollectionDetail(ctx, request.(GetMeCollectionDetailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeCollectionDetail")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeCollectionDetailResponseObject); ok {
+		if err := validResponse.VisitGetMeCollectionDetailResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMeCollection operation middleware
+func (sh *strictHandler) UpdateMeCollection(ctx *gin.Context, id int64) {
+	var request UpdateMeCollectionRequestObject
+
+	request.Id = id
+
+	var body UpdateMeCollectionJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMeCollection(ctx, request.(UpdateMeCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMeCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpdateMeCollectionResponseObject); ok {
+		if err := validResponse.VisitUpdateMeCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddVerseToMeCollection operation middleware
+func (sh *strictHandler) AddVerseToMeCollection(ctx *gin.Context, id int64) {
+	var request AddVerseToMeCollectionRequestObject
+
+	request.Id = id
+
+	var body AddVerseToMeCollectionJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddVerseToMeCollection(ctx, request.(AddVerseToMeCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddVerseToMeCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(AddVerseToMeCollectionResponseObject); ok {
+		if err := validResponse.VisitAddVerseToMeCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveVerseFromMeCollection operation middleware
+func (sh *strictHandler) RemoveVerseFromMeCollection(ctx *gin.Context, id int64, verseId int64) {
+	var request RemoveVerseFromMeCollectionRequestObject
+
+	request.Id = id
+	request.VerseId = verseId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveVerseFromMeCollection(ctx, request.(RemoveVerseFromMeCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveVerseFromMeCollection")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RemoveVerseFromMeCollectionResponseObject); ok {
+		if err := validResponse.VisitRemoveVerseFromMeCollectionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMeCoverToCover operation middleware
+func (sh *strictHandler) PutMeCoverToCover(ctx *gin.Context) {
+	var request PutMeCoverToCoverRequestObject
+
+	var body PutMeCoverToCoverJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMeCoverToCover(ctx, request.(PutMeCoverToCoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMeCoverToCover")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PutMeCoverToCoverResponseObject); ok {
+		if err := validResponse.VisitPutMeCoverToCoverResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeNotes operation middleware
+func (sh *strictHandler) GetMeNotes(ctx *gin.Context, params GetMeNotesParams) {
+	var request GetMeNotesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeNotes(ctx, request.(GetMeNotesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeNotes")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeNotesResponseObject); ok {
+		if err := validResponse.VisitGetMeNotesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMeNote operation middleware
+func (sh *strictHandler) CreateMeNote(ctx *gin.Context) {
+	var request CreateMeNoteRequestObject
+
+	var body CreateMeNoteJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMeNote(ctx, request.(CreateMeNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMeNote")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateMeNoteResponseObject); ok {
+		if err := validResponse.VisitCreateMeNoteResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteMeNote operation middleware
+func (sh *strictHandler) DeleteMeNote(ctx *gin.Context, id int64) {
+	var request DeleteMeNoteRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMeNote(ctx, request.(DeleteMeNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMeNote")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteMeNoteResponseObject); ok {
+		if err := validResponse.VisitDeleteMeNoteResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMeNote operation middleware
+func (sh *strictHandler) UpdateMeNote(ctx *gin.Context, id int64) {
+	var request UpdateMeNoteRequestObject
+
+	request.Id = id
+
+	var body UpdateMeNoteJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMeNote(ctx, request.(UpdateMeNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMeNote")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpdateMeNoteResponseObject); ok {
+		if err := validResponse.VisitUpdateMeNoteResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMePreferences operation middleware
+func (sh *strictHandler) GetMePreferences(ctx *gin.Context, params GetMePreferencesParams) {
+	var request GetMePreferencesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMePreferences(ctx, request.(GetMePreferencesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMePreferences")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMePreferencesResponseObject); ok {
+		if err := validResponse.VisitGetMePreferencesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMePreferences operation middleware
+func (sh *strictHandler) PutMePreferences(ctx *gin.Context) {
+	var request PutMePreferencesRequestObject
+
+	var body PutMePreferencesJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMePreferences(ctx, request.(PutMePreferencesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMePreferences")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PutMePreferencesResponseObject); ok {
+		if err := validResponse.VisitPutMePreferencesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostMeReadingLog operation middleware
+func (sh *strictHandler) PostMeReadingLog(ctx *gin.Context) {
+	var request PostMeReadingLogRequestObject
+
+	var body PostMeReadingLogJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostMeReadingLog(ctx, request.(PostMeReadingLogRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostMeReadingLog")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostMeReadingLogResponseObject); ok {
+		if err := validResponse.VisitPostMeReadingLogResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeReadingProgress operation middleware
+func (sh *strictHandler) GetMeReadingProgress(ctx *gin.Context, params GetMeReadingProgressParams) {
+	var request GetMeReadingProgressRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeReadingProgress(ctx, request.(GetMeReadingProgressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeReadingProgress")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeReadingProgressResponseObject); ok {
+		if err := validResponse.VisitGetMeReadingProgressResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMeReadingProgress operation middleware
+func (sh *strictHandler) PutMeReadingProgress(ctx *gin.Context) {
+	var request PutMeReadingProgressRequestObject
+
+	var body PutMeReadingProgressJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMeReadingProgress(ctx, request.(PutMeReadingProgressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMeReadingProgress")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PutMeReadingProgressResponseObject); ok {
+		if err := validResponse.VisitPutMeReadingProgressResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeScriptureState operation middleware
+func (sh *strictHandler) GetMeScriptureState(ctx *gin.Context, params GetMeScriptureStateParams) {
+	var request GetMeScriptureStateRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeScriptureState(ctx, request.(GetMeScriptureStateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeScriptureState")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeScriptureStateResponseObject); ok {
+		if err := validResponse.VisitGetMeScriptureStateResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeStreak operation middleware
+func (sh *strictHandler) GetMeStreak(ctx *gin.Context, params GetMeStreakParams) {
+	var request GetMeStreakRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeStreak(ctx, request.(GetMeStreakRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeStreak")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeStreakResponseObject); ok {
+		if err := validResponse.VisitGetMeStreakResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -2963,221 +6108,259 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

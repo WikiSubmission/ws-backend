@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -28,6 +29,9 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
+		reqCtx := context.WithValue(c.Request.Context(), ContextKeyUID, authID)
+		reqCtx = context.WithValue(reqCtx, ContextKeyEmail, email)
+		c.Request = c.Request.WithContext(reqCtx)
 		c.Set(ContextKeyUID, authID)
 		c.Set(ContextKeyEmail, email)
 		c.Next()
