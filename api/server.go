@@ -246,6 +246,14 @@ func StartServer(database *db.DB) {
 	authed.POST("/users", userHandler.UpsertUser)
 	authed.GET("/users/:id", userHandler.GetUserByID)
 
+	meHandler := handlers.MeHandler{DB: database}
+	authed.GET("/me/bookmarks", meHandler.GetBookmarks)
+	authed.POST("/me/bookmarks", meHandler.CreateBookmark)
+	authed.PATCH("/me/bookmarks/:id", meHandler.UpdateBookmark)
+	authed.DELETE("/me/bookmarks/:id", meHandler.DeleteBookmark)
+	authed.PUT("/me/cover-to-cover", meHandler.PutCoverToCover)
+	authed.GET("/me/scripture-state", meHandler.GetScriptureState)
+
 	// ── Admin routes ─────────────────────────────────────────────────────────
 	admin := r.Group("/api/v1")
 	admin.Use(auth.RequireAuth(verifier))
