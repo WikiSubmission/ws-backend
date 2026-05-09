@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wikiSubmission/ws-backend/auth"
@@ -396,6 +397,132 @@ func (h *MeHandler) DeleteNote(c *gin.Context) {
 	}
 	if !deleted {
 		c.JSON(http.StatusNotFound, gin.H{"error": "note not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": nil})
+}
+
+// ── Reading progress handlers ─────────────────────────────────────────────
+
+type ReadingProgressResponse struct {
+	Scripture string `json:"scripture"`
+	VerseKey  string `json:"verse_key"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type UpsertReadingProgressRequest struct {
+	Scripture string `json:"scripture" binding:"required"`
+	VerseKey  string `json:"verse_key" binding:"required"`
+}
+
+// GetReadingProgress handles GET /api/v1/me/reading-progress?scripture=quran|bible
+func (h *MeHandler) GetReadingProgress(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	scripture := c.DefaultQuery("scripture", "quran")
+	if scripture != "quran" && scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	rp, err := h.DB.GetReadingProgress(c.Request.Context(), authID, scripture)
+	if err != nil {
+		slog.Error("GetReadingProgress: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if rp == nil {
+		c.JSON(http.StatusOK, gin.H{"data": nil})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": ReadingProgressResponse{
+		Scripture: rp.Scripture,
+		VerseKey:  rp.VerseKey,
+		UpdatedAt: rp.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}})
+}
+
+// PutReadingProgress handles PUT /api/v1/me/reading-progress
+func (h *MeHandler) PutReadingProgress(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	var req UpsertReadingProgressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Scripture != "quran" && req.Scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	rp, err := h.DB.UpsertReadingProgress(c.Request.Context(), authID, req.Scripture, req.VerseKey)
+	if err != nil {
+		slog.Error("PutReadingProgress: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": ReadingProgressResponse{
+		Scripture: rp.Scripture,
+		VerseKey:  rp.VerseKey,
+		UpdatedAt: rp.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}})
+}
+
+// ── Streak handlers ───────────────────────────────────────────────────────
+
+type StreakResponse struct {
+	CurrentStreak   int    `json:"current_streak"`
+	LongestStreak   int    `json:"longest_streak"`
+	LastActiveDay   string `json:"last_active_day,omitempty"`
+	TotalVersesRead int    `json:"total_verses_read"`
+}
+
+type IncrementReadingLogRequest struct {
+	Scripture  string `json:"scripture" binding:"required"`
+	VersesRead int    `json:"verses_read"`
+	Day        string `json:"day"` // optional, ISO date e.g. "2026-05-09"
+}
+
+// GetStreak handles GET /api/v1/me/streak?scripture=quran|bible
+func (h *MeHandler) GetStreak(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	scripture := c.DefaultQuery("scripture", "quran")
+	if scripture != "quran" && scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	streak, err := h.DB.GetStreak(c.Request.Context(), authID, scripture)
+	if err != nil {
+		slog.Error("GetStreak: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": StreakResponse{
+		CurrentStreak:   streak.CurrentStreak,
+		LongestStreak:   streak.LongestStreak,
+		LastActiveDay:   streak.LastActiveDay,
+		TotalVersesRead: streak.TotalVersesRead,
+	}})
+}
+
+// PostReadingLog handles POST /api/v1/me/reading-log
+func (h *MeHandler) PostReadingLog(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	var req IncrementReadingLogRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Scripture != "quran" && req.Scripture != "bible" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scripture must be 'quran' or 'bible'"})
+		return
+	}
+	if req.VersesRead <= 0 {
+		req.VersesRead = 1
+	}
+	if req.Day == "" {
+		req.Day = time.Now().UTC().Format("2006-01-02")
+	}
+	if err := h.DB.IncrementReadingLog(c.Request.Context(), authID, req.Scripture, req.Day, req.VersesRead); err != nil {
+		slog.Error("PostReadingLog: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": nil})
