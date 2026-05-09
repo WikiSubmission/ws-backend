@@ -101,12 +101,32 @@ func bookmarkFromRow(b *db.BookmarkRow) Bookmark {
 	}
 }
 
+func categoryFromRow(c *db.BookmarkCategoryRow) BookmarkCategory {
+	return BookmarkCategory{
+		Id:         c.ID,
+		Name:       c.Name,
+		Color:      c.Color,
+		EntryCount: c.EntryCount,
+		CreatedAt:  c.CreatedAt.UTC(),
+		UpdatedAt:  c.UpdatedAt.UTC(),
+	}
+}
+
+func entryFromRow(e *db.BookmarkEntryRow) BookmarkEntry {
+	return BookmarkEntry{
+		Id:         e.ID,
+		CategoryId: e.CategoryID,
+		Scripture:  BookmarkEntryScripture(e.Scripture),
+		VerseKey:   e.VerseKey,
+		CreatedAt:  e.CreatedAt.UTC(),
+	}
+}
+
 func noteFromRow(n *db.NoteRow) Note {
 	return Note{
 		Id:        n.ID,
 		Scripture: NoteScripture(n.Scripture),
 		VerseKey:  n.VerseKey,
-		Lang:      n.Lang,
 		Content:   n.Content,
 		CreatedAt: n.CreatedAt.UTC(),
 		UpdatedAt: n.UpdatedAt.UTC(),
@@ -141,139 +161,171 @@ func nullDataEnvelope() NullDataEnvelope {
 	return NullDataEnvelope{Data: nil}
 }
 
-func (s *Server) GetMeBookmarks(ctx context.Context, request GetMeBookmarksRequestObject) (GetMeBookmarksResponseObject, error) {
+func (s *Server) ListMeBookmarkCategories(ctx context.Context, _ ListMeBookmarkCategoriesRequestObject) (ListMeBookmarkCategoriesResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
-		return GetMeBookmarks500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		return ListMeBookmarkCategories500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-
-	scripture := "quran"
-	if request.Params.Scripture != nil {
-		scripture = string(*request.Params.Scripture)
-	}
-	if !validScripture(scripture) {
-		return GetMeBookmarks400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
-	}
-
-	bookmarks, err := s.DB.FetchBookmarks(ctx, authID, scripture)
+	cats, err := s.DB.ListBookmarkCategories(ctx, authID)
 	if err != nil {
-		slog.Error("GetMeBookmarks: DB error", "error", err)
-		return GetMeBookmarks500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("ListMeBookmarkCategories: DB error", "error", err)
+		return ListMeBookmarkCategories500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-
-	result := make([]Bookmark, len(bookmarks))
-	for i := range bookmarks {
-		result[i] = bookmarkFromRow(&bookmarks[i])
+	result := make([]BookmarkCategory, len(cats))
+	for i := range cats {
+		result[i] = categoryFromRow(&cats[i])
 	}
-	return GetMeBookmarks200JSONResponse(BookmarkListEnvelope{Data: result}), nil
+	return ListMeBookmarkCategories200JSONResponse(BookmarkCategoryListEnvelope{Data: result}), nil
 }
 
-func (s *Server) CreateMeBookmark(ctx context.Context, request CreateMeBookmarkRequestObject) (CreateMeBookmarkResponseObject, error) {
+func (s *Server) CreateMeBookmarkCategory(ctx context.Context, request CreateMeBookmarkCategoryRequestObject) (CreateMeBookmarkCategoryResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
-		return CreateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		return CreateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if err := s.ensureCurrentUser(ctx, authID); err != nil {
-		slog.Error("CreateMeBookmark: ensureCurrentUser failed", "error", err)
-		return CreateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("CreateMeBookmarkCategory: ensureCurrentUser failed", "error", err)
+		return CreateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
-		return CreateMeBookmark400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+		return CreateMeBookmarkCategory400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
-
 	req := *request.Body
-	scripture := string(req.Scripture)
-	if !validScripture(scripture) {
-		return CreateMeBookmark400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+	if req.Name == "" {
+		return CreateMeBookmarkCategory400JSONResponse{BadRequestJSONResponse{Message: "name is required"}}, nil
 	}
 	color := "amber"
 	if req.Color != nil && *req.Color != "" {
 		color = *req.Color
 	}
-	name := ""
-	if req.Name != nil {
-		name = *req.Name
-	}
-	kind := "normal"
-	if req.Kind != nil && *req.Kind != "" {
-		kind = string(*req.Kind)
-	}
-	if kind != "normal" && kind != "cover_to_cover" {
-		return CreateMeBookmark400JSONResponse{BadRequestJSONResponse{Message: "kind must be 'normal' or 'cover_to_cover'"}}, nil
-	}
-
-	b, err := s.DB.CreateBookmark(ctx, authID, scripture, req.VerseKey, name, color, kind)
+	c, err := s.DB.CreateBookmarkCategory(ctx, authID, req.Name, color)
 	if err != nil {
-		slog.Error("CreateMeBookmark: DB error", "error", err)
-		return CreateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("CreateMeBookmarkCategory: DB error", "error", err)
+		return CreateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-
-	return CreateMeBookmark201JSONResponse(BookmarkEnvelope{Data: bookmarkFromRow(b)}), nil
+	return CreateMeBookmarkCategory201JSONResponse(BookmarkCategoryEnvelope{Data: categoryFromRow(c)}), nil
 }
 
-func (s *Server) UpdateMeBookmark(ctx context.Context, request UpdateMeBookmarkRequestObject) (UpdateMeBookmarkResponseObject, error) {
+func (s *Server) UpdateMeBookmarkCategory(ctx context.Context, request UpdateMeBookmarkCategoryRequestObject) (UpdateMeBookmarkCategoryResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
-		return UpdateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		return UpdateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
-		return UpdateMeBookmark400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+		return UpdateMeBookmarkCategory400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
-
 	req := *request.Body
-	existing, err := s.DB.FetchBookmarks(ctx, authID, "quran")
-	if err != nil {
-		slog.Error("UpdateMeBookmark: fetch error", "error", err)
-		return UpdateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
-	}
-	existingBible, err := s.DB.FetchBookmarks(ctx, authID, "bible")
-	if err != nil {
-		slog.Error("UpdateMeBookmark: fetch bible error", "error", err)
-		return UpdateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
-	}
-	existing = append(existing, existingBible...)
 
+	// Fetch current to merge optional fields.
+	cats, err := s.DB.ListBookmarkCategories(ctx, authID)
+	if err != nil {
+		slog.Error("UpdateMeBookmarkCategory: list error", "error", err)
+		return UpdateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
 	var currentName, currentColor string
-	for i := range existing {
-		if existing[i].ID == request.Id {
-			currentName = existing[i].Name
-			currentColor = existing[i].Color
+	for i := range cats {
+		if cats[i].ID == request.Id {
+			currentName = cats[i].Name
+			currentColor = cats[i].Color
 			break
 		}
 	}
-	if req.Name != nil {
+	if currentName == "" {
+		return UpdateMeBookmarkCategory404JSONResponse{NotFoundJSONResponse{Message: "category not found"}}, nil
+	}
+	if req.Name != nil && *req.Name != "" {
 		currentName = *req.Name
 	}
-	if req.Color != nil {
+	if req.Color != nil && *req.Color != "" {
 		currentColor = *req.Color
 	}
 
-	b, err := s.DB.UpdateBookmark(ctx, request.Id, authID, currentName, currentColor)
+	c, err := s.DB.UpdateBookmarkCategory(ctx, request.Id, authID, currentName, currentColor)
 	if err != nil {
-		slog.Error("UpdateMeBookmark: DB error", "error", err)
-		return UpdateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("UpdateMeBookmarkCategory: DB error", "error", err)
+		return UpdateMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-	if b == nil {
-		return UpdateMeBookmark404JSONResponse{NotFoundJSONResponse{Message: "bookmark not found"}}, nil
+	if c == nil {
+		return UpdateMeBookmarkCategory404JSONResponse{NotFoundJSONResponse{Message: "category not found"}}, nil
 	}
-	return UpdateMeBookmark200JSONResponse(BookmarkEnvelope{Data: bookmarkFromRow(b)}), nil
+	return UpdateMeBookmarkCategory200JSONResponse(BookmarkCategoryEnvelope{Data: categoryFromRow(c)}), nil
 }
 
-func (s *Server) DeleteMeBookmark(ctx context.Context, request DeleteMeBookmarkRequestObject) (DeleteMeBookmarkResponseObject, error) {
+func (s *Server) DeleteMeBookmarkCategory(ctx context.Context, request DeleteMeBookmarkCategoryRequestObject) (DeleteMeBookmarkCategoryResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
-		return DeleteMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		return DeleteMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-
-	deleted, err := s.DB.DeleteBookmark(ctx, request.Id, authID)
+	deleted, err := s.DB.DeleteBookmarkCategory(ctx, request.Id, authID)
 	if err != nil {
-		slog.Error("DeleteMeBookmark: DB error", "error", err)
-		return DeleteMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("DeleteMeBookmarkCategory: DB error", "error", err)
+		return DeleteMeBookmarkCategory500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if !deleted {
-		return DeleteMeBookmark404JSONResponse{NotFoundJSONResponse{Message: "bookmark not found"}}, nil
+		return DeleteMeBookmarkCategory404JSONResponse{NotFoundJSONResponse{Message: "category not found"}}, nil
 	}
-	return DeleteMeBookmark200JSONResponse(nullDataEnvelope()), nil
+	return DeleteMeBookmarkCategory200JSONResponse(nullDataEnvelope()), nil
+}
+
+func (s *Server) ListMeBookmarkCategoryEntries(ctx context.Context, request ListMeBookmarkCategoryEntriesRequestObject) (ListMeBookmarkCategoryEntriesResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return ListMeBookmarkCategoryEntries500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	entries, err := s.DB.ListBookmarkCategoryEntries(ctx, request.Id, authID)
+	if err != nil {
+		slog.Error("ListMeBookmarkCategoryEntries: DB error", "error", err)
+		return ListMeBookmarkCategoryEntries500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	result := make([]BookmarkEntry, len(entries))
+	for i := range entries {
+		result[i] = entryFromRow(&entries[i])
+	}
+	return ListMeBookmarkCategoryEntries200JSONResponse(BookmarkEntryListEnvelope{Data: result}), nil
+}
+
+func (s *Server) CreateMeBookmarkEntry(ctx context.Context, request CreateMeBookmarkEntryRequestObject) (CreateMeBookmarkEntryResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return CreateMeBookmarkEntry500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("CreateMeBookmarkEntry: ensureCurrentUser failed", "error", err)
+		return CreateMeBookmarkEntry500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if request.Body == nil {
+		return CreateMeBookmarkEntry400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+	}
+	req := *request.Body
+	scripture := string(req.Scripture)
+	if !validScripture(scripture) {
+		return CreateMeBookmarkEntry400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+	}
+	e, err := s.DB.CreateBookmarkEntry(ctx, req.CategoryId, authID, scripture, req.VerseKey)
+	if err != nil {
+		slog.Error("CreateMeBookmarkEntry: DB error", "error", err)
+		return CreateMeBookmarkEntry500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if e == nil {
+		return CreateMeBookmarkEntry409JSONResponse{ConflictJSONResponse{Message: "entry already exists or category not found"}}, nil
+	}
+	return CreateMeBookmarkEntry201JSONResponse(BookmarkEntryEnvelope{Data: entryFromRow(e)}), nil
+}
+
+func (s *Server) DeleteMeBookmarkEntry(ctx context.Context, request DeleteMeBookmarkEntryRequestObject) (DeleteMeBookmarkEntryResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return DeleteMeBookmarkEntry500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	deleted, err := s.DB.DeleteBookmarkEntry(ctx, request.Id, authID)
+	if err != nil {
+		slog.Error("DeleteMeBookmarkEntry: DB error", "error", err)
+		return DeleteMeBookmarkEntry500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if !deleted {
+		return DeleteMeBookmarkEntry404JSONResponse{NotFoundJSONResponse{Message: "entry not found"}}, nil
+	}
+	return DeleteMeBookmarkEntry200JSONResponse(nullDataEnvelope()), nil
 }
 
 func (s *Server) PutMeCoverToCover(ctx context.Context, request PutMeCoverToCoverRequestObject) (PutMeCoverToCoverResponseObject, error) {
@@ -319,9 +371,9 @@ func (s *Server) GetMeScriptureState(ctx context.Context, request GetMeScripture
 		return GetMeScriptureState400JSONResponse{BadRequestJSONResponse{Message: "invalid chapter"}}, nil
 	}
 
-	bookmarks, err := s.DB.FetchChapterBookmarks(ctx, authID, scripture, request.Params.Chapter)
+	entries, err := s.DB.FetchChapterBookmarkEntries(ctx, authID, scripture, request.Params.Chapter)
 	if err != nil {
-		slog.Error("GetMeScriptureState: bookmarks DB error", "error", err)
+		slog.Error("GetMeScriptureState: entries DB error", "error", err)
 		return GetMeScriptureState500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	notes, err := s.DB.FetchChapterNotes(ctx, authID, scripture, request.Params.Chapter)
@@ -330,18 +382,18 @@ func (s *Server) GetMeScriptureState(ctx context.Context, request GetMeScripture
 		return GetMeScriptureState500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 
-	bmMap := make(map[string]Bookmark, len(bookmarks))
-	for i := range bookmarks {
-		bm := bookmarkFromRow(&bookmarks[i])
-		bmMap[bm.VerseKey] = bm
+	entryMap := make(map[string][]BookmarkEntry)
+	for i := range entries {
+		e := entryFromRow(&entries[i])
+		entryMap[e.VerseKey] = append(entryMap[e.VerseKey], e)
 	}
-	noteMap := make(map[string][]Note)
+	noteMap := make(map[string]Note)
 	for i := range notes {
 		n := noteFromRow(&notes[i])
-		noteMap[n.VerseKey] = append(noteMap[n.VerseKey], n)
+		noteMap[n.VerseKey] = n
 	}
 
-	return GetMeScriptureState200JSONResponse(ScriptureState{Bookmarks: bmMap, Notes: noteMap}), nil
+	return GetMeScriptureState200JSONResponse(ScriptureState{Bookmarks: entryMap, Notes: noteMap}), nil
 }
 
 func (s *Server) GetMeNotes(ctx context.Context, request GetMeNotesRequestObject) (GetMeNotesResponseObject, error) {
@@ -358,7 +410,7 @@ func (s *Server) GetMeNotes(ctx context.Context, request GetMeNotesRequestObject
 		return GetMeNotes400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
 	}
 
-	notes, err := s.DB.FetchNotes(ctx, authID, scripture, request.Params.VerseKey, request.Params.Lang)
+	notes, err := s.DB.FetchNotes(ctx, authID, scripture, request.Params.VerseKey)
 	if err != nil {
 		slog.Error("GetMeNotes: DB error", "error", err)
 		return GetMeNotes500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -371,57 +423,35 @@ func (s *Server) GetMeNotes(ctx context.Context, request GetMeNotesRequestObject
 	return GetMeNotes200JSONResponse(NoteListEnvelope{Data: result}), nil
 }
 
-func (s *Server) CreateMeNote(ctx context.Context, request CreateMeNoteRequestObject) (CreateMeNoteResponseObject, error) {
+func (s *Server) UpsertMeNote(ctx context.Context, request UpsertMeNoteRequestObject) (UpsertMeNoteResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
-		return CreateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		return UpsertMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if err := s.ensureCurrentUser(ctx, authID); err != nil {
-		slog.Error("CreateMeNote: ensureCurrentUser failed", "error", err)
-		return CreateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("UpsertMeNote: ensureCurrentUser failed", "error", err)
+		return UpsertMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
-		return CreateMeNote400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+		return UpsertMeNote400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
 	req := *request.Body
 
 	scripture := string(req.Scripture)
 	if !validScripture(scripture) {
-		return CreateMeNote400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+		return UpsertMeNote400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
 	}
-	lang := "en"
-	if req.Lang != nil && *req.Lang != "" {
-		lang = *req.Lang
+	if req.Content == "" {
+		return UpsertMeNote400JSONResponse{BadRequestJSONResponse{Message: "content is required"}}, nil
 	}
 
-	n, err := s.DB.CreateNote(ctx, authID, scripture, req.VerseKey, lang, req.Content)
+	n, err := s.DB.UpsertNote(ctx, authID, scripture, req.VerseKey, req.Content)
 	if err != nil {
-		slog.Error("CreateMeNote: DB error", "error", err)
-		return CreateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		slog.Error("UpsertMeNote: DB error", "error", err)
+		return UpsertMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 
-	return CreateMeNote201JSONResponse(NoteEnvelope{Data: noteFromRow(n)}), nil
-}
-
-func (s *Server) UpdateMeNote(ctx context.Context, request UpdateMeNoteRequestObject) (UpdateMeNoteResponseObject, error) {
-	authID, ok := authIDFromContext(ctx)
-	if !ok {
-		return UpdateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
-	}
-	if request.Body == nil {
-		return UpdateMeNote400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
-	}
-
-	n, err := s.DB.UpdateNote(ctx, request.Id, authID, request.Body.Content)
-	if err != nil {
-		slog.Error("UpdateMeNote: DB error", "error", err)
-		return UpdateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
-	}
-	if n == nil {
-		return UpdateMeNote404JSONResponse{NotFoundJSONResponse{Message: "note not found"}}, nil
-	}
-
-	return UpdateMeNote200JSONResponse(NoteEnvelope{Data: noteFromRow(n)}), nil
+	return UpsertMeNote200JSONResponse(NoteEnvelope{Data: noteFromRow(n)}), nil
 }
 
 func (s *Server) DeleteMeNote(ctx context.Context, request DeleteMeNoteRequestObject) (DeleteMeNoteResponseObject, error) {
@@ -438,6 +468,44 @@ func (s *Server) DeleteMeNote(ctx context.Context, request DeleteMeNoteRequestOb
 		return DeleteMeNote404JSONResponse{NotFoundJSONResponse{Message: "note not found"}}, nil
 	}
 	return DeleteMeNote200JSONResponse(nullDataEnvelope()), nil
+}
+
+func (s *Server) GetMeSearch(ctx context.Context, request GetMeSearchRequestObject) (GetMeSearchResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return GetMeSearch500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+
+	q := request.Params.Q
+	if q == "" {
+		return GetMeSearch400JSONResponse{BadRequestJSONResponse{Message: "q is required"}}, nil
+	}
+
+	var scripture *string
+	if request.Params.Scripture != nil {
+		sc := string(*request.Params.Scripture)
+		if !validScripture(sc) {
+			return GetMeSearch400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+		}
+		scripture = &sc
+	}
+
+	matches, err := s.DB.SearchNotes(ctx, authID, q, scripture)
+	if err != nil {
+		slog.Error("GetMeSearch: DB error", "error", err)
+		return GetMeSearch500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+
+	results := make([]SearchResult, len(matches))
+	for i, m := range matches {
+		results[i] = SearchResult{
+			Source:    SearchResultSource("note"),
+			VerseKey:  m.VerseKey,
+			Scripture: SearchResultScripture(m.Scripture),
+			Excerpt:   m.Excerpt,
+		}
+	}
+	return GetMeSearch200JSONResponse(MeSearchEnvelope{Data: results}), nil
 }
 
 func (s *Server) GetMeReadingProgress(ctx context.Context, request GetMeReadingProgressRequestObject) (GetMeReadingProgressResponseObject, error) {

@@ -65,16 +65,13 @@ func (e BibleTranslationContentD) Valid() bool {
 
 // Defines values for BookmarkKind.
 const (
-	BookmarkKindCoverToCover BookmarkKind = "cover_to_cover"
-	BookmarkKindNormal       BookmarkKind = "normal"
+	CoverToCover BookmarkKind = "cover_to_cover"
 )
 
 // Valid indicates whether the value is a known member of the BookmarkKind enum.
 func (e BookmarkKind) Valid() bool {
 	switch e {
-	case BookmarkKindCoverToCover:
-		return true
-	case BookmarkKindNormal:
+	case CoverToCover:
 		return true
 	default:
 		return false
@@ -93,6 +90,24 @@ func (e BookmarkScripture) Valid() bool {
 	case BookmarkScriptureBible:
 		return true
 	case BookmarkScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BookmarkEntryScripture.
+const (
+	BookmarkEntryScriptureBible BookmarkEntryScripture = "bible"
+	BookmarkEntryScriptureQuran BookmarkEntryScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the BookmarkEntryScripture enum.
+func (e BookmarkEntryScripture) Valid() bool {
+	switch e {
+	case BookmarkEntryScriptureBible:
+		return true
+	case BookmarkEntryScriptureQuran:
 		return true
 	default:
 		return false
@@ -186,54 +201,18 @@ func (e CoverToCoverRequestScripture) Valid() bool {
 	}
 }
 
-// Defines values for CreateBookmarkRequestKind.
+// Defines values for CreateBookmarkEntryRequestScripture.
 const (
-	CreateBookmarkRequestKindCoverToCover CreateBookmarkRequestKind = "cover_to_cover"
-	CreateBookmarkRequestKindNormal       CreateBookmarkRequestKind = "normal"
+	CreateBookmarkEntryRequestScriptureBible CreateBookmarkEntryRequestScripture = "bible"
+	CreateBookmarkEntryRequestScriptureQuran CreateBookmarkEntryRequestScripture = "quran"
 )
 
-// Valid indicates whether the value is a known member of the CreateBookmarkRequestKind enum.
-func (e CreateBookmarkRequestKind) Valid() bool {
+// Valid indicates whether the value is a known member of the CreateBookmarkEntryRequestScripture enum.
+func (e CreateBookmarkEntryRequestScripture) Valid() bool {
 	switch e {
-	case CreateBookmarkRequestKindCoverToCover:
+	case CreateBookmarkEntryRequestScriptureBible:
 		return true
-	case CreateBookmarkRequestKindNormal:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for CreateBookmarkRequestScripture.
-const (
-	CreateBookmarkRequestScriptureBible CreateBookmarkRequestScripture = "bible"
-	CreateBookmarkRequestScriptureQuran CreateBookmarkRequestScripture = "quran"
-)
-
-// Valid indicates whether the value is a known member of the CreateBookmarkRequestScripture enum.
-func (e CreateBookmarkRequestScripture) Valid() bool {
-	switch e {
-	case CreateBookmarkRequestScriptureBible:
-		return true
-	case CreateBookmarkRequestScriptureQuran:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for CreateNoteRequestScripture.
-const (
-	CreateNoteRequestScriptureBible CreateNoteRequestScripture = "bible"
-	CreateNoteRequestScriptureQuran CreateNoteRequestScripture = "quran"
-)
-
-// Valid indicates whether the value is a known member of the CreateNoteRequestScripture enum.
-func (e CreateNoteRequestScripture) Valid() bool {
-	switch e {
-	case CreateNoteRequestScriptureBible:
-		return true
-	case CreateNoteRequestScriptureQuran:
+	case CreateBookmarkEntryRequestScriptureQuran:
 		return true
 	default:
 		return false
@@ -384,6 +363,39 @@ func (e ReadingProgressScripture) Valid() bool {
 	}
 }
 
+// Defines values for SearchResultScripture.
+const (
+	SearchResultScriptureBible SearchResultScripture = "bible"
+	SearchResultScriptureQuran SearchResultScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the SearchResultScripture enum.
+func (e SearchResultScripture) Valid() bool {
+	switch e {
+	case SearchResultScriptureBible:
+		return true
+	case SearchResultScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchResultSource.
+const (
+	SearchResultSourceNote SearchResultSource = "note"
+)
+
+// Valid indicates whether the value is a known member of the SearchResultSource enum.
+func (e SearchResultSource) Valid() bool {
+	switch e {
+	case SearchResultSourceNote:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TranslationContentD.
 const (
 	Ltr TranslationContentD = "ltr"
@@ -396,6 +408,24 @@ func (e TranslationContentD) Valid() bool {
 	case Ltr:
 		return true
 	case Rtl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpsertNoteRequestScripture.
+const (
+	UpsertNoteRequestScriptureBible UpsertNoteRequestScripture = "bible"
+	UpsertNoteRequestScriptureQuran UpsertNoteRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the UpsertNoteRequestScripture enum.
+func (e UpsertNoteRequestScripture) Valid() bool {
+	switch e {
+	case UpsertNoteRequestScriptureBible:
+		return true
+	case UpsertNoteRequestScriptureQuran:
 		return true
 	default:
 		return false
@@ -432,24 +462,6 @@ func (e GetCommunitiesParamsKind) Valid() bool {
 	case GetCommunitiesParamsKindOnline:
 		return true
 	case GetCommunitiesParamsKindPhysical:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetMeBookmarksParamsScripture.
-const (
-	GetMeBookmarksParamsScriptureBible GetMeBookmarksParamsScripture = "bible"
-	GetMeBookmarksParamsScriptureQuran GetMeBookmarksParamsScripture = "quran"
-)
-
-// Valid indicates whether the value is a known member of the GetMeBookmarksParamsScripture enum.
-func (e GetMeBookmarksParamsScripture) Valid() bool {
-	switch e {
-	case GetMeBookmarksParamsScriptureBible:
-		return true
-	case GetMeBookmarksParamsScriptureQuran:
 		return true
 	default:
 		return false
@@ -522,6 +534,24 @@ func (e GetMeScriptureStateParamsScripture) Valid() bool {
 	case GetMeScriptureStateParamsScriptureBible:
 		return true
 	case GetMeScriptureStateParamsScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMeSearchParamsScripture.
+const (
+	GetMeSearchParamsScriptureBible GetMeSearchParamsScripture = "bible"
+	GetMeSearchParamsScriptureQuran GetMeSearchParamsScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the GetMeSearchParamsScripture enum.
+func (e GetMeSearchParamsScripture) Valid() bool {
+	switch e {
+	case GetMeSearchParamsScriptureBible:
+		return true
+	case GetMeSearchParamsScriptureQuran:
 		return true
 	default:
 		return false
@@ -752,14 +782,53 @@ type BookmarkKind string
 // BookmarkScripture defines model for Bookmark.Scripture.
 type BookmarkScripture string
 
+// BookmarkCategory defines model for BookmarkCategory.
+type BookmarkCategory struct {
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// EntryCount Number of entries in this category.
+	EntryCount int       `json:"entry_count"`
+	Id         int64     `json:"id"`
+	Name       string    `json:"name"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// BookmarkCategoryEnvelope defines model for BookmarkCategoryEnvelope.
+type BookmarkCategoryEnvelope struct {
+	Data BookmarkCategory `json:"data"`
+}
+
+// BookmarkCategoryListEnvelope defines model for BookmarkCategoryListEnvelope.
+type BookmarkCategoryListEnvelope struct {
+	Data []BookmarkCategory `json:"data"`
+}
+
+// BookmarkEntry defines model for BookmarkEntry.
+type BookmarkEntry struct {
+	CategoryId int64                  `json:"category_id"`
+	CreatedAt  time.Time              `json:"created_at"`
+	Id         int64                  `json:"id"`
+	Scripture  BookmarkEntryScripture `json:"scripture"`
+	VerseKey   string                 `json:"verse_key"`
+}
+
+// BookmarkEntryScripture defines model for BookmarkEntry.Scripture.
+type BookmarkEntryScripture string
+
+// BookmarkEntryEnvelope defines model for BookmarkEntryEnvelope.
+type BookmarkEntryEnvelope struct {
+	Data BookmarkEntry `json:"data"`
+}
+
+// BookmarkEntryListEnvelope defines model for BookmarkEntryListEnvelope.
+type BookmarkEntryListEnvelope struct {
+	Data []BookmarkEntry `json:"data"`
+}
+
 // BookmarkEnvelope defines model for BookmarkEnvelope.
 type BookmarkEnvelope struct {
 	Data Bookmark `json:"data"`
-}
-
-// BookmarkListEnvelope defines model for BookmarkListEnvelope.
-type BookmarkListEnvelope struct {
-	Data []Bookmark `json:"data"`
 }
 
 // Chapter Metadata for a single Quranic chapter.
@@ -901,20 +970,21 @@ type CoverToCoverRequest struct {
 // CoverToCoverRequestScripture defines model for CoverToCoverRequest.Scripture.
 type CoverToCoverRequestScripture string
 
-// CreateBookmarkRequest defines model for CreateBookmarkRequest.
-type CreateBookmarkRequest struct {
-	Color     *string                        `json:"color,omitempty"`
-	Kind      *CreateBookmarkRequestKind     `json:"kind,omitempty"`
-	Name      *string                        `json:"name,omitempty"`
-	Scripture CreateBookmarkRequestScripture `json:"scripture"`
-	VerseKey  string                         `json:"verse_key"`
+// CreateBookmarkCategoryRequest defines model for CreateBookmarkCategoryRequest.
+type CreateBookmarkCategoryRequest struct {
+	Color *string `json:"color,omitempty"`
+	Name  string  `json:"name"`
 }
 
-// CreateBookmarkRequestKind defines model for CreateBookmarkRequest.Kind.
-type CreateBookmarkRequestKind string
+// CreateBookmarkEntryRequest defines model for CreateBookmarkEntryRequest.
+type CreateBookmarkEntryRequest struct {
+	CategoryId int64                               `json:"category_id"`
+	Scripture  CreateBookmarkEntryRequestScripture `json:"scripture"`
+	VerseKey   string                              `json:"verse_key"`
+}
 
-// CreateBookmarkRequestScripture defines model for CreateBookmarkRequest.Scripture.
-type CreateBookmarkRequestScripture string
+// CreateBookmarkEntryRequestScripture defines model for CreateBookmarkEntryRequest.Scripture.
+type CreateBookmarkEntryRequestScripture string
 
 // CreateCollectionRequest defines model for CreateCollectionRequest.
 type CreateCollectionRequest struct {
@@ -922,17 +992,6 @@ type CreateCollectionRequest struct {
 	IsPublic    *bool   `json:"is_public,omitempty"`
 	Name        string  `json:"name"`
 }
-
-// CreateNoteRequest defines model for CreateNoteRequest.
-type CreateNoteRequest struct {
-	Content   string                     `json:"content"`
-	Lang      *string                    `json:"lang,omitempty"`
-	Scripture CreateNoteRequestScripture `json:"scripture"`
-	VerseKey  string                     `json:"verse_key"`
-}
-
-// CreateNoteRequestScripture defines model for CreateNoteRequest.Scripture.
-type CreateNoteRequestScripture string
 
 // Derivative A distinct surface form (token spelling) of a root, with its occurrence count. `tr` is the Latin transliteration of the surface form, sourced from `word_text` rows tagged with the `tl` language (most-common value when multiple readings exist). `en` and `p` (POS) remain reserved for Phase 2 morphology data and are still `null`.
 type Derivative struct {
@@ -978,6 +1037,11 @@ type Language struct {
 
 // LanguageDirection Text direction for this language. `ltr` for left-to-right scripts; `rtl` for right-to-left scripts (Arabic, Hebrew, Urdu, Persian).
 type LanguageDirection string
+
+// MeSearchEnvelope defines model for MeSearchEnvelope.
+type MeSearchEnvelope struct {
+	Data []SearchResult `json:"data"`
+}
 
 // MusicAlbum A music album in the catalogue.
 type MusicAlbum struct {
@@ -1062,10 +1126,10 @@ type MusicTrack struct {
 
 // Note defines model for Note.
 type Note struct {
+	// Content Markdown content.
 	Content   string        `json:"content"`
 	CreatedAt time.Time     `json:"created_at"`
 	Id        int64         `json:"id"`
-	Lang      string        `json:"lang"`
 	Scripture NoteScripture `json:"scripture"`
 	UpdatedAt time.Time     `json:"updated_at"`
 	VerseKey  string        `json:"verse_key"`
@@ -1264,9 +1328,29 @@ type RootsIndexResponse struct {
 
 // ScriptureState defines model for ScriptureState.
 type ScriptureState struct {
-	Bookmarks map[string]Bookmark `json:"bookmarks"`
-	Notes     map[string][]Note   `json:"notes"`
+	// Bookmarks Map of verse_key to list of bookmark entries for that verse.
+	Bookmarks map[string][]BookmarkEntry `json:"bookmarks"`
+
+	// Notes Map of verse_key to the single note for that verse.
+	Notes map[string]Note `json:"notes"`
 }
+
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	// Excerpt Highlighted excerpt from the note content showing the match context.
+	Excerpt   string                `json:"excerpt"`
+	Scripture SearchResultScripture `json:"scripture"`
+
+	// Source Origin of this result. Only 'note' is returned here; verse results come from the existing /search endpoints.
+	Source   SearchResultSource `json:"source"`
+	VerseKey string             `json:"verse_key"`
+}
+
+// SearchResultScripture defines model for SearchResult.Scripture.
+type SearchResultScripture string
+
+// SearchResultSource Origin of this result. Only 'note' is returned here; verse results come from the existing /search endpoints.
+type SearchResultSource string
 
 // Streak defines model for Streak.
 type Streak struct {
@@ -1308,8 +1392,8 @@ type TranslationContent struct {
 // TranslationContentD direction — text direction for this language. `ltr` for Latin-script languages (English, French, …); `rtl` for Arabic, Hebrew, Urdu, etc.
 type TranslationContentD string
 
-// UpdateBookmarkRequest defines model for UpdateBookmarkRequest.
-type UpdateBookmarkRequest struct {
+// UpdateBookmarkCategoryRequest defines model for UpdateBookmarkCategoryRequest.
+type UpdateBookmarkCategoryRequest struct {
 	Color *string `json:"color,omitempty"`
 	Name  *string `json:"name,omitempty"`
 }
@@ -1322,10 +1406,16 @@ type UpdateCollectionRequest struct {
 	RegenerateToken *bool   `json:"regenerate_token,omitempty"`
 }
 
-// UpdateNoteRequest defines model for UpdateNoteRequest.
-type UpdateNoteRequest struct {
-	Content string `json:"content"`
+// UpsertNoteRequest defines model for UpsertNoteRequest.
+type UpsertNoteRequest struct {
+	// Content Markdown content.
+	Content   string                     `json:"content"`
+	Scripture UpsertNoteRequestScripture `json:"scripture"`
+	VerseKey  string                     `json:"verse_key"`
 }
+
+// UpsertNoteRequestScripture defines model for UpsertNoteRequest.Scripture.
+type UpsertNoteRequestScripture string
 
 // VerseData A single Quranic verse with its translations in the requested languages, and optionally word-by-word data.
 type VerseData struct {
@@ -1478,21 +1568,11 @@ type GetCommunitiesParams struct {
 // GetCommunitiesParamsKind defines parameters for GetCommunities.
 type GetCommunitiesParamsKind string
 
-// GetMeBookmarksParams defines parameters for GetMeBookmarks.
-type GetMeBookmarksParams struct {
-	// Scripture Scripture scope for user data.
-	Scripture *GetMeBookmarksParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
-}
-
-// GetMeBookmarksParamsScripture defines parameters for GetMeBookmarks.
-type GetMeBookmarksParamsScripture string
-
 // GetMeNotesParams defines parameters for GetMeNotes.
 type GetMeNotesParams struct {
 	// Scripture Scripture scope for user data.
 	Scripture *GetMeNotesParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
 	VerseKey  *string                    `form:"verse_key,omitempty" json:"verse_key,omitempty"`
-	Lang      *string                    `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetMeNotesParamsScripture defines parameters for GetMeNotes.
@@ -1525,6 +1605,18 @@ type GetMeScriptureStateParams struct {
 
 // GetMeScriptureStateParamsScripture defines parameters for GetMeScriptureState.
 type GetMeScriptureStateParamsScripture string
+
+// GetMeSearchParams defines parameters for GetMeSearch.
+type GetMeSearchParams struct {
+	// Q Search query string.
+	Q string `form:"q" json:"q"`
+
+	// Scripture Limit results to a single scripture. Omit for all.
+	Scripture *GetMeSearchParamsScripture `form:"scripture,omitempty" json:"scripture,omitempty"`
+}
+
+// GetMeSearchParamsScripture defines parameters for GetMeSearch.
+type GetMeSearchParamsScripture string
 
 // GetMeStreakParams defines parameters for GetMeStreak.
 type GetMeStreakParams struct {
@@ -1660,11 +1752,14 @@ type SearchParams struct {
 // SearchParamsScope defines parameters for Search.
 type SearchParamsScope string
 
-// CreateMeBookmarkJSONRequestBody defines body for CreateMeBookmark for application/json ContentType.
-type CreateMeBookmarkJSONRequestBody = CreateBookmarkRequest
+// CreateMeBookmarkCategoryJSONRequestBody defines body for CreateMeBookmarkCategory for application/json ContentType.
+type CreateMeBookmarkCategoryJSONRequestBody = CreateBookmarkCategoryRequest
 
-// UpdateMeBookmarkJSONRequestBody defines body for UpdateMeBookmark for application/json ContentType.
-type UpdateMeBookmarkJSONRequestBody = UpdateBookmarkRequest
+// UpdateMeBookmarkCategoryJSONRequestBody defines body for UpdateMeBookmarkCategory for application/json ContentType.
+type UpdateMeBookmarkCategoryJSONRequestBody = UpdateBookmarkCategoryRequest
+
+// CreateMeBookmarkEntryJSONRequestBody defines body for CreateMeBookmarkEntry for application/json ContentType.
+type CreateMeBookmarkEntryJSONRequestBody = CreateBookmarkEntryRequest
 
 // CreateMeCollectionJSONRequestBody defines body for CreateMeCollection for application/json ContentType.
 type CreateMeCollectionJSONRequestBody = CreateCollectionRequest
@@ -1678,11 +1773,8 @@ type AddVerseToMeCollectionJSONRequestBody = AddCollectionVerseRequest
 // PutMeCoverToCoverJSONRequestBody defines body for PutMeCoverToCover for application/json ContentType.
 type PutMeCoverToCoverJSONRequestBody = CoverToCoverRequest
 
-// CreateMeNoteJSONRequestBody defines body for CreateMeNote for application/json ContentType.
-type CreateMeNoteJSONRequestBody = CreateNoteRequest
-
-// UpdateMeNoteJSONRequestBody defines body for UpdateMeNote for application/json ContentType.
-type UpdateMeNoteJSONRequestBody = UpdateNoteRequest
+// UpsertMeNoteJSONRequestBody defines body for UpsertMeNote for application/json ContentType.
+type UpsertMeNoteJSONRequestBody = UpsertNoteRequest
 
 // PutMePreferencesJSONRequestBody defines body for PutMePreferences for application/json ContentType.
 type PutMePreferencesJSONRequestBody = PutPreferencesRequest
@@ -1719,18 +1811,27 @@ type ServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
-	// List current user's bookmarks
-	// (GET /me/bookmarks)
-	GetMeBookmarks(c *gin.Context, params GetMeBookmarksParams)
-	// Create a bookmark for the current user
-	// (POST /me/bookmarks)
-	CreateMeBookmark(c *gin.Context)
-	// Delete a bookmark
-	// (DELETE /me/bookmarks/{id})
-	DeleteMeBookmark(c *gin.Context, id int64)
-	// Update a bookmark
-	// (PATCH /me/bookmarks/{id})
-	UpdateMeBookmark(c *gin.Context, id int64)
+	// List current user's bookmark categories
+	// (GET /me/bookmark-categories)
+	ListMeBookmarkCategories(c *gin.Context)
+	// Create a bookmark category
+	// (POST /me/bookmark-categories)
+	CreateMeBookmarkCategory(c *gin.Context)
+	// Delete a bookmark category and all its entries
+	// (DELETE /me/bookmark-categories/{id})
+	DeleteMeBookmarkCategory(c *gin.Context, id int64)
+	// Update a bookmark category name or color
+	// (PATCH /me/bookmark-categories/{id})
+	UpdateMeBookmarkCategory(c *gin.Context, id int64)
+	// List all entries in a bookmark category (cross-scripture)
+	// (GET /me/bookmark-categories/{id}/entries)
+	ListMeBookmarkCategoryEntries(c *gin.Context, id int64)
+	// Add a verse to a bookmark category
+	// (POST /me/bookmark-entries)
+	CreateMeBookmarkEntry(c *gin.Context)
+	// Remove a verse from a bookmark category
+	// (DELETE /me/bookmark-entries/{id})
+	DeleteMeBookmarkEntry(c *gin.Context, id int64)
 	// List current user's collections
 	// (GET /me/collections)
 	ListMeCollections(c *gin.Context)
@@ -1758,15 +1859,12 @@ type ServerInterface interface {
 	// List current user's notes
 	// (GET /me/notes)
 	GetMeNotes(c *gin.Context, params GetMeNotesParams)
-	// Create a note
-	// (POST /me/notes)
-	CreateMeNote(c *gin.Context)
+	// Create or update the note for a verse (one note per verse)
+	// (PUT /me/notes)
+	UpsertMeNote(c *gin.Context)
 	// Delete a note
 	// (DELETE /me/notes/{id})
 	DeleteMeNote(c *gin.Context, id int64)
-	// Update a note
-	// (PATCH /me/notes/{id})
-	UpdateMeNote(c *gin.Context, id int64)
 	// Get per-scripture preferences
 	// (GET /me/preferences)
 	GetMePreferences(c *gin.Context, params GetMePreferencesParams)
@@ -1785,6 +1883,9 @@ type ServerInterface interface {
 	// Get bookmark and note state for a chapter
 	// (GET /me/scripture-state)
 	GetMeScriptureState(c *gin.Context, params GetMeScriptureStateParams)
+	// Search verses and personal notes
+	// (GET /me/search)
+	GetMeSearch(c *gin.Context, params GetMeSearchParams)
 	// Get reading streak metrics
 	// (GET /me/streak)
 	GetMeStreak(c *gin.Context, params GetMeStreakParams)
@@ -2114,36 +2215,8 @@ func (siw *ServerInterfaceWrapper) GetLanguages(c *gin.Context) {
 	siw.Handler.GetLanguages(c)
 }
 
-// GetMeBookmarks operation middleware
-func (siw *ServerInterfaceWrapper) GetMeBookmarks(c *gin.Context) {
-
-	var err error
-
-	c.Set(BearerAuthScopes, []string{})
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetMeBookmarksParams
-
-	// ------------- Optional query parameter "scripture" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.GetMeBookmarks(c, params)
-}
-
-// CreateMeBookmark operation middleware
-func (siw *ServerInterfaceWrapper) CreateMeBookmark(c *gin.Context) {
+// ListMeBookmarkCategories operation middleware
+func (siw *ServerInterfaceWrapper) ListMeBookmarkCategories(c *gin.Context) {
 
 	c.Set(BearerAuthScopes, []string{})
 
@@ -2154,11 +2227,26 @@ func (siw *ServerInterfaceWrapper) CreateMeBookmark(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.CreateMeBookmark(c)
+	siw.Handler.ListMeBookmarkCategories(c)
 }
 
-// DeleteMeBookmark operation middleware
-func (siw *ServerInterfaceWrapper) DeleteMeBookmark(c *gin.Context) {
+// CreateMeBookmarkCategory operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeBookmarkCategory(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateMeBookmarkCategory(c)
+}
+
+// DeleteMeBookmarkCategory operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeBookmarkCategory(c *gin.Context) {
 
 	var err error
 
@@ -2180,11 +2268,11 @@ func (siw *ServerInterfaceWrapper) DeleteMeBookmark(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.DeleteMeBookmark(c, id)
+	siw.Handler.DeleteMeBookmarkCategory(c, id)
 }
 
-// UpdateMeBookmark operation middleware
-func (siw *ServerInterfaceWrapper) UpdateMeBookmark(c *gin.Context) {
+// UpdateMeBookmarkCategory operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMeBookmarkCategory(c *gin.Context) {
 
 	var err error
 
@@ -2206,7 +2294,74 @@ func (siw *ServerInterfaceWrapper) UpdateMeBookmark(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.UpdateMeBookmark(c, id)
+	siw.Handler.UpdateMeBookmarkCategory(c, id)
+}
+
+// ListMeBookmarkCategoryEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListMeBookmarkCategoryEntries(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListMeBookmarkCategoryEntries(c, id)
+}
+
+// CreateMeBookmarkEntry operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeBookmarkEntry(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateMeBookmarkEntry(c)
+}
+
+// DeleteMeBookmarkEntry operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeBookmarkEntry(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteMeBookmarkEntry(c, id)
 }
 
 // ListMeCollections operation middleware
@@ -2419,14 +2574,6 @@ func (siw *ServerInterfaceWrapper) GetMeNotes(c *gin.Context) {
 		return
 	}
 
-	// ------------- Optional query parameter "lang" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
-		return
-	}
-
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -2437,8 +2584,8 @@ func (siw *ServerInterfaceWrapper) GetMeNotes(c *gin.Context) {
 	siw.Handler.GetMeNotes(c, params)
 }
 
-// CreateMeNote operation middleware
-func (siw *ServerInterfaceWrapper) CreateMeNote(c *gin.Context) {
+// UpsertMeNote operation middleware
+func (siw *ServerInterfaceWrapper) UpsertMeNote(c *gin.Context) {
 
 	c.Set(BearerAuthScopes, []string{})
 
@@ -2449,7 +2596,7 @@ func (siw *ServerInterfaceWrapper) CreateMeNote(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.CreateMeNote(c)
+	siw.Handler.UpsertMeNote(c)
 }
 
 // DeleteMeNote operation middleware
@@ -2476,32 +2623,6 @@ func (siw *ServerInterfaceWrapper) DeleteMeNote(c *gin.Context) {
 	}
 
 	siw.Handler.DeleteMeNote(c, id)
-}
-
-// UpdateMeNote operation middleware
-func (siw *ServerInterfaceWrapper) UpdateMeNote(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(BearerAuthScopes, []string{})
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.UpdateMeNote(c, id)
 }
 
 // GetMePreferences operation middleware
@@ -2646,6 +2767,49 @@ func (siw *ServerInterfaceWrapper) GetMeScriptureState(c *gin.Context) {
 	}
 
 	siw.Handler.GetMeScriptureState(c, params)
+}
+
+// GetMeSearch operation middleware
+func (siw *ServerInterfaceWrapper) GetMeSearch(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeSearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	if paramValue := c.Query("q"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument q is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "scripture" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scripture", c.Request.URL.Query(), &params.Scripture, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scripture: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeSearch(c, params)
 }
 
 // GetMeStreak operation middleware
@@ -3149,10 +3313,13 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/collections/share/:token", wrapper.GetSharedCollection)
 	router.GET(options.BaseURL+"/communities", wrapper.GetCommunities)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
-	router.GET(options.BaseURL+"/me/bookmarks", wrapper.GetMeBookmarks)
-	router.POST(options.BaseURL+"/me/bookmarks", wrapper.CreateMeBookmark)
-	router.DELETE(options.BaseURL+"/me/bookmarks/:id", wrapper.DeleteMeBookmark)
-	router.PATCH(options.BaseURL+"/me/bookmarks/:id", wrapper.UpdateMeBookmark)
+	router.GET(options.BaseURL+"/me/bookmark-categories", wrapper.ListMeBookmarkCategories)
+	router.POST(options.BaseURL+"/me/bookmark-categories", wrapper.CreateMeBookmarkCategory)
+	router.DELETE(options.BaseURL+"/me/bookmark-categories/:id", wrapper.DeleteMeBookmarkCategory)
+	router.PATCH(options.BaseURL+"/me/bookmark-categories/:id", wrapper.UpdateMeBookmarkCategory)
+	router.GET(options.BaseURL+"/me/bookmark-categories/:id/entries", wrapper.ListMeBookmarkCategoryEntries)
+	router.POST(options.BaseURL+"/me/bookmark-entries", wrapper.CreateMeBookmarkEntry)
+	router.DELETE(options.BaseURL+"/me/bookmark-entries/:id", wrapper.DeleteMeBookmarkEntry)
 	router.GET(options.BaseURL+"/me/collections", wrapper.ListMeCollections)
 	router.POST(options.BaseURL+"/me/collections", wrapper.CreateMeCollection)
 	router.DELETE(options.BaseURL+"/me/collections/:id", wrapper.DeleteMeCollection)
@@ -3162,15 +3329,15 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/me/collections/:id/verses/:verseId", wrapper.RemoveVerseFromMeCollection)
 	router.PUT(options.BaseURL+"/me/cover-to-cover", wrapper.PutMeCoverToCover)
 	router.GET(options.BaseURL+"/me/notes", wrapper.GetMeNotes)
-	router.POST(options.BaseURL+"/me/notes", wrapper.CreateMeNote)
+	router.PUT(options.BaseURL+"/me/notes", wrapper.UpsertMeNote)
 	router.DELETE(options.BaseURL+"/me/notes/:id", wrapper.DeleteMeNote)
-	router.PATCH(options.BaseURL+"/me/notes/:id", wrapper.UpdateMeNote)
 	router.GET(options.BaseURL+"/me/preferences", wrapper.GetMePreferences)
 	router.PUT(options.BaseURL+"/me/preferences", wrapper.PutMePreferences)
 	router.POST(options.BaseURL+"/me/reading-log", wrapper.PostMeReadingLog)
 	router.GET(options.BaseURL+"/me/reading-progress", wrapper.GetMeReadingProgress)
 	router.PUT(options.BaseURL+"/me/reading-progress", wrapper.PutMeReadingProgress)
 	router.GET(options.BaseURL+"/me/scripture-state", wrapper.GetMeScriptureState)
+	router.GET(options.BaseURL+"/me/search", wrapper.GetMeSearch)
 	router.GET(options.BaseURL+"/me/streak", wrapper.GetMeStreak)
 	router.GET(options.BaseURL+"/music/albums", wrapper.GetMusicAlbums)
 	router.GET(options.BaseURL+"/music/artists", wrapper.GetMusicArtists)
@@ -3551,167 +3718,268 @@ func (response GetLanguages500JSONResponse) VisitGetLanguagesResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetMeBookmarksRequestObject struct {
-	Params GetMeBookmarksParams
+type ListMeBookmarkCategoriesRequestObject struct {
 }
 
-type GetMeBookmarksResponseObject interface {
-	VisitGetMeBookmarksResponse(w http.ResponseWriter) error
+type ListMeBookmarkCategoriesResponseObject interface {
+	VisitListMeBookmarkCategoriesResponse(w http.ResponseWriter) error
 }
 
-type GetMeBookmarks200JSONResponse BookmarkListEnvelope
+type ListMeBookmarkCategories200JSONResponse BookmarkCategoryListEnvelope
 
-func (response GetMeBookmarks200JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
+func (response ListMeBookmarkCategories200JSONResponse) VisitListMeBookmarkCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetMeBookmarks400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response GetMeBookmarks400JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetMeBookmarks500JSONResponse struct {
+type ListMeBookmarkCategories500JSONResponse struct {
 	InternalServerErrrorJSONResponse
 }
 
-func (response GetMeBookmarks500JSONResponse) VisitGetMeBookmarksResponse(w http.ResponseWriter) error {
+func (response ListMeBookmarkCategories500JSONResponse) VisitListMeBookmarkCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeBookmarkRequestObject struct {
-	Body *CreateMeBookmarkJSONRequestBody
+type CreateMeBookmarkCategoryRequestObject struct {
+	Body *CreateMeBookmarkCategoryJSONRequestBody
 }
 
-type CreateMeBookmarkResponseObject interface {
-	VisitCreateMeBookmarkResponse(w http.ResponseWriter) error
+type CreateMeBookmarkCategoryResponseObject interface {
+	VisitCreateMeBookmarkCategoryResponse(w http.ResponseWriter) error
 }
 
-type CreateMeBookmark201JSONResponse BookmarkEnvelope
+type CreateMeBookmarkCategory201JSONResponse BookmarkCategoryEnvelope
 
-func (response CreateMeBookmark201JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response CreateMeBookmarkCategory201JSONResponse) VisitCreateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+type CreateMeBookmarkCategory400JSONResponse struct{ BadRequestJSONResponse }
 
-func (response CreateMeBookmark400JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response CreateMeBookmarkCategory400JSONResponse) VisitCreateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeBookmark500JSONResponse struct {
+type CreateMeBookmarkCategory500JSONResponse struct {
 	InternalServerErrrorJSONResponse
 }
 
-func (response CreateMeBookmark500JSONResponse) VisitCreateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response CreateMeBookmarkCategory500JSONResponse) VisitCreateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteMeBookmarkRequestObject struct {
+type DeleteMeBookmarkCategoryRequestObject struct {
 	Id int64 `json:"id"`
 }
 
-type DeleteMeBookmarkResponseObject interface {
-	VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error
+type DeleteMeBookmarkCategoryResponseObject interface {
+	VisitDeleteMeBookmarkCategoryResponse(w http.ResponseWriter) error
 }
 
-type DeleteMeBookmark200JSONResponse NullDataEnvelope
+type DeleteMeBookmarkCategory200JSONResponse NullDataEnvelope
 
-func (response DeleteMeBookmark200JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+func (response DeleteMeBookmarkCategory200JSONResponse) VisitDeleteMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+type DeleteMeBookmarkCategory404JSONResponse struct{ NotFoundJSONResponse }
 
-func (response DeleteMeBookmark400JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type DeleteMeBookmark404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response DeleteMeBookmark404JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+func (response DeleteMeBookmarkCategory404JSONResponse) VisitDeleteMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteMeBookmark500JSONResponse struct {
+type DeleteMeBookmarkCategory500JSONResponse struct {
 	InternalServerErrrorJSONResponse
 }
 
-func (response DeleteMeBookmark500JSONResponse) VisitDeleteMeBookmarkResponse(w http.ResponseWriter) error {
+func (response DeleteMeBookmarkCategory500JSONResponse) VisitDeleteMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UpdateMeBookmarkRequestObject struct {
+type UpdateMeBookmarkCategoryRequestObject struct {
 	Id   int64 `json:"id"`
-	Body *UpdateMeBookmarkJSONRequestBody
+	Body *UpdateMeBookmarkCategoryJSONRequestBody
 }
 
-type UpdateMeBookmarkResponseObject interface {
-	VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error
+type UpdateMeBookmarkCategoryResponseObject interface {
+	VisitUpdateMeBookmarkCategoryResponse(w http.ResponseWriter) error
 }
 
-type UpdateMeBookmark200JSONResponse BookmarkEnvelope
+type UpdateMeBookmarkCategory200JSONResponse BookmarkCategoryEnvelope
 
-func (response UpdateMeBookmark200JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response UpdateMeBookmarkCategory200JSONResponse) VisitUpdateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UpdateMeBookmark400JSONResponse struct{ BadRequestJSONResponse }
+type UpdateMeBookmarkCategory400JSONResponse struct{ BadRequestJSONResponse }
 
-func (response UpdateMeBookmark400JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response UpdateMeBookmarkCategory400JSONResponse) VisitUpdateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UpdateMeBookmark404JSONResponse struct{ NotFoundJSONResponse }
+type UpdateMeBookmarkCategory404JSONResponse struct{ NotFoundJSONResponse }
 
-func (response UpdateMeBookmark404JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response UpdateMeBookmarkCategory404JSONResponse) VisitUpdateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UpdateMeBookmark500JSONResponse struct {
+type UpdateMeBookmarkCategory500JSONResponse struct {
 	InternalServerErrrorJSONResponse
 }
 
-func (response UpdateMeBookmark500JSONResponse) VisitUpdateMeBookmarkResponse(w http.ResponseWriter) error {
+func (response UpdateMeBookmarkCategory500JSONResponse) VisitUpdateMeBookmarkCategoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeBookmarkCategoryEntriesRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type ListMeBookmarkCategoryEntriesResponseObject interface {
+	VisitListMeBookmarkCategoryEntriesResponse(w http.ResponseWriter) error
+}
+
+type ListMeBookmarkCategoryEntries200JSONResponse BookmarkEntryListEnvelope
+
+func (response ListMeBookmarkCategoryEntries200JSONResponse) VisitListMeBookmarkCategoryEntriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeBookmarkCategoryEntries404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListMeBookmarkCategoryEntries404JSONResponse) VisitListMeBookmarkCategoryEntriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeBookmarkCategoryEntries500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListMeBookmarkCategoryEntries500JSONResponse) VisitListMeBookmarkCategoryEntriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmarkEntryRequestObject struct {
+	Body *CreateMeBookmarkEntryJSONRequestBody
+}
+
+type CreateMeBookmarkEntryResponseObject interface {
+	VisitCreateMeBookmarkEntryResponse(w http.ResponseWriter) error
+}
+
+type CreateMeBookmarkEntry201JSONResponse BookmarkEntryEnvelope
+
+func (response CreateMeBookmarkEntry201JSONResponse) VisitCreateMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmarkEntry400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateMeBookmarkEntry400JSONResponse) VisitCreateMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmarkEntry409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CreateMeBookmarkEntry409JSONResponse) VisitCreateMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateMeBookmarkEntry500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateMeBookmarkEntry500JSONResponse) VisitCreateMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmarkEntryRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteMeBookmarkEntryResponseObject interface {
+	VisitDeleteMeBookmarkEntryResponse(w http.ResponseWriter) error
+}
+
+type DeleteMeBookmarkEntry200JSONResponse NullDataEnvelope
+
+func (response DeleteMeBookmarkEntry200JSONResponse) VisitDeleteMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmarkEntry404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteMeBookmarkEntry404JSONResponse) VisitDeleteMeBookmarkEntryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteMeBookmarkEntry500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response DeleteMeBookmarkEntry500JSONResponse) VisitDeleteMeBookmarkEntryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4080,37 +4348,37 @@ func (response GetMeNotes500JSONResponse) VisitGetMeNotesResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeNoteRequestObject struct {
-	Body *CreateMeNoteJSONRequestBody
+type UpsertMeNoteRequestObject struct {
+	Body *UpsertMeNoteJSONRequestBody
 }
 
-type CreateMeNoteResponseObject interface {
-	VisitCreateMeNoteResponse(w http.ResponseWriter) error
+type UpsertMeNoteResponseObject interface {
+	VisitUpsertMeNoteResponse(w http.ResponseWriter) error
 }
 
-type CreateMeNote201JSONResponse NoteEnvelope
+type UpsertMeNote200JSONResponse NoteEnvelope
 
-func (response CreateMeNote201JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+func (response UpsertMeNote200JSONResponse) VisitUpsertMeNoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeNote400JSONResponse struct{ BadRequestJSONResponse }
+type UpsertMeNote400JSONResponse struct{ BadRequestJSONResponse }
 
-func (response CreateMeNote400JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+func (response UpsertMeNote400JSONResponse) VisitUpsertMeNoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateMeNote500JSONResponse struct {
+type UpsertMeNote500JSONResponse struct {
 	InternalServerErrrorJSONResponse
 }
 
-func (response CreateMeNote500JSONResponse) VisitCreateMeNoteResponse(w http.ResponseWriter) error {
+func (response UpsertMeNote500JSONResponse) VisitUpsertMeNoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4134,15 +4402,6 @@ func (response DeleteMeNote200JSONResponse) VisitDeleteMeNoteResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeleteMeNote400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response DeleteMeNote400JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type DeleteMeNote404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response DeleteMeNote404JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
@@ -4157,53 +4416,6 @@ type DeleteMeNote500JSONResponse struct {
 }
 
 func (response DeleteMeNote500JSONResponse) VisitDeleteMeNoteResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateMeNoteRequestObject struct {
-	Id   int64 `json:"id"`
-	Body *UpdateMeNoteJSONRequestBody
-}
-
-type UpdateMeNoteResponseObject interface {
-	VisitUpdateMeNoteResponse(w http.ResponseWriter) error
-}
-
-type UpdateMeNote200JSONResponse NoteEnvelope
-
-func (response UpdateMeNote200JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateMeNote400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response UpdateMeNote400JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateMeNote404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response UpdateMeNote404JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type UpdateMeNote500JSONResponse struct {
-	InternalServerErrrorJSONResponse
-}
-
-func (response UpdateMeNote500JSONResponse) VisitUpdateMeNoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4426,6 +4638,43 @@ type GetMeScriptureState500JSONResponse struct {
 }
 
 func (response GetMeScriptureState500JSONResponse) VisitGetMeScriptureStateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeSearchRequestObject struct {
+	Params GetMeSearchParams
+}
+
+type GetMeSearchResponseObject interface {
+	VisitGetMeSearchResponse(w http.ResponseWriter) error
+}
+
+type GetMeSearch200JSONResponse MeSearchEnvelope
+
+func (response GetMeSearch200JSONResponse) VisitGetMeSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeSearch400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMeSearch400JSONResponse) VisitGetMeSearchResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeSearch500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeSearch500JSONResponse) VisitGetMeSearchResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4849,18 +5098,27 @@ type StrictServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
-	// List current user's bookmarks
-	// (GET /me/bookmarks)
-	GetMeBookmarks(ctx context.Context, request GetMeBookmarksRequestObject) (GetMeBookmarksResponseObject, error)
-	// Create a bookmark for the current user
-	// (POST /me/bookmarks)
-	CreateMeBookmark(ctx context.Context, request CreateMeBookmarkRequestObject) (CreateMeBookmarkResponseObject, error)
-	// Delete a bookmark
-	// (DELETE /me/bookmarks/{id})
-	DeleteMeBookmark(ctx context.Context, request DeleteMeBookmarkRequestObject) (DeleteMeBookmarkResponseObject, error)
-	// Update a bookmark
-	// (PATCH /me/bookmarks/{id})
-	UpdateMeBookmark(ctx context.Context, request UpdateMeBookmarkRequestObject) (UpdateMeBookmarkResponseObject, error)
+	// List current user's bookmark categories
+	// (GET /me/bookmark-categories)
+	ListMeBookmarkCategories(ctx context.Context, request ListMeBookmarkCategoriesRequestObject) (ListMeBookmarkCategoriesResponseObject, error)
+	// Create a bookmark category
+	// (POST /me/bookmark-categories)
+	CreateMeBookmarkCategory(ctx context.Context, request CreateMeBookmarkCategoryRequestObject) (CreateMeBookmarkCategoryResponseObject, error)
+	// Delete a bookmark category and all its entries
+	// (DELETE /me/bookmark-categories/{id})
+	DeleteMeBookmarkCategory(ctx context.Context, request DeleteMeBookmarkCategoryRequestObject) (DeleteMeBookmarkCategoryResponseObject, error)
+	// Update a bookmark category name or color
+	// (PATCH /me/bookmark-categories/{id})
+	UpdateMeBookmarkCategory(ctx context.Context, request UpdateMeBookmarkCategoryRequestObject) (UpdateMeBookmarkCategoryResponseObject, error)
+	// List all entries in a bookmark category (cross-scripture)
+	// (GET /me/bookmark-categories/{id}/entries)
+	ListMeBookmarkCategoryEntries(ctx context.Context, request ListMeBookmarkCategoryEntriesRequestObject) (ListMeBookmarkCategoryEntriesResponseObject, error)
+	// Add a verse to a bookmark category
+	// (POST /me/bookmark-entries)
+	CreateMeBookmarkEntry(ctx context.Context, request CreateMeBookmarkEntryRequestObject) (CreateMeBookmarkEntryResponseObject, error)
+	// Remove a verse from a bookmark category
+	// (DELETE /me/bookmark-entries/{id})
+	DeleteMeBookmarkEntry(ctx context.Context, request DeleteMeBookmarkEntryRequestObject) (DeleteMeBookmarkEntryResponseObject, error)
 	// List current user's collections
 	// (GET /me/collections)
 	ListMeCollections(ctx context.Context, request ListMeCollectionsRequestObject) (ListMeCollectionsResponseObject, error)
@@ -4888,15 +5146,12 @@ type StrictServerInterface interface {
 	// List current user's notes
 	// (GET /me/notes)
 	GetMeNotes(ctx context.Context, request GetMeNotesRequestObject) (GetMeNotesResponseObject, error)
-	// Create a note
-	// (POST /me/notes)
-	CreateMeNote(ctx context.Context, request CreateMeNoteRequestObject) (CreateMeNoteResponseObject, error)
+	// Create or update the note for a verse (one note per verse)
+	// (PUT /me/notes)
+	UpsertMeNote(ctx context.Context, request UpsertMeNoteRequestObject) (UpsertMeNoteResponseObject, error)
 	// Delete a note
 	// (DELETE /me/notes/{id})
 	DeleteMeNote(ctx context.Context, request DeleteMeNoteRequestObject) (DeleteMeNoteResponseObject, error)
-	// Update a note
-	// (PATCH /me/notes/{id})
-	UpdateMeNote(ctx context.Context, request UpdateMeNoteRequestObject) (UpdateMeNoteResponseObject, error)
 	// Get per-scripture preferences
 	// (GET /me/preferences)
 	GetMePreferences(ctx context.Context, request GetMePreferencesRequestObject) (GetMePreferencesResponseObject, error)
@@ -4915,6 +5170,9 @@ type StrictServerInterface interface {
 	// Get bookmark and note state for a chapter
 	// (GET /me/scripture-state)
 	GetMeScriptureState(ctx context.Context, request GetMeScriptureStateRequestObject) (GetMeScriptureStateResponseObject, error)
+	// Search verses and personal notes
+	// (GET /me/search)
+	GetMeSearch(ctx context.Context, request GetMeSearchRequestObject) (GetMeSearchResponseObject, error)
 	// Get reading streak metrics
 	// (GET /me/streak)
 	GetMeStreak(ctx context.Context, request GetMeStreakRequestObject) (GetMeStreakResponseObject, error)
@@ -5171,17 +5429,15 @@ func (sh *strictHandler) GetLanguages(ctx *gin.Context) {
 	}
 }
 
-// GetMeBookmarks operation middleware
-func (sh *strictHandler) GetMeBookmarks(ctx *gin.Context, params GetMeBookmarksParams) {
-	var request GetMeBookmarksRequestObject
-
-	request.Params = params
+// ListMeBookmarkCategories operation middleware
+func (sh *strictHandler) ListMeBookmarkCategories(ctx *gin.Context) {
+	var request ListMeBookmarkCategoriesRequestObject
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetMeBookmarks(ctx, request.(GetMeBookmarksRequestObject))
+		return sh.ssi.ListMeBookmarkCategories(ctx, request.(ListMeBookmarkCategoriesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetMeBookmarks")
+		handler = middleware(handler, "ListMeBookmarkCategories")
 	}
 
 	response, err := handler(ctx, request)
@@ -5189,8 +5445,8 @@ func (sh *strictHandler) GetMeBookmarks(ctx *gin.Context, params GetMeBookmarksP
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetMeBookmarksResponseObject); ok {
-		if err := validResponse.VisitGetMeBookmarksResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(ListMeBookmarkCategoriesResponseObject); ok {
+		if err := validResponse.VisitListMeBookmarkCategoriesResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5198,11 +5454,11 @@ func (sh *strictHandler) GetMeBookmarks(ctx *gin.Context, params GetMeBookmarksP
 	}
 }
 
-// CreateMeBookmark operation middleware
-func (sh *strictHandler) CreateMeBookmark(ctx *gin.Context) {
-	var request CreateMeBookmarkRequestObject
+// CreateMeBookmarkCategory operation middleware
+func (sh *strictHandler) CreateMeBookmarkCategory(ctx *gin.Context) {
+	var request CreateMeBookmarkCategoryRequestObject
 
-	var body CreateMeBookmarkJSONRequestBody
+	var body CreateMeBookmarkCategoryJSONRequestBody
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.Status(http.StatusBadRequest)
 		ctx.Error(err)
@@ -5211,10 +5467,10 @@ func (sh *strictHandler) CreateMeBookmark(ctx *gin.Context) {
 	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateMeBookmark(ctx, request.(CreateMeBookmarkRequestObject))
+		return sh.ssi.CreateMeBookmarkCategory(ctx, request.(CreateMeBookmarkCategoryRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateMeBookmark")
+		handler = middleware(handler, "CreateMeBookmarkCategory")
 	}
 
 	response, err := handler(ctx, request)
@@ -5222,8 +5478,8 @@ func (sh *strictHandler) CreateMeBookmark(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(CreateMeBookmarkResponseObject); ok {
-		if err := validResponse.VisitCreateMeBookmarkResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(CreateMeBookmarkCategoryResponseObject); ok {
+		if err := validResponse.VisitCreateMeBookmarkCategoryResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5231,17 +5487,17 @@ func (sh *strictHandler) CreateMeBookmark(ctx *gin.Context) {
 	}
 }
 
-// DeleteMeBookmark operation middleware
-func (sh *strictHandler) DeleteMeBookmark(ctx *gin.Context, id int64) {
-	var request DeleteMeBookmarkRequestObject
+// DeleteMeBookmarkCategory operation middleware
+func (sh *strictHandler) DeleteMeBookmarkCategory(ctx *gin.Context, id int64) {
+	var request DeleteMeBookmarkCategoryRequestObject
 
 	request.Id = id
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteMeBookmark(ctx, request.(DeleteMeBookmarkRequestObject))
+		return sh.ssi.DeleteMeBookmarkCategory(ctx, request.(DeleteMeBookmarkCategoryRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteMeBookmark")
+		handler = middleware(handler, "DeleteMeBookmarkCategory")
 	}
 
 	response, err := handler(ctx, request)
@@ -5249,8 +5505,8 @@ func (sh *strictHandler) DeleteMeBookmark(ctx *gin.Context, id int64) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(DeleteMeBookmarkResponseObject); ok {
-		if err := validResponse.VisitDeleteMeBookmarkResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(DeleteMeBookmarkCategoryResponseObject); ok {
+		if err := validResponse.VisitDeleteMeBookmarkCategoryResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5258,13 +5514,13 @@ func (sh *strictHandler) DeleteMeBookmark(ctx *gin.Context, id int64) {
 	}
 }
 
-// UpdateMeBookmark operation middleware
-func (sh *strictHandler) UpdateMeBookmark(ctx *gin.Context, id int64) {
-	var request UpdateMeBookmarkRequestObject
+// UpdateMeBookmarkCategory operation middleware
+func (sh *strictHandler) UpdateMeBookmarkCategory(ctx *gin.Context, id int64) {
+	var request UpdateMeBookmarkCategoryRequestObject
 
 	request.Id = id
 
-	var body UpdateMeBookmarkJSONRequestBody
+	var body UpdateMeBookmarkCategoryJSONRequestBody
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.Status(http.StatusBadRequest)
 		ctx.Error(err)
@@ -5273,10 +5529,10 @@ func (sh *strictHandler) UpdateMeBookmark(ctx *gin.Context, id int64) {
 	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.UpdateMeBookmark(ctx, request.(UpdateMeBookmarkRequestObject))
+		return sh.ssi.UpdateMeBookmarkCategory(ctx, request.(UpdateMeBookmarkCategoryRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "UpdateMeBookmark")
+		handler = middleware(handler, "UpdateMeBookmarkCategory")
 	}
 
 	response, err := handler(ctx, request)
@@ -5284,8 +5540,95 @@ func (sh *strictHandler) UpdateMeBookmark(ctx *gin.Context, id int64) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(UpdateMeBookmarkResponseObject); ok {
-		if err := validResponse.VisitUpdateMeBookmarkResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(UpdateMeBookmarkCategoryResponseObject); ok {
+		if err := validResponse.VisitUpdateMeBookmarkCategoryResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMeBookmarkCategoryEntries operation middleware
+func (sh *strictHandler) ListMeBookmarkCategoryEntries(ctx *gin.Context, id int64) {
+	var request ListMeBookmarkCategoryEntriesRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMeBookmarkCategoryEntries(ctx, request.(ListMeBookmarkCategoryEntriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMeBookmarkCategoryEntries")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListMeBookmarkCategoryEntriesResponseObject); ok {
+		if err := validResponse.VisitListMeBookmarkCategoryEntriesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMeBookmarkEntry operation middleware
+func (sh *strictHandler) CreateMeBookmarkEntry(ctx *gin.Context) {
+	var request CreateMeBookmarkEntryRequestObject
+
+	var body CreateMeBookmarkEntryJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMeBookmarkEntry(ctx, request.(CreateMeBookmarkEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMeBookmarkEntry")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateMeBookmarkEntryResponseObject); ok {
+		if err := validResponse.VisitCreateMeBookmarkEntryResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteMeBookmarkEntry operation middleware
+func (sh *strictHandler) DeleteMeBookmarkEntry(ctx *gin.Context, id int64) {
+	var request DeleteMeBookmarkEntryRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMeBookmarkEntry(ctx, request.(DeleteMeBookmarkEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMeBookmarkEntry")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteMeBookmarkEntryResponseObject); ok {
+		if err := validResponse.VisitDeleteMeBookmarkEntryResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5563,11 +5906,11 @@ func (sh *strictHandler) GetMeNotes(ctx *gin.Context, params GetMeNotesParams) {
 	}
 }
 
-// CreateMeNote operation middleware
-func (sh *strictHandler) CreateMeNote(ctx *gin.Context) {
-	var request CreateMeNoteRequestObject
+// UpsertMeNote operation middleware
+func (sh *strictHandler) UpsertMeNote(ctx *gin.Context) {
+	var request UpsertMeNoteRequestObject
 
-	var body CreateMeNoteJSONRequestBody
+	var body UpsertMeNoteJSONRequestBody
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.Status(http.StatusBadRequest)
 		ctx.Error(err)
@@ -5576,10 +5919,10 @@ func (sh *strictHandler) CreateMeNote(ctx *gin.Context) {
 	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateMeNote(ctx, request.(CreateMeNoteRequestObject))
+		return sh.ssi.UpsertMeNote(ctx, request.(UpsertMeNoteRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateMeNote")
+		handler = middleware(handler, "UpsertMeNote")
 	}
 
 	response, err := handler(ctx, request)
@@ -5587,8 +5930,8 @@ func (sh *strictHandler) CreateMeNote(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(CreateMeNoteResponseObject); ok {
-		if err := validResponse.VisitCreateMeNoteResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(UpsertMeNoteResponseObject); ok {
+		if err := validResponse.VisitUpsertMeNoteResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5616,41 +5959,6 @@ func (sh *strictHandler) DeleteMeNote(ctx *gin.Context, id int64) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(DeleteMeNoteResponseObject); ok {
 		if err := validResponse.VisitDeleteMeNoteResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// UpdateMeNote operation middleware
-func (sh *strictHandler) UpdateMeNote(ctx *gin.Context, id int64) {
-	var request UpdateMeNoteRequestObject
-
-	request.Id = id
-
-	var body UpdateMeNoteJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.UpdateMeNote(ctx, request.(UpdateMeNoteRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "UpdateMeNote")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(UpdateMeNoteResponseObject); ok {
-		if err := validResponse.VisitUpdateMeNoteResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -5831,6 +6139,33 @@ func (sh *strictHandler) GetMeScriptureState(ctx *gin.Context, params GetMeScrip
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetMeScriptureStateResponseObject); ok {
 		if err := validResponse.VisitGetMeScriptureStateResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeSearch operation middleware
+func (sh *strictHandler) GetMeSearch(ctx *gin.Context, params GetMeSearchParams) {
+	var request GetMeSearchRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeSearch(ctx, request.(GetMeSearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeSearch")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeSearchResponseObject); ok {
+		if err := validResponse.VisitGetMeSearchResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -6108,259 +6443,269 @@ func (sh *strictHandler) Search(ctx *gin.Context, params SearchParams) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
