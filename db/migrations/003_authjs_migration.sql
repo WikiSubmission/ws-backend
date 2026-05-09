@@ -8,19 +8,40 @@
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_id TEXT;
 
--- Populate auth_id from existing supabase_uid values (cast UUID → text).
--- Existing rows retain their Supabase UID until re-login via Auth.js.
-UPDATE users SET auth_id = supabase_uid::TEXT WHERE auth_id IS NULL;
+-- Copy from supabase_uid only if that column still exists (idempotent).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users' AND column_name = 'supabase_uid'
+  ) THEN
+    UPDATE users SET auth_id = supabase_uid::TEXT WHERE auth_id IS NULL;
+  END IF;
+END $$;
 
-ALTER TABLE users ALTER COLUMN auth_id SET NOT NULL;
+-- SET NOT NULL is safe once every row has a value (or no rows exist yet).
+DO $$
+BEGIN
+  ALTER TABLE users ALTER COLUMN auth_id SET NOT NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
--- Unique constraint on auth_id (replaces supabase_uid unique constraint)
-ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_auth_id_key UNIQUE (auth_id);
+-- Unique constraint on auth_id (replaces supabase_uid unique constraint).
+-- ADD CONSTRAINT IF NOT EXISTS is not valid SQL; use exception handling instead.
+DO $$
+BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_auth_id_key UNIQUE (auth_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- Unique constraint on email (enables email-keyed upsert across providers)
-ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_email_key UNIQUE (email);
+-- Unique constraint on email (enables email-keyed upsert across providers).
+DO $$
+BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- Remove the old column and its index
+-- Remove the old column and its index.
 DROP INDEX IF EXISTS idx_users_supabase_uid;
 ALTER TABLE users DROP COLUMN IF EXISTS supabase_uid;
 CREATE INDEX IF NOT EXISTS idx_users_auth_id ON users (auth_id);
