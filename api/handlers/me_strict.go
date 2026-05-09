@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -36,6 +37,51 @@ func authIDFromContext(ctx context.Context) (string, bool) {
 	}
 
 	return "", false
+}
+
+func emailFromContext(ctx context.Context) (string, bool) {
+	if v := ctx.Value(auth.ContextKeyEmail); v != nil {
+		if s, ok := v.(string); ok && s != "" {
+			return s, true
+		}
+	}
+
+	if gc, ok := ctx.(*gin.Context); ok {
+		if v, exists := gc.Get(auth.ContextKeyEmail); exists {
+			if s, ok := v.(string); ok && s != "" {
+				return s, true
+			}
+		}
+		if gc.Request != nil {
+			if v := gc.Request.Context().Value(auth.ContextKeyEmail); v != nil {
+				if s, ok := v.(string); ok && s != "" {
+					return s, true
+				}
+			}
+		}
+	}
+
+	return "", false
+}
+
+// ensureCurrentUser provisions a users row on first /me write so insert-select
+// queries that rely on users.auth_id always have a matching user id.
+func (s *Server) ensureCurrentUser(ctx context.Context, authID string) error {
+	user, err := s.DB.FetchUserByAuthID(ctx, authID)
+	if err != nil {
+		return err
+	}
+	if user != nil {
+		return nil
+	}
+
+	email, ok := emailFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("no users row for auth id %q and no email claim available", authID)
+	}
+
+	_, err = s.DB.UpsertUser(ctx, authID, email, nil)
+	return err
 }
 
 func validScripture(scripture string) bool {
@@ -125,6 +171,10 @@ func (s *Server) GetMeBookmarks(ctx context.Context, request GetMeBookmarksReque
 func (s *Server) CreateMeBookmark(ctx context.Context, request CreateMeBookmarkRequestObject) (CreateMeBookmarkResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
+		return CreateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("CreateMeBookmark: ensureCurrentUser failed", "error", err)
 		return CreateMeBookmark500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
@@ -231,6 +281,10 @@ func (s *Server) PutMeCoverToCover(ctx context.Context, request PutMeCoverToCove
 	if !ok {
 		return PutMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("PutMeCoverToCover: ensureCurrentUser failed", "error", err)
+		return PutMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
 	if request.Body == nil {
 		return PutMeCoverToCover400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
@@ -320,6 +374,10 @@ func (s *Server) GetMeNotes(ctx context.Context, request GetMeNotesRequestObject
 func (s *Server) CreateMeNote(ctx context.Context, request CreateMeNoteRequestObject) (CreateMeNoteResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
+		return CreateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("CreateMeNote: ensureCurrentUser failed", "error", err)
 		return CreateMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
@@ -418,6 +476,10 @@ func (s *Server) PutMeReadingProgress(ctx context.Context, request PutMeReadingP
 	if !ok {
 		return PutMeReadingProgress500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("PutMeReadingProgress: ensureCurrentUser failed", "error", err)
+		return PutMeReadingProgress500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
 	if request.Body == nil {
 		return PutMeReadingProgress400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
@@ -478,6 +540,10 @@ func (s *Server) GetMeStreak(ctx context.Context, request GetMeStreakRequestObje
 func (s *Server) PostMeReadingLog(ctx context.Context, request PostMeReadingLogRequestObject) (PostMeReadingLogResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
+		return PostMeReadingLog500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("PostMeReadingLog: ensureCurrentUser failed", "error", err)
 		return PostMeReadingLog500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
@@ -541,6 +607,10 @@ func (s *Server) PutMePreferences(ctx context.Context, request PutMePreferencesR
 	if !ok {
 		return PutMePreferences500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("PutMePreferences: ensureCurrentUser failed", "error", err)
+		return PutMePreferences500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
 	if request.Body == nil {
 		return PutMePreferences400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
 	}
@@ -583,6 +653,10 @@ func (s *Server) ListMeCollections(ctx context.Context, _ ListMeCollectionsReque
 func (s *Server) CreateMeCollection(ctx context.Context, request CreateMeCollectionRequestObject) (CreateMeCollectionResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
+		return CreateMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("CreateMeCollection: ensureCurrentUser failed", "error", err)
 		return CreateMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if request.Body == nil {
