@@ -1321,7 +1321,18 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON public.users USING btree (role);
 -- Name: idx_users_supabase_uid; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX IF NOT EXISTS idx_users_supabase_uid ON public.users USING btree (supabase_uid);
+DO $WS_BASELINE$ BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'supabase_uid'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_users_supabase_uid ON public.users USING btree (supabase_uid);
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $WS_BASELINE$;
 
 --
 -- Name: idx_verse_content_trgm; Type: INDEX; Schema: public; Owner: -
