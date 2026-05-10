@@ -361,6 +361,31 @@ func (s *Server) PutMeCoverToCover(ctx context.Context, request PutMeCoverToCove
 	return PutMeCoverToCover200JSONResponse(BookmarkEnvelope{Data: bookmarkFromRow(b)}), nil
 }
 
+func (s *Server) GetMeCoverToCover(ctx context.Context, request GetMeCoverToCoverRequestObject) (GetMeCoverToCoverResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return GetMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	scripture := "quran"
+	if request.Params.Scripture != nil {
+		scripture = string(*request.Params.Scripture)
+	}
+	if !validScripture(scripture) {
+		return GetMeCoverToCover400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+	}
+	b, err := s.DB.FetchCoverToCover(ctx, authID, scripture)
+	if err != nil {
+		slog.Error("GetMeCoverToCover: DB error", "error", err)
+		return GetMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	var bm *Bookmark
+	if b != nil {
+		row := bookmarkFromRow(b)
+		bm = &row
+	}
+	return GetMeCoverToCover200JSONResponse(BookmarkNullableEnvelope{Data: bm}), nil
+}
+
 func (s *Server) GetMeScriptureState(ctx context.Context, request GetMeScriptureStateRequestObject) (GetMeScriptureStateResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {

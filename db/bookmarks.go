@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -100,6 +101,27 @@ func (db *DB) UpsertCoverToCover(ctx context.Context, authID, scripture, verseKe
 	defer rows.Close()
 	b, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[BookmarkRow])
 	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+func (db *DB) FetchCoverToCover(ctx context.Context, authID, scripture string) (*BookmarkRow, error) {
+	query := `SELECT b.id, b.user_id, b.scripture, b.verse_key, b.name, b.color, b.kind, b.created_at, b.updated_at
+	          FROM bookmarks b
+	          JOIN users u ON u.id = b.user_id
+	          WHERE u.auth_id = $1 AND b.scripture = $2 AND b.kind = 'cover_to_cover'
+	          LIMIT 1`
+	rows, err := db.Pool.Query(ctx, query, authID, scripture)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	b, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[BookmarkRow])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &b, nil
