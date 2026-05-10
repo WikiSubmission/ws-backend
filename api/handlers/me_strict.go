@@ -65,23 +65,27 @@ func emailFromContext(ctx context.Context) (string, bool) {
 }
 
 // ensureCurrentUser provisions a users row on first /me write so insert-select
-// queries that rely on users.auth_id always have a matching user id.
+// queries that rely on users.auth_id always have a matching user id. Also
+// ensures the user has a default bookmark category to land their first save.
 func (s *Server) ensureCurrentUser(ctx context.Context, authID string) error {
 	user, err := s.DB.FetchUserByAuthID(ctx, authID)
 	if err != nil {
 		return err
 	}
-	if user != nil {
-		return nil
+	if user == nil {
+		email, ok := emailFromContext(ctx)
+		if !ok {
+			return fmt.Errorf("no users row for auth id %q and no email claim available", authID)
+		}
+		if _, err := s.DB.UpsertUser(ctx, authID, email, nil); err != nil {
+			return err
+		}
 	}
 
-	email, ok := emailFromContext(ctx)
-	if !ok {
-		return fmt.Errorf("no users row for auth id %q and no email claim available", authID)
+	if err := s.DB.EnsureDefaultBookmarkCategory(ctx, authID); err != nil {
+		return fmt.Errorf("ensure default category: %w", err)
 	}
-
-	_, err = s.DB.UpsertUser(ctx, authID, email, nil)
-	return err
+	return nil
 }
 
 func validScripture(scripture string) bool {
@@ -165,6 +169,9 @@ func (s *Server) ListMeBookmarkCategories(ctx context.Context, _ ListMeBookmarkC
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
 		return ListMeBookmarkCategories500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("ListMeBookmarkCategories: ensureCurrentUser failed", "error", err)
 	}
 	cats, err := s.DB.ListBookmarkCategories(ctx, authID)
 	if err != nil {

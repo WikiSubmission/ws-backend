@@ -90,6 +90,20 @@ func (db *DB) UpdateBookmarkCategory(ctx context.Context, id int64, authID, name
 	return &c, nil
 }
 
+// EnsureDefaultBookmarkCategory creates a default "My Bookmarks" category for
+// a user when they have none. Idempotent — safe to call on every /me write.
+func (db *DB) EnsureDefaultBookmarkCategory(ctx context.Context, authID string) error {
+	query := `INSERT INTO bookmark_categories (user_id, name, color)
+	          SELECT u.id, 'My Bookmarks', '#f59e0b'
+	          FROM users u
+	          WHERE u.auth_id = $1
+	            AND NOT EXISTS (
+	                SELECT 1 FROM bookmark_categories WHERE user_id = u.id
+	            )`
+	_, err := db.Pool.Exec(ctx, query, authID)
+	return err
+}
+
 func (db *DB) DeleteBookmarkCategory(ctx context.Context, id int64, authID string) (bool, error) {
 	query := `DELETE FROM bookmark_categories
 	          USING users u
