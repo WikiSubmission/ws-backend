@@ -14,11 +14,12 @@ type NoteRow struct {
 	Scripture string    `db:"scripture"`
 	VerseKey  string    `db:"verse_key"`
 	Content   string    `db:"content"`
+	Tags      []string  `db:"tags"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-const noteCols = `n.id, n.user_id, n.scripture, n.verse_key, n.content, n.created_at, n.updated_at`
+const noteCols = `n.id, n.user_id, n.scripture, n.verse_key, n.content, n.tags, n.created_at, n.updated_at`
 
 func (db *DB) FetchNotes(ctx context.Context, authID, scripture string, verseKey *string) ([]NoteRow, error) {
 	query := `SELECT ` + noteCols + `
@@ -40,13 +41,19 @@ func (db *DB) FetchNotes(ctx context.Context, authID, scripture string, verseKey
 }
 
 // UpsertNote creates or updates the single note for a (user, scripture, verse_key) tuple.
-func (db *DB) UpsertNote(ctx context.Context, authID, scripture, verseKey, content string) (*NoteRow, error) {
-	query := `INSERT INTO notes (user_id, scripture, verse_key, content)
-	          SELECT u.id, $2, $3, $4 FROM users u WHERE u.auth_id = $1
+// When tags is nil, existing tags on the row are left unchanged (only content is updated).
+// When tags is non-nil (including empty slice), it replaces the existing tags.
+func (db *DB) UpsertNote(ctx context.Context, authID, scripture, verseKey, content string, tags []string) (*NoteRow, error) {
+	query := `INSERT INTO notes (user_id, scripture, verse_key, content, tags)
+	          SELECT u.id, $2, $3, $4, COALESCE($5::text[], '{}'::text[])
+	          FROM users u WHERE u.auth_id = $1
 	          ON CONFLICT (user_id, scripture, verse_key)
-	          DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()
-	          RETURNING id, user_id, scripture, verse_key, content, created_at, updated_at`
-	rows, err := db.Pool.Query(ctx, query, authID, scripture, verseKey, content)
+	          DO UPDATE SET
+	              content = EXCLUDED.content,
+	              tags = CASE WHEN $5::text[] IS NULL THEN notes.tags ELSE EXCLUDED.tags END,
+	              updated_at = NOW()
+	          RETURNING id, user_id, scripture, verse_key, content, tags, created_at, updated_at`
+	rows, err := db.Pool.Query(ctx, query, authID, scripture, verseKey, content, tags)
 	if err != nil {
 		return nil, err
 	}

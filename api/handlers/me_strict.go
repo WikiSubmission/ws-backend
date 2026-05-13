@@ -127,11 +127,16 @@ func entryFromRow(e *db.BookmarkEntryRow) BookmarkEntry {
 }
 
 func noteFromRow(n *db.NoteRow) Note {
+	tags := n.Tags
+	if tags == nil {
+		tags = []string{}
+	}
 	return Note{
 		Id:        n.ID,
 		Scripture: NoteScripture(n.Scripture),
 		VerseKey:  n.VerseKey,
 		Content:   n.Content,
+		Tags:      tags,
 		CreatedAt: n.CreatedAt.UTC(),
 		UpdatedAt: n.UpdatedAt.UTC(),
 	}
@@ -477,7 +482,11 @@ func (s *Server) UpsertMeNote(ctx context.Context, request UpsertMeNoteRequestOb
 		return UpsertMeNote400JSONResponse{BadRequestJSONResponse{Message: "content is required"}}, nil
 	}
 
-	n, err := s.DB.UpsertNote(ctx, authID, scripture, req.VerseKey, req.Content)
+	var tags []string
+	if req.Tags != nil {
+		tags = *req.Tags
+	}
+	n, err := s.DB.UpsertNote(ctx, authID, scripture, req.VerseKey, req.Content, tags)
 	if err != nil {
 		slog.Error("UpsertMeNote: DB error", "error", err)
 		return UpsertMeNote500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
