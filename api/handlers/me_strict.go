@@ -144,13 +144,16 @@ func noteFromRow(n *db.NoteRow) Note {
 
 func collectionFromRow(c *db.CollectionRow) Collection {
 	return Collection{
-		Id:          c.ID,
-		Name:        c.Name,
-		Description: c.Description,
-		IsPublic:    c.IsPublic,
-		ShareToken:  c.ShareToken,
-		CreatedAt:   c.CreatedAt.UTC(),
-		UpdatedAt:   c.UpdatedAt.UTC(),
+		Id:               c.ID,
+		Name:             c.Name,
+		Description:      c.Description,
+		IsPublic:         c.IsPublic,
+		EditPolicy:       CollectionEditPolicy(c.EditPolicy),
+		Relation:         CollectionRelation(c.Relation),
+		OwnerDisplayName: c.OwnerDisplayName,
+		ShareToken:       c.ShareToken,
+		CreatedAt:        c.CreatedAt.UTC(),
+		UpdatedAt:        c.UpdatedAt.UTC(),
 	}
 }
 
@@ -362,6 +365,10 @@ func (s *Server) PutMeCoverToCover(ctx context.Context, request PutMeCoverToCove
 	if err != nil {
 		slog.Error("PutMeCoverToCover: DB error", "error", err)
 		return PutMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+	if logErr := s.DB.IncrementReadingLog(ctx, authID, scripture, day, 1); logErr != nil {
+		slog.Error("PutMeCoverToCover: reading log error", "error", logErr)
 	}
 	return PutMeCoverToCover200JSONResponse(BookmarkEnvelope{Data: bookmarkFromRow(b)}), nil
 }
@@ -603,6 +610,10 @@ func (s *Server) PutMeReadingProgress(ctx context.Context, request PutMeReadingP
 		slog.Error("PutMeReadingProgress: DB error", "error", err)
 		return PutMeReadingProgress500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
+	day := time.Now().UTC().Format("2006-01-02")
+	if logErr := s.DB.IncrementReadingLog(ctx, authID, scripture, day, 1); logErr != nil {
+		slog.Error("PutMeReadingProgress: reading log error", "error", logErr)
+	}
 
 	return PutMeReadingProgress200JSONResponse(ReadingProgressRequiredEnvelope{
 		Data: ReadingProgress{
@@ -807,11 +818,15 @@ func (s *Server) UpdateMeCollection(ctx context.Context, request UpdateMeCollect
 	if req.IsPublic != nil {
 		isPublic = *req.IsPublic
 	}
+	editPolicy := "owner_only"
+	if req.EditPolicy != nil {
+		editPolicy = string(*req.EditPolicy)
+	}
 	regenerateToken := false
 	if req.RegenerateToken != nil {
 		regenerateToken = *req.RegenerateToken
 	}
-	col, err := s.DB.UpdateCollection(ctx, request.Id, authID, req.Name, description, isPublic, regenerateToken)
+	col, err := s.DB.UpdateCollection(ctx, request.Id, authID, req.Name, description, isPublic, editPolicy, regenerateToken)
 	if err != nil {
 		slog.Error("UpdateMeCollection: DB error", "error", err)
 		return UpdateMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -844,17 +859,10 @@ func (s *Server) GetMeCollectionDetail(ctx context.Context, request GetMeCollect
 		return GetMeCollectionDetail500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 
-	cols, err := s.DB.ListCollections(ctx, authID)
+	col, err := s.DB.GetCollectionForUser(ctx, request.Id, authID)
 	if err != nil {
-		slog.Error("GetMeCollectionDetail: list error", "error", err)
+		slog.Error("GetMeCollectionDetail: DB error", "error", err)
 		return GetMeCollectionDetail500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
-	}
-	var col *db.CollectionRow
-	for i := range cols {
-		if cols[i].ID == request.Id {
-			col = &cols[i]
-			break
-		}
 	}
 	if col == nil {
 		return GetMeCollectionDetail404JSONResponse{NotFoundJSONResponse{Message: "collection not found"}}, nil
@@ -871,14 +879,17 @@ func (s *Server) GetMeCollectionDetail(ctx context.Context, request GetMeCollect
 	}
 
 	resp := CollectionDetail{
-		Id:          col.ID,
-		Name:        col.Name,
-		Description: col.Description,
-		IsPublic:    col.IsPublic,
-		ShareToken:  col.ShareToken,
-		CreatedAt:   col.CreatedAt.UTC(),
-		UpdatedAt:   col.UpdatedAt.UTC(),
-		Verses:      vr,
+		Id:               col.ID,
+		Name:             col.Name,
+		Description:      col.Description,
+		IsPublic:         col.IsPublic,
+		EditPolicy:       CollectionDetailEditPolicy(col.EditPolicy),
+		Relation:         CollectionDetailRelation(col.Relation),
+		OwnerDisplayName: col.OwnerDisplayName,
+		ShareToken:       col.ShareToken,
+		CreatedAt:        col.CreatedAt.UTC(),
+		UpdatedAt:        col.UpdatedAt.UTC(),
+		Verses:           vr,
 	}
 	return GetMeCollectionDetail200JSONResponse(CollectionDetailEnvelope{Data: resp}), nil
 }
@@ -945,15 +956,67 @@ func (s *Server) GetSharedCollection(ctx context.Context, request GetSharedColle
 		vr[i] = collectionVerseFromRow(&verses[i])
 	}
 
+	var isSubscribed *bool
+	if authID, ok := authIDFromContext(ctx); ok {
+		subscribed, subErr := s.DB.IsSubscribed(ctx, authID, col.ID)
+		if subErr == nil {
+			isSubscribed = &subscribed
+		}
+	}
+
 	resp := CollectionDetail{
-		Id:          col.ID,
-		Name:        col.Name,
-		Description: col.Description,
-		IsPublic:    col.IsPublic,
-		ShareToken:  col.ShareToken,
-		CreatedAt:   col.CreatedAt.UTC(),
-		UpdatedAt:   col.UpdatedAt.UTC(),
-		Verses:      vr,
+		Id:               col.ID,
+		Name:             col.Name,
+		Description:      col.Description,
+		IsPublic:         col.IsPublic,
+		EditPolicy:       CollectionDetailEditPolicy(col.EditPolicy),
+		Relation:         CollectionDetailRelation(col.Relation),
+		OwnerDisplayName: col.OwnerDisplayName,
+		ShareToken:       col.ShareToken,
+		CreatedAt:        col.CreatedAt.UTC(),
+		UpdatedAt:        col.UpdatedAt.UTC(),
+		IsSubscribed:     isSubscribed,
+		Verses:           vr,
 	}
 	return GetSharedCollection200JSONResponse(CollectionDetailEnvelope{Data: resp}), nil
+}
+
+func (s *Server) SubscribeMeCollection(ctx context.Context, request SubscribeMeCollectionRequestObject) (SubscribeMeCollectionResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return SubscribeMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if err := s.ensureCurrentUser(ctx, authID); err != nil {
+		slog.Error("SubscribeMeCollection: ensureCurrentUser failed", "error", err)
+		return SubscribeMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if request.Body == nil {
+		return SubscribeMeCollection400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+	}
+	collectionID, err := s.DB.SubscribeToCollection(ctx, authID, request.Body.ShareToken)
+	if err != nil {
+		slog.Error("SubscribeMeCollection: DB error", "error", err)
+		return SubscribeMeCollection400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+	}
+	return SubscribeMeCollection200JSONResponse(CollectionSubscribeResponse{
+		Data: struct {
+			CollectionId int64 `json:"collection_id"`
+		}{CollectionId: collectionID},
+	}), nil
+}
+
+func (s *Server) UnsubscribeMeCollection(ctx context.Context, request UnsubscribeMeCollectionRequestObject) (UnsubscribeMeCollectionResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return UnsubscribeMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	deleted, err := s.DB.UnsubscribeFromCollection(ctx, authID, request.Id)
+	if err != nil {
+		slog.Error("UnsubscribeMeCollection: DB error", "error", err)
+		return UnsubscribeMeCollection500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if !deleted {
+		return UnsubscribeMeCollection404JSONResponse{NotFoundJSONResponse{Message: "subscription not found"}}, nil
+	}
+	return UnsubscribeMeCollection200JSONResponse(nullDataEnvelope()), nil
 }
