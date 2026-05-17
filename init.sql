@@ -5,7 +5,7 @@
 --   psql "postgres://postgres:SUPERPASS@HOST:5432/postgres" \
 --        -v db_name=ws_backend \
 --        -v db_user=ws_backend_user \
---        -v db_pass='ns7592dhndu49Dief' \
+--        -v db_pass='************' \
 --        -f init.sql
 --
 -- Schema itself is created by the app at startup via db.DbSetup()
