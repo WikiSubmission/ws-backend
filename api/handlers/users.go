@@ -31,8 +31,8 @@ type UserResponse struct {
 }
 
 // UpsertUserRequest is the body for POST /users.
+// Email is intentionally absent — it is sourced from the verified JWT only.
 type UpsertUserRequest struct {
-	Email       string  `json:"email"        binding:"required"`
 	DisplayName *string `json:"display_name,omitempty"`
 }
 
@@ -149,10 +149,10 @@ func (h *UserHandler) UpsertUser(c *gin.Context) {
 	}
 
 	authID := c.GetString(auth.ContextKeyUID)
+	// Email must come exclusively from the verified JWT — never from the request body.
+	// Trusting the body would allow a caller with a blank email claim to hijack any
+	// existing user row by supplying a victim email (ON CONFLICT updates auth_id).
 	email := c.GetString(auth.ContextKeyEmail)
-	if email == "" {
-		email = req.Email
-	}
 	if email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "email is required"})
 		return

@@ -178,8 +178,10 @@ func (db *DB) DeleteCollection(ctx context.Context, id int64, authID string) (bo
 }
 
 func (db *DB) GetCollectionByShareToken(ctx context.Context, token string) (*CollectionRow, error) {
+	// is_public guard is defence-in-depth: a non-null token on a private collection
+	// (if that invariant were ever violated) must not grant public access.
 	query := `SELECT ` + collectionSelectCols + `, 'owner' AS relation, '' AS owner_display_name
-	          FROM collections c WHERE c.share_token = $1`
+	          FROM collections c WHERE c.share_token = $1 AND c.is_public = true`
 	rows, err := db.Pool.Query(ctx, query, token)
 	if err != nil {
 		return nil, err
