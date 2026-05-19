@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -50,6 +51,7 @@ type SearchBibleVerseRow struct {
 // FetchBibleBooks returns all Bible books ordered by book_number, with
 // precomputed chapter and verse counts.
 func (db *DB) FetchBibleBooks(ctx context.Context) ([]BibleBookRow, error) {
+	defer observe("fetch_bible_books", time.Now())
 	sql := `
 		SELECT
 			bb.book_number,
@@ -73,6 +75,7 @@ func (db *DB) FetchBibleBooks(ctx context.Context) ([]BibleBookRow, error) {
 // FetchBibleVerses returns verses (with translations) for the given book and
 // chapter/verse range, filtered to the requested language codes.
 func (db *DB) FetchBibleVerses(ctx context.Context, bookNum, startCh, endCh, startV, endV int, langs []string) ([]BibleVerseRow, error) {
+	defer observe("fetch_bible_verses", time.Now())
 	sql := `
 		SELECT
 			bb.book_number,
@@ -111,6 +114,7 @@ func (db *DB) FetchBibleVerses(ctx context.Context, bookNum, startCh, endCh, sta
 // 'simple' dictionary (consistent with Quran FTS). Pass nil for langs to search
 // all languages.
 func (db *DB) SearchBibleVerses(ctx context.Context, query string, langs []string, limit, offset int) ([]SearchBibleVerseRow, error) {
+	defer observe("search_bible_verses", time.Now())
 	sql := `
 		WITH tsq AS (
 			SELECT websearch_to_tsquery('simple', $1) AS q
@@ -155,6 +159,7 @@ func (db *DB) SearchBibleVerses(ctx context.Context, query string, langs []strin
 // (book_number, chapter_number, verse_number) triples using a parallel unnest join.
 // Use this for Phase B of a two-phase search (find refs → fetch in response langs).
 func (db *DB) FetchBibleVersesByRefs(ctx context.Context, bookNums, chapterNums, verseNums []int32, langs []string) ([]BibleVerseRow, error) {
+	defer observe("fetch_bible_verses_by_refs", time.Now())
 	sql := `
 		SELECT
 			bb.book_number,
@@ -188,6 +193,7 @@ func (db *DB) FetchBibleVersesByRefs(ctx context.Context, bookNums, chapterNums,
 // CountSearchBibleVerses returns the total number of distinct Bible verses
 // matching the query, for pagination metadata.
 func (db *DB) CountSearchBibleVerses(ctx context.Context, query string, langs []string) (int, error) {
+	defer observe("count_search_bible_verses", time.Now())
 	sql := `
 		WITH tsq AS (
 			SELECT websearch_to_tsquery('simple', $1) AS q

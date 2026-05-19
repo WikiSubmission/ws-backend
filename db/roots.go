@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -56,6 +57,7 @@ func rootSortClause(sort string) string {
 // Arabic prefix filter and one of three sort modes ("frequency", "abjadi",
 // "reverse"). The returned total reflects the filtered universe.
 func (db *DB) RootsIndex(ctx context.Context, q *string, sort string, limit, offset int) ([]RootSummaryRow, int, error) {
+	defer observe("roots_index", time.Now())
 	orderBy := rootSortClause(sort)
 
 	sql := `
@@ -92,6 +94,7 @@ func (db *DB) RootsIndex(ctx context.Context, q *string, sort string, limit, off
 // root letters. Returns pgx.ErrNoRows when the root is not present in the
 // matview.
 func (db *DB) RootDetail(ctx context.Context, letters string) (RootSummaryRow, []DerivativeRow, []OccurrenceRow, *string, error) {
+	defer observe("root_detail", time.Now())
 	var summary RootSummaryRow
 	err := db.Pool.QueryRow(ctx, `
         SELECT letters, occurrences
@@ -155,6 +158,7 @@ func (db *DB) RootDetail(ctx context.Context, letters string) (RootSummaryRow, [
 // given Arabic surface form (used by the Word Lab "click derivative chip"
 // flow). The total count reflects the filtered universe.
 func (db *DB) RootOccurrences(ctx context.Context, letters, surface string, limit, offset int) ([]OccurrenceRow, int, error) {
+	defer observe("root_occurrences", time.Now())
 	return db.rootOccurrencesPage(ctx, letters, surface, limit, offset)
 }
 

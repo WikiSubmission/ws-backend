@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	pgvector "github.com/pgvector/pgvector-go"
@@ -42,6 +43,7 @@ type SearchWordRow struct {
 //
 // Pass nil for langs to search across all languages.
 func (db *DB) SearchVerses(ctx context.Context, query string, langs []string, limit, offset int) ([]SearchVerseRow, error) {
+	defer observe("search_verses", time.Now())
 	sql := `
         WITH
           tsq AS (
@@ -106,6 +108,7 @@ func (db *DB) SearchVerses(ctx context.Context, query string, langs []string, li
 // CountSearchVerses returns the total number of distinct verses matching the
 // query (across all requested languages), for pagination metadata.
 func (db *DB) CountSearchVerses(ctx context.Context, query string, langs []string) (int, error) {
+	defer observe("count_search_verses", time.Now())
 	sql := `
         WITH
           tsq AS (
@@ -156,6 +159,7 @@ func (db *DB) CountSearchVersesHybrid(
 	if len(queryEmbedding) == 0 {
 		return db.CountSearchVerses(ctx, query, langs)
 	}
+	defer observe("count_search_verses_hybrid", time.Now())
 
 	vec := pgvector.NewVector(queryEmbedding)
 
@@ -217,6 +221,7 @@ func (db *DB) SearchVersesHybrid(
 	if len(queryEmbedding) == 0 {
 		return db.SearchVerses(ctx, query, langs, limit, offset)
 	}
+	defer observe("search_verses_hybrid", time.Now())
 
 	vec := pgvector.NewVector(queryEmbedding)
 
@@ -328,6 +333,7 @@ func (db *DB) SearchVersesHybrid(
 //
 // Pass nil for langs to search across all languages.
 func (db *DB) SearchWords(ctx context.Context, query string, langs []string, limit, offset int) ([]SearchWordRow, error) {
+	defer observe("search_words", time.Now())
 	sql := `
         WITH tsq AS (
           SELECT websearch_to_tsquery('simple', $1) AS q
@@ -371,6 +377,7 @@ func (db *DB) SearchWords(ctx context.Context, query string, langs []string, lim
 //
 // Pass nil for langs to return all languages.
 func (db *DB) SearchWordsByRoot(ctx context.Context, root string, langs []string, limit, offset int) ([]SearchWordRow, error) {
+	defer observe("search_words_by_root", time.Now())
 	sql := `
         SELECT
             c.chapter_number,
@@ -405,6 +412,7 @@ func (db *DB) SearchWordsByRoot(ctx context.Context, root string, langs []string
 // CountSearchWordsByRoot returns the total number of distinct words whose
 // word_root exactly equals root, for pagination metadata.
 func (db *DB) CountSearchWordsByRoot(ctx context.Context, root string, langs []string) (int, error) {
+	defer observe("count_search_words_by_root", time.Now())
 	sql := `
         SELECT COUNT(DISTINCT w.id)
         FROM  word_text wt
@@ -421,6 +429,7 @@ func (db *DB) CountSearchWordsByRoot(ctx context.Context, root string, langs []s
 // CountSearchWords returns the total number of distinct words matching the
 // query (across all requested languages), for pagination metadata.
 func (db *DB) CountSearchWords(ctx context.Context, query string, langs []string) (int, error) {
+	defer observe("count_search_words", time.Now())
 	sql := `
         WITH tsq AS (
           SELECT websearch_to_tsquery('simple', $1) AS q

@@ -22,6 +22,7 @@ type UserRow struct {
 }
 
 func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, error) {
+	defer observe("fetch_all_users", time.Now())
 	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
 	          FROM users ORDER BY id LIMIT $1 OFFSET $2`
 	rows, err := db.Pool.Query(ctx, query, limit, offset)
@@ -33,6 +34,7 @@ func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, 
 }
 
 func (db *DB) FetchUserByAuthID(ctx context.Context, authID string) (*UserRow, error) {
+	defer observe("fetch_user_by_auth_id", time.Now())
 	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
 	          FROM users WHERE auth_id = $1`
 	rows, err := db.Pool.Query(ctx, query, authID)
@@ -51,6 +53,7 @@ func (db *DB) FetchUserByAuthID(ctx context.Context, authID string) (*UserRow, e
 }
 
 func (db *DB) FetchUserByID(ctx context.Context, id int) (*UserRow, error) {
+	defer observe("fetch_user_by_id", time.Now())
 	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
 	          FROM users WHERE id = $1`
 	rows, err := db.Pool.Query(ctx, query, id)
@@ -73,6 +76,7 @@ func (db *DB) FetchUserByID(ctx context.Context, id int) (*UserRow, error) {
 // value — this lets the same person sign in via different OAuth providers
 // and land on the same account.
 func (db *DB) UpsertUser(ctx context.Context, authID, email string, displayName *string) (*UserRow, error) {
+	defer observe("upsert_user", time.Now())
 	query := `INSERT INTO users (auth_id, email, display_name)
 	          VALUES ($1, $2, $3)
 	          ON CONFLICT (email) DO UPDATE
@@ -128,6 +132,7 @@ func (db *DB) DeactivateUser(ctx context.Context, id int) error {
 }
 
 func (db *DB) CountUsers(ctx context.Context) (int, error) {
+	defer observe("count_users", time.Now())
 	var count int
 	err := db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
 	return count, err

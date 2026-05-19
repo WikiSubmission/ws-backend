@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -32,6 +33,7 @@ type WordRow struct {
 }
 
 func (db *DB) FetchVersesWithTranslations(ctx context.Context, startCh, endCh, startV, endV int, langs []string) ([]VerseRow, error) {
+	defer observe("fetch_verses_with_translations", time.Now())
 	query := `
         SELECT 
             c.chapter_number, COALESCE(ct.title, '') as chapter_title, v.verse_index, 
@@ -59,6 +61,7 @@ func (db *DB) FetchVersesWithTranslations(ctx context.Context, startCh, endCh, s
 // (chapter, verse_index) pairs using a parallel unnest join. Use this instead
 // of FetchVersesWithTranslations when the verse set is non-contiguous.
 func (db *DB) FetchVersesWithTranslationsByRefs(ctx context.Context, chapterNums, verseIdxs []int32, langs []string) ([]VerseRow, error) {
+	defer observe("fetch_verses_with_translations_by_refs", time.Now())
 	query := `
         SELECT
             c.chapter_number, COALESCE(ct.title, '') AS chapter_title, v.verse_index,
@@ -84,6 +87,7 @@ func (db *DB) FetchVersesWithTranslationsByRefs(ctx context.Context, chapterNums
 // FetchWordsForVersesByRefs fetches word data for a disjoint set of
 // (chapter, verse_index) pairs using a parallel unnest join.
 func (db *DB) FetchWordsForVersesByRefs(ctx context.Context, chapterNums, verseIdxs []int32, langs []string) ([]WordRow, error) {
+	defer observe("fetch_words_for_verses_by_refs", time.Now())
 	query := `
         SELECT
             c.chapter_number, v.verse_index, w.word_index, COALESCE(w.global_index, 0) AS global_index,
@@ -106,6 +110,7 @@ func (db *DB) FetchWordsForVersesByRefs(ctx context.Context, chapterNums, verseI
 }
 
 func (db *DB) FetchWordsForVerses(ctx context.Context, startCh, endCh, startV, endV int, langs []string) ([]WordRow, error) {
+	defer observe("fetch_words_for_verses", time.Now())
 	query := `
         SELECT 
             c.chapter_number, v.verse_index, w.word_index, COALESCE(w.global_index, 0) as global_index,
