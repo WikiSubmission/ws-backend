@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wikiSubmission/ws-backend/api/observability"
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
@@ -20,15 +21,18 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
+			observability.AuthAttemptsTotal.WithLabelValues("missing_token").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
 			return
 		}
 		token := strings.TrimPrefix(header, "Bearer ")
 		authID, email, err := verifier.VerifyToken(token)
 		if err != nil {
+			observability.AuthAttemptsTotal.WithLabelValues("invalid_token").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
+		observability.AuthAttemptsTotal.WithLabelValues("success").Inc()
 		reqCtx := context.WithValue(c.Request.Context(), ContextKeyUID, authID)
 		reqCtx = context.WithValue(reqCtx, ContextKeyEmail, email)
 		c.Request = c.Request.WithContext(reqCtx)

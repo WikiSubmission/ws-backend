@@ -9,11 +9,26 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/wikiSubmission/ws-backend/api/observability"
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
 func (s *Server) Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error) {
 	p := request.Params
+
+	start := time.Now()
+	var searchType string
+	defer func() {
+		if searchType == "" {
+			return
+		}
+		primaryLang := "all"
+		if p.Langs != nil && len(*p.Langs) > 0 {
+			primaryLang = (*p.Langs)[0]
+		}
+		observability.SearchQueriesTotal.WithLabelValues(searchType, primaryLang, "false").Inc()
+		observability.SearchDurationSeconds.WithLabelValues(searchType).Observe(time.Since(start).Seconds())
+	}()
 
 	// 1. Validate: q is required unless root is provided (root-based word lookup)
 	rootSearch := p.Root != nil && *p.Root != ""
@@ -72,6 +87,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 
 	if rootSearch {
 		// --- Root-based word lookup (exact match on word_root) ---
+		searchType = "root"
 		root := *p.Root
 		queryLabel = "root:" + root
 		go func() {
@@ -85,6 +101,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		}
 	} else if scope == string(Words) {
 		// --- FTS word scope with language detection ---
+		searchType = "words"
 		q := *p.Q
 		queryLabel = q
 		// Detect search language; fall back to user-specified langs if detection
@@ -104,6 +121,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		}
 	} else {
 		// --- FTS verse scope (default) — two-phase multilingual search ---
+		searchType = "verses"
 		q := *p.Q
 		queryLabel = q
 
@@ -151,7 +169,11 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 
 		// Phase A: hybrid (FTS + vector RRF) or pure FTS when no embedding available.
 		// SearchVersesHybrid falls back to SearchVerses when queryEmbedding is nil.
+		phaseAStart := time.Now()
 		phaseARows, err := s.DB.SearchVersesHybrid(ctx, q, queryEmbedding, searchLangs, limit, offset, vecThreshold)
+		if queryEmbedding != nil {
+			observability.PgvectorSearchSeconds.Observe(time.Since(phaseAStart).Seconds())
+		}
 		if err != nil {
 			searchErr = err
 		} else {

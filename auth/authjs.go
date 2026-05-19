@@ -7,6 +7,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/wikiSubmission/ws-backend/api/observability"
 )
 
 // AuthJSVerifier verifies HS256 JWTs minted by the Auth.js frontend layer.
@@ -34,6 +35,7 @@ func NewAuthJSVerifier(secret string) (*AuthJSVerifier, error) {
 // authID is the namespaced subject claim, e.g. "google:12345" or "email:user@x.com".
 func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email string, err error) {
 	if v.key == nil {
+		observability.JWTValidationsTotal.WithLabelValues("not_configured").Inc()
 		return "", "", errors.New("auth: verifier not configured")
 	}
 	token, err := jwt.Parse(
@@ -43,11 +45,24 @@ func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email s
 		jwt.WithAcceptableSkew(30*time.Second),
 	)
 	if err != nil {
+		observability.JWTValidationsTotal.WithLabelValues(classifyJWTError(err)).Inc()
 		return "", "", err
 	}
+	observability.JWTValidationsTotal.WithLabelValues("valid").Inc()
 	authID = token.Subject()
 	if e, ok := token.Get("email"); ok {
 		email, _ = e.(string)
 	}
 	return authID, email, nil
+}
+
+func classifyJWTError(err error) string {
+	switch {
+	case errors.Is(err, jwt.ErrTokenExpired()):
+		return "expired"
+	case errors.Is(err, jwt.ErrTokenNotYetValid()):
+		return "not_yet_valid"
+	default:
+		return "invalid"
+	}
 }

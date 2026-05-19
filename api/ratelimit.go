@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wikiSubmission/ws-backend/api/observability"
 )
 
 // ipRateLimiter enforces a fixed-window request rate per client IP.
@@ -76,6 +77,11 @@ func RateLimitMiddleware(maxPerSec int, bypassToken string) gin.HandlerFunc {
 			return
 		}
 		if !limiter.allow(c.ClientIP()) {
+			route := c.FullPath()
+			if route == "" {
+				route = "unmatched"
+			}
+			observability.RateLimitDropsTotal.WithLabelValues(route).Inc()
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"message": "rate limit exceeded — please slow down",
 			})
