@@ -102,6 +102,7 @@ func (s *Server) GetRootDetail(ctx context.Context, request GetRootDetailRequest
 		derivs = append(derivs, Derivative{
 			Ar: d.Ar,
 			Tr: d.Tr,
+			En: d.En,
 			C:  d.Count,
 		})
 	}

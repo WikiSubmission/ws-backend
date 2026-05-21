@@ -19,6 +19,7 @@ type RootSummaryRow struct {
 type DerivativeRow struct {
 	Ar    string  `db:"ar"`
 	Tr    *string `db:"tr"`
+	En    *string `db:"en"`
 	Count int     `db:"count"`
 }
 
@@ -109,6 +110,7 @@ func (db *DB) RootDetail(ctx context.Context, letters string) (RootSummaryRow, [
         SELECT
             ar_wt.word                                            AS ar,
             mode() WITHIN GROUP (ORDER BY tl_wt.word)             AS tr,
+            mode() WITHIN GROUP (ORDER BY en_wt.word)             AS en,
             COUNT(*)::int                                         AS count
         FROM   word_text ar_wt
         JOIN   languages ar_l ON ar_wt.lang_id = ar_l.id AND ar_l.code = 'ar'
@@ -116,6 +118,10 @@ func (db *DB) RootDetail(ctx context.Context, letters string) (RootSummaryRow, [
         LEFT   JOIN word_text tl_wt
                  ON tl_wt.word_id = ar_wt.word_id
                 AND tl_wt.lang_id = tl_l.id
+        LEFT   JOIN languages en_l ON en_l.code = 'en'
+        LEFT   JOIN word_text en_wt
+                 ON en_wt.word_id = ar_wt.word_id
+                AND en_wt.lang_id = en_l.id
         WHERE  ar_wt.word_root = $1
         GROUP  BY ar_wt.word
         ORDER  BY count DESC, ar_wt.word

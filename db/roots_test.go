@@ -86,6 +86,18 @@ func TestRootDetail_HappyPath(t *testing.T) {
 	if len(derivs) == 0 {
 		t.Errorf("expected at least one derivative for %q", root)
 	}
+	// At least one derivative of a well-known root must have an English gloss
+	// populated from word_text. Verifies the en_wt join wired through.
+	hasEn := false
+	for _, d := range derivs {
+		if d.En != nil && *d.En != "" {
+			hasEn = true
+			break
+		}
+	}
+	if !hasEn {
+		t.Errorf("expected at least one derivative with non-empty En for %q", root)
+	}
 	if len(occ) == 0 {
 		t.Errorf("expected at least one occurrence for %q", root)
 	}
