@@ -332,6 +332,21 @@ seed-music TARGET="local":
 seed-admin EMAIL:
     go run ./api/cmd/seed_admin/ --email "{{EMAIL}}"
 
+# ---------------------------------------------------------------------------
+# Quran Games
+# ---------------------------------------------------------------------------
+
+# Populate game_word_frequency for the English (RK) translation. Idempotent.
+games-seed-frequency:
+    go run ./api/cmd/games_seed_frequency/ --language en
+
+# Placeholder for lemma seeding — the lemma table is populated from a Python
+# sidecar fixture that is not yet checked in. Until then Hard-tier acceptance
+# falls back to exact match.
+games-seed-lemma:
+    @echo "games-seed-lemma: lemma fixture not yet available. Hard tier falls back to exact match." >&2
+    @exit 1
+
 # Full local rebuild: drop, set up, import legacy, seed
 rebuild: db-drop db-setup
     just source-import local

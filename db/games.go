@@ -391,6 +391,113 @@ func (db *DB) FetchWeeklyLeaderboard(ctx context.Context, size, difficulty strin
 	return pgx.CollectRows(rows, pgx.RowToStructByName[GameLeaderboardRow])
 }
 
+// FetchFrequencies returns corpus counts for the given normalized words.
+// Missing words are absent from the map (the generator treats them as freq=1).
+func (db *DB) FetchFrequencies(ctx context.Context, language string, words []string) (map[string]int, error) {
+	defer observe("fetch_game_frequencies", time.Now())
+	out := make(map[string]int, len(words))
+	if len(words) == 0 {
+		return out, nil
+	}
+	rows, err := db.Pool.Query(ctx,
+		`SELECT word_normalized, frequency
+		 FROM game_word_frequency
+		 WHERE language = $1 AND word_normalized = ANY($2)`,
+		language, words)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var w string
+		var f int
+		if err := rows.Scan(&w, &f); err != nil {
+			return nil, err
+		}
+		out[w] = f
+	}
+	return out, rows.Err()
+}
+
+// FetchLemmasFor returns lemma assignments for the given normalized words.
+// Missing words are absent from the map.
+func (db *DB) FetchLemmasFor(ctx context.Context, language string, words []string) (map[string]string, error) {
+	defer observe("fetch_game_lemmas", time.Now())
+	out := make(map[string]string, len(words))
+	if len(words) == 0 {
+		return out, nil
+	}
+	rows, err := db.Pool.Query(ctx,
+		`SELECT word_normalized, lemma
+		 FROM game_lemma
+		 WHERE language = $1 AND word_normalized = ANY($2)`,
+		language, words)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var w, lemma string
+		if err := rows.Scan(&w, &lemma); err != nil {
+			return nil, err
+		}
+		out[w] = lemma
+	}
+	return out, rows.Err()
+}
+
+// FetchChapterVerseContents returns every verse_text.content for a chapter in
+// the given language, in canonical order. Used by the variant generator to
+// build the easy-tier distractor pool.
+func (db *DB) FetchChapterVerseContents(ctx context.Context, language string, chapter int) ([]string, error) {
+	defer observe("fetch_chapter_verse_contents", time.Now())
+	rows, err := db.Pool.Query(ctx, `
+		SELECT vt.content
+		FROM verse_text vt
+		JOIN verses v ON v.id = vt.verse_id
+		JOIN chapters c ON c.id = v.chapter_id
+		JOIN languages l ON l.id = vt.lang_id
+		WHERE c.chapter_number = $1 AND l.code = $2
+		ORDER BY v.verse_index
+	`, chapter, language)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// OldestVariantInGroup returns the lowest-counter variant in the group.
+// Used for the replay-cycle fallback when the user has exhausted the catalog.
+func (db *DB) OldestVariantInGroup(ctx context.Context, passageID int64, language, difficulty, size string) (*GameVariantRow, error) {
+	defer observe("fetch_oldest_variant_in_group", time.Now())
+	query := `SELECT ` + variantCols + `
+	          FROM game_variants v
+	          WHERE v.passage_id = $1 AND v.language = $2 AND v.difficulty = $3 AND v.size = $4
+	          ORDER BY v.counter ASC LIMIT 1`
+	rows, err := db.Pool.Query(ctx, query, passageID, language, difficulty, size)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[GameVariantRow])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (db *DB) FetchVariantLeaderboard(ctx context.Context, variantID string, limit int) ([]GameLeaderboardRow, error) {
 	defer observe("fetch_variant_game_leaderboard", time.Now())
 
