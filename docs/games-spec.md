@@ -36,16 +36,16 @@ can be compared on equal footing.
 
 ## 2. Where this fits in ws-backend
 
-| Concern | Location |
-| --- | --- |
-| HTTP handlers | `api/handlers/games.go` (new) |
-| OpenAPI fragments | merged into `openapi.yaml` |
-| DB schema | `db/migrations/NNNN_games.sql` (new) |
-| Row structs | `db/games.go` (new) |
+| Concern               | Location                                     |
+| --------------------- | -------------------------------------------- |
+| HTTP handlers         | `api/handlers/games.go` (new)                |
+| OpenAPI fragments     | merged into `openapi.yaml`                   |
+| DB schema             | `db/migrations/NNNN_games.sql` (new)         |
+| Row structs           | `db/games.go` (new)                          |
 | GROQ curation command | `bin/groq-curate` or `cmd/groq-curate` (new) |
-| Justfile recipes | new recipes prefixed `games-…` |
+| Justfile recipes      | new recipes prefixed `games-…`               |
 
-All endpoints sit behind the same Supabase JWT guard used by `/me/*`. New
+All endpoints sit behind the same auth JWT guard used by `/me/*`. New
 public endpoints (`/games/*`) also require auth in v1 — the section is hidden
 from anonymous visitors in the UI, and the backend enforces the same.
 
@@ -116,22 +116,20 @@ CREATE UNIQUE INDEX game_variants_unique_config
 ```jsonc
 [
   {
-    "index": 0,                       // 0-based position within the variant
-    "verse_key": "1:2",               // verse this blank lives in
-    "word_position": 3,               // 0-based word index inside that verse
-    "answer": "praise",               // plaintext, server-only, never returned to the client
-    "answer_lemma": "praise",         // for hard-tier acceptance
-    "options": ["praise", "thanks", "glory", "mercy"]  // easy-tier only; omitted otherwise
-  }
+    "index": 0, // 0-based position within the variant
+    "verse_key": "1:2", // verse this blank lives in
+    "word_position": 3, // 0-based word index inside that verse
+    "answer": "praise", // plaintext, server-only, never returned to the client
+    "answer_lemma": "praise", // for hard-tier acceptance
+    "options": ["praise", "thanks", "glory", "mercy"], // easy-tier only; omitted otherwise
+  },
 ]
 ```
 
 `rendered` JSON shape:
 
 ```jsonc
-[
-  { "verse_key": "1:2", "text": "__BLANK_0__ be to GOD, Lord of the universe." }
-]
+[{ "verse_key": "1:2", "text": "__BLANK_0__ be to GOD, Lord of the universe." }]
 ```
 
 > **Note:** the API response to the client returns only `index`, `verse_key`,
@@ -258,13 +256,13 @@ short round wants; the generator selects a contiguous window inside).
 The blankability scorer assigns a score to every word in the passage. Top-N
 candidates by score, with the rules below applied as filters or weights:
 
-| Rule | Easy | Medium | Hard | Professional |
-| --- | --- | --- | --- | --- |
-| Skip stopwords (`the`, `of`, `and`, `to`, `is`, `a`, `in`, `for`, ...) | yes | yes | no | no |
-| Minimum word length | 3 chars | 4 chars | none | none |
-| Avoid consecutive blanks | yes | yes | yes | yes |
-| Mid-verse position bonus | strong | strong | weak | weak |
-| Frequency bias (rarer = higher score) | strong | strong | moderate | moderate |
+| Rule                                                                   | Easy    | Medium  | Hard     | Professional |
+| ---------------------------------------------------------------------- | ------- | ------- | -------- | ------------ |
+| Skip stopwords (`the`, `of`, `and`, `to`, `is`, `a`, `in`, `for`, ...) | yes     | yes     | no       | no           |
+| Minimum word length                                                    | 3 chars | 4 chars | none     | none         |
+| Avoid consecutive blanks                                               | yes     | yes     | yes      | yes          |
+| Mid-verse position bonus                                               | strong  | strong  | weak     | weak         |
+| Frequency bias (rarer = higher score)                                  | strong  | strong  | moderate | moderate     |
 
 The stopword list is fixed in code as a small set (~50 words). Punctuation is
 stripped before normalization; capitalization is ignored for matching but the
@@ -290,12 +288,12 @@ non-stopword from the chapter" as a last resort.
 
 Four hint types available, each costs **25 points** (flat).
 
-| Hint | Reveals |
-| --- | --- |
-| First letter | First character of the answer (preserving case of the source word) |
-| Word length | `____ (n)` where n is the answer's character count |
-| Phonetic / first two letters | First two characters |
-| Lemma / root | English lemma (looked up from `game_lemma`); Arabic root (v2) |
+| Hint                         | Reveals                                                            |
+| ---------------------------- | ------------------------------------------------------------------ |
+| First letter                 | First character of the answer (preserving case of the source word) |
+| Word length                  | `____ (n)` where n is the answer's character count                 |
+| Phonetic / first two letters | First two characters                                               |
+| Lemma / root                 | English lemma (looked up from `game_lemma`); Arabic root (v2)      |
 
 Each hint is independently toggleable per blank. The frontend tracks
 `hints_used` and submits the total count; the server applies the score
@@ -423,11 +421,11 @@ List approved passages.
 
 **Query**
 
-| Param | Type | Notes |
-| --- | --- | --- |
-| `language` | `'en'` (v1) | default `'en'` |
-| `theme` | string | optional theme filter |
-| `chapter` | int | optional chapter filter (1-114) |
+| Param      | Type        | Notes                           |
+| ---------- | ----------- | ------------------------------- |
+| `language` | `'en'` (v1) | default `'en'`                  |
+| `theme`    | string      | optional theme filter           |
+| `chapter`  | int         | optional chapter filter (1-114) |
 
 **200**
 
@@ -463,7 +461,7 @@ specific variant when `variant_id` is supplied (for shared links).
   "language": "en",
   "difficulty": "hard",
   "size": "medium",
-  "variant_id": "p42-en-hard-medium-7"  // optional
+  "variant_id": "p42-en-hard-medium-7" // optional
 }
 ```
 
@@ -491,11 +489,12 @@ exist; auto-creation only happens for the no-id case).
     "difficulty": "hard",
     "size": "medium",
     "rendered_verses": [
-      { "verse_key": "1:2", "text": "__BLANK_0__ be to GOD, Lord of the universe." }
+      {
+        "verse_key": "1:2",
+        "text": "__BLANK_0__ be to GOD, Lord of the universe."
+      }
     ],
-    "blanks": [
-      { "index": 0, "verse_key": "1:2", "word_position": 0 }
-    ],
+    "blanks": [{ "index": 0, "verse_key": "1:2", "word_position": 0 }],
     "replay": false
   }
 }
@@ -515,9 +514,7 @@ Score a completed variant.
 ```json
 {
   "variant_id": "p42-en-hard-medium-7",
-  "guesses": [
-    { "index": 0, "value": "Praise" }
-  ],
+  "guesses": [{ "index": 0, "value": "Praise" }],
   "hints_used": 1,
   "elapsed_ms": 73214
 }
@@ -534,9 +531,7 @@ Score a completed variant.
     "score": 1485,
     "correct_count": 7,
     "total_count": 8,
-    "per_blank": [
-      { "index": 0, "correct": true, "accepted_answer": "Praise" }
-    ],
+    "per_blank": [{ "index": 0, "correct": true, "accepted_answer": "Praise" }],
     "difficulty_multiplier": 2.0,
     "hint_penalty": 25
   }
@@ -555,13 +550,13 @@ per `(user, variant_id)` per hour. Returns `429` on overflow.
 
 **Query**
 
-| Param | Type | Notes |
-| --- | --- | --- |
-| `scope` | `'global' \| 'weekly' \| 'variant'` | required |
-| `size` | `'short' \| 'medium' \| 'long'` | required for global/weekly |
-| `difficulty` | difficulty | required for global/weekly |
-| `variant_id` | string | required when `scope = 'variant'` |
-| `limit` | int | default 25, max 100 |
+| Param        | Type                                | Notes                             |
+| ------------ | ----------------------------------- | --------------------------------- |
+| `scope`      | `'global' \| 'weekly' \| 'variant'` | required                          |
+| `size`       | `'short' \| 'medium' \| 'long'`     | required for global/weekly        |
+| `difficulty` | difficulty                          | required for global/weekly        |
+| `variant_id` | string                              | required when `scope = 'variant'` |
+| `limit`      | int                                 | default 25, max 100               |
 
 **200**
 
@@ -590,9 +585,9 @@ Returns the current user's completed attempts, newest first.
 
 **Query**
 
-| Param | Type | Notes |
-| --- | --- | --- |
-| `limit` | int | default 25, max 100 |
+| Param    | Type   | Notes                                             |
+| -------- | ------ | ------------------------------------------------- |
+| `limit`  | int    | default 25, max 100                               |
 | `cursor` | string | opaque pagination cursor (encoded `completed_at`) |
 
 **200**
@@ -622,10 +617,10 @@ Returns the current user's completed attempts, newest first.
     "best_score": 2840,
     "variants_completed": 30,
     "by_difficulty": {
-      "easy":         { "attempts": 5,  "best_score": 980 },
-      "medium":       { "attempts": 12, "best_score": 1450 },
-      "hard":         { "attempts": 18, "best_score": 1900 },
-      "professional": { "attempts": 7,  "best_score": 2840 }
+      "easy": { "attempts": 5, "best_score": 980 },
+      "medium": { "attempts": 12, "best_score": 1450 },
+      "hard": { "attempts": 18, "best_score": 1900 },
+      "professional": { "attempts": 7, "best_score": 2840 }
     }
   }
 }
@@ -647,12 +642,12 @@ tiebreaker in leaderboard ordering (lower elapsed wins ties).
 
 Worked examples:
 
-| difficulty | correct/total | hints | elapsed | base | mult | penalty | score |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| easy        | 8/8 | 0 | 60s   | 1000.0 | 1.0 | 0  | 1000 |
-| medium      | 14/15 | 2 | 180s | 933.3  | 1.5 | 50 | 1350 |
-| hard        | 7/8 | 0 | 240s   | 875.0  | 2.0 | 0  | 1750 |
-| professional| 25/25 | 0 | 600s | 1000.0 | 3.0 | 0  | 3000 |
+| difficulty   | correct/total | hints | elapsed | base   | mult | penalty | score |
+| ------------ | ------------- | ----- | ------- | ------ | ---- | ------- | ----- |
+| easy         | 8/8           | 0     | 60s     | 1000.0 | 1.0  | 0       | 1000  |
+| medium       | 14/15         | 2     | 180s    | 933.3  | 1.5  | 50      | 1350  |
+| hard         | 7/8           | 0     | 240s    | 875.0  | 2.0  | 0       | 1750  |
+| professional | 25/25         | 0     | 600s    | 1000.0 | 3.0  | 0       | 3000  |
 
 ---
 
