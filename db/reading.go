@@ -70,11 +70,26 @@ type StreakResult struct {
 }
 
 func (db *DB) IncrementReadingLog(ctx context.Context, authID, scripture, day string, versesRead int) error {
-	query := `INSERT INTO reading_log (user_id, scripture, day, verses_read)
-	          SELECT u.id, $2, $3::date, $4 FROM users u WHERE u.auth_id = $1
-	          ON CONFLICT (user_id, scripture, day) DO UPDATE SET verses_read = reading_log.verses_read + EXCLUDED.verses_read`
-	_, err := db.Pool.Exec(ctx, query, authID, scripture, day, versesRead)
-	return err
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	logQuery := `INSERT INTO reading_log (user_id, scripture, day, verses_read)
+	             SELECT u.id, $2, $3::date, $4 FROM users u WHERE u.auth_id = $1
+	             ON CONFLICT (user_id, scripture, day) DO UPDATE SET verses_read = reading_log.verses_read + EXCLUDED.verses_read`
+	if _, err := tx.Exec(ctx, logQuery, authID, scripture, day, versesRead); err != nil {
+		return err
+	}
+
+	eventQuery := `INSERT INTO reading_events (user_id, scripture, verses_read)
+	               SELECT u.id, $2, $3 FROM users u WHERE u.auth_id = $1`
+	if _, err := tx.Exec(ctx, eventQuery, authID, scripture, versesRead); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (db *DB) GetStreak(ctx context.Context, authID, scripture string) (*StreakResult, error) {
@@ -126,5 +141,148 @@ func (db *DB) GetStreak(ctx context.Context, authID, scripture string) (*StreakR
 	if tvr != nil {
 		result.TotalVersesRead = *tvr
 	}
+	return result, nil
+}
+
+// ── Reading stats (analytics) ─────────────────────────────────────────────
+
+type ReadingStatsDaily struct {
+	Day        string `db:"day" json:"day"`
+	VersesRead int    `db:"verses_read" json:"verses_read"`
+}
+
+type ReadingStatsHourly struct {
+	Hour       int `db:"hour" json:"hour"`
+	VersesRead int `db:"verses_read" json:"verses_read"`
+}
+
+type ReadingStatsWeekday struct {
+	Weekday    int `db:"weekday" json:"weekday"`
+	VersesRead int `db:"verses_read" json:"verses_read"`
+}
+
+type ReadingStatsResult struct {
+	Total      int                   `json:"total"`
+	ActiveDays int                   `json:"active_days"`
+	BestDay    *ReadingStatsDaily    `json:"best_day,omitempty"`
+	Daily      []ReadingStatsDaily   `json:"daily"`
+	Hourly     []ReadingStatsHourly  `json:"hourly"`
+	Weekday    []ReadingStatsWeekday `json:"weekday"`
+	Cumulative []ReadingStatsDaily   `json:"cumulative"`
+}
+
+// GetReadingStats returns aggregated reading metrics from reading_events for the
+// given range. `since` is inclusive lower bound; pass zero time for "all time".
+// `tz` is the IANA timezone used for day/hour/weekday bucketing.
+func (db *DB) GetReadingStats(ctx context.Context, authID, scripture, tz string, since time.Time) (*ReadingStatsResult, error) {
+	if tz == "" {
+		tz = "UTC"
+	}
+	hasSince := !since.IsZero()
+
+	dailyQuery := `WITH ev AS (
+	                 SELECT e.ts, e.verses_read
+	                 FROM reading_events e
+	                 JOIN users u ON u.id = e.user_id
+	                 WHERE u.auth_id = $1
+	                   AND e.scripture = $2
+	                   AND ($4::timestamptz IS NULL OR e.ts >= $4)
+	               )
+	               SELECT to_char((ts AT TIME ZONE $3)::date, 'YYYY-MM-DD') AS day,
+	                      SUM(verses_read)::int AS verses_read
+	               FROM ev
+	               GROUP BY 1
+	               ORDER BY 1`
+	hourlyQuery := `WITH ev AS (
+	                  SELECT e.ts, e.verses_read
+	                  FROM reading_events e
+	                  JOIN users u ON u.id = e.user_id
+	                  WHERE u.auth_id = $1
+	                    AND e.scripture = $2
+	                    AND ($4::timestamptz IS NULL OR e.ts >= $4)
+	                )
+	                SELECT EXTRACT(HOUR FROM (ts AT TIME ZONE $3))::int AS hour,
+	                       SUM(verses_read)::int AS verses_read
+	                FROM ev
+	                GROUP BY 1
+	                ORDER BY 1`
+	weekdayQuery := `WITH ev AS (
+	                   SELECT e.ts, e.verses_read
+	                   FROM reading_events e
+	                   JOIN users u ON u.id = e.user_id
+	                   WHERE u.auth_id = $1
+	                     AND e.scripture = $2
+	                     AND ($4::timestamptz IS NULL OR e.ts >= $4)
+	                 )
+	                 SELECT EXTRACT(ISODOW FROM (ts AT TIME ZONE $3))::int AS weekday,
+	                        SUM(verses_read)::int AS verses_read
+	                 FROM ev
+	                 GROUP BY 1
+	                 ORDER BY 1`
+
+	var sinceArg interface{}
+	if hasSince {
+		sinceArg = since
+	} else {
+		sinceArg = nil
+	}
+
+	result := &ReadingStatsResult{
+		Daily:      []ReadingStatsDaily{},
+		Hourly:     []ReadingStatsHourly{},
+		Weekday:    []ReadingStatsWeekday{},
+		Cumulative: []ReadingStatsDaily{},
+	}
+
+	// daily
+	rows, err := db.Pool.Query(ctx, dailyQuery, authID, scripture, tz, sinceArg)
+	if err != nil {
+		return nil, err
+	}
+	daily, err := pgx.CollectRows(rows, pgx.RowToStructByName[ReadingStatsDaily])
+	if err != nil {
+		return nil, err
+	}
+	result.Daily = daily
+
+	// hourly
+	rows, err = db.Pool.Query(ctx, hourlyQuery, authID, scripture, tz, sinceArg)
+	if err != nil {
+		return nil, err
+	}
+	hourly, err := pgx.CollectRows(rows, pgx.RowToStructByName[ReadingStatsHourly])
+	if err != nil {
+		return nil, err
+	}
+	result.Hourly = hourly
+
+	// weekday
+	rows, err = db.Pool.Query(ctx, weekdayQuery, authID, scripture, tz, sinceArg)
+	if err != nil {
+		return nil, err
+	}
+	weekday, err := pgx.CollectRows(rows, pgx.RowToStructByName[ReadingStatsWeekday])
+	if err != nil {
+		return nil, err
+	}
+	result.Weekday = weekday
+
+	// aggregates + cumulative derived from daily
+	var running int
+	cumulative := make([]ReadingStatsDaily, 0, len(daily))
+	for _, d := range daily {
+		running += d.VersesRead
+		cumulative = append(cumulative, ReadingStatsDaily{Day: d.Day, VersesRead: running})
+		result.Total += d.VersesRead
+		if d.VersesRead > 0 {
+			result.ActiveDays++
+			if result.BestDay == nil || d.VersesRead > result.BestDay.VersesRead {
+				best := d
+				result.BestDay = &best
+			}
+		}
+	}
+	result.Cumulative = cumulative
+
 	return result, nil
 }

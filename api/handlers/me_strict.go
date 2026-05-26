@@ -692,6 +692,91 @@ func (s *Server) PostMeReadingLog(ctx context.Context, request PostMeReadingLogR
 	return PostMeReadingLog200JSONResponse(nullDataEnvelope()), nil
 }
 
+func readingStatsRangeStart(now time.Time, r *GetMeReadingStatsParamsRange) time.Time {
+	if r == nil {
+		return now.AddDate(0, 0, -30)
+	}
+	switch *r {
+	case N7d:
+		return now.AddDate(0, 0, -7)
+	case N30d:
+		return now.AddDate(0, 0, -30)
+	case N90d:
+		return now.AddDate(0, 0, -90)
+	case N1y:
+		return now.AddDate(-1, 0, 0)
+	case All:
+		return time.Time{}
+	}
+	return now.AddDate(0, 0, -30)
+}
+
+func (s *Server) GetMeReadingStats(ctx context.Context, request GetMeReadingStatsRequestObject) (GetMeReadingStatsResponseObject, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return GetMeReadingStats500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+
+	scripture := "quran"
+	if request.Params.Scripture != nil {
+		scripture = string(*request.Params.Scripture)
+	}
+	if !validScripture(scripture) {
+		return GetMeReadingStats400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
+	}
+
+	tz := "UTC"
+	if request.Params.Tz != nil && *request.Params.Tz != "" {
+		if _, err := time.LoadLocation(*request.Params.Tz); err != nil {
+			return GetMeReadingStats400JSONResponse{BadRequestJSONResponse{Message: "invalid IANA timezone"}}, nil
+		}
+		tz = *request.Params.Tz
+	}
+
+	since := readingStatsRangeStart(time.Now().UTC(), request.Params.Range)
+
+	stats, err := s.DB.GetReadingStats(ctx, authID, scripture, tz, since)
+	if err != nil {
+		slog.Error("GetMeReadingStats: DB error", "error", err)
+		return GetMeReadingStats500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+
+	daily := make([]ReadingStatsDaily, len(stats.Daily))
+	for i, d := range stats.Daily {
+		daily[i] = ReadingStatsDaily{Day: parseDate(d.Day), VersesRead: d.VersesRead}
+	}
+	cumulative := make([]ReadingStatsDaily, len(stats.Cumulative))
+	for i, d := range stats.Cumulative {
+		cumulative[i] = ReadingStatsDaily{Day: parseDate(d.Day), VersesRead: d.VersesRead}
+	}
+	hourly := make([]ReadingStatsHourly, len(stats.Hourly))
+	for i, h := range stats.Hourly {
+		hourly[i] = ReadingStatsHourly{Hour: h.Hour, VersesRead: h.VersesRead}
+	}
+	weekday := make([]ReadingStatsWeekday, len(stats.Weekday))
+	for i, w := range stats.Weekday {
+		weekday[i] = ReadingStatsWeekday{Weekday: w.Weekday, VersesRead: w.VersesRead}
+	}
+
+	var bestDay *ReadingStatsDaily
+	if stats.BestDay != nil {
+		bd := ReadingStatsDaily{Day: parseDate(stats.BestDay.Day), VersesRead: stats.BestDay.VersesRead}
+		bestDay = &bd
+	}
+
+	return GetMeReadingStats200JSONResponse(ReadingStatsEnvelope{
+		Data: ReadingStats{
+			Total:      stats.Total,
+			ActiveDays: stats.ActiveDays,
+			BestDay:    bestDay,
+			Daily:      daily,
+			Hourly:     hourly,
+			Weekday:    weekday,
+			Cumulative: cumulative,
+		},
+	}), nil
+}
+
 func (s *Server) GetMePreferences(ctx context.Context, request GetMePreferencesRequestObject) (GetMePreferencesResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {
