@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	_ "time/tzdata"
 
 	"github.com/joho/godotenv"
 	"github.com/lmittmann/tint"
