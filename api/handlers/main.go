@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/wikiSubmission/ws-backend/db"
 	"github.com/wikiSubmission/ws-backend/sanity"
@@ -41,6 +42,20 @@ type Server struct {
 	BibleLangs map[string]bool // lang codes with Bible verse_text content
 	Embedder   Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
 	Sanity     *sanity.Client  // nil = Sanity proxy disabled (SANITY_PROJECT_ID not set)
+
+	// Games rate limiters. Lazily allocated by the games handlers if not set
+	// by the caller, so tests do not need to wire them explicitly.
+	gamesLimits     *gamesLimiters
+	gamesLimitsOnce sync.Once
+}
+
+func (s *Server) gamesLimitsOrInit() *gamesLimiters {
+	s.gamesLimitsOnce.Do(func() {
+		if s.gamesLimits == nil {
+			s.gamesLimits = newGamesLimiters()
+		}
+	})
+	return s.gamesLimits
 }
 
 func (s *Server) InitializeCaches(ctx context.Context) error {

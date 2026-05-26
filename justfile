@@ -347,6 +347,16 @@ games-seed-lemma:
     @echo "games-seed-lemma: lemma fixture not yet available. Hard tier falls back to exact match." >&2
     @exit 1
 
+# Propose passages for one chapter via GROQ. Requires GROQ_API_KEY in env.
+# Writes rows to game_passages with status='proposed' for editor review.
+games-curate-chapter CHAPTER:
+    go run ./api/cmd/groq_curate/ --chapter "{{CHAPTER}}"
+
+# Re-propose passages currently in rejected/needs_refinement for one chapter.
+# Approved passages are untouched.
+games-refine-rejected CHAPTER:
+    go run ./api/cmd/groq_curate/ --chapter "{{CHAPTER}}" --refine-rejected
+
 # Full local rebuild: drop, set up, import legacy, seed
 rebuild: db-drop db-setup
     just source-import local

@@ -355,6 +355,18 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 		}, nil
 	}
 
+	limits := s.gamesLimitsOrInit()
+	if !limits.perUserMinute.Allow(authID) {
+		return SubmitGameFillBlankAttempt429JSONResponse{
+			Message: "rate limit exceeded — max 10 submissions per minute per user",
+		}, nil
+	}
+	if !limits.perUserVariant.Allow(authID + "|" + req.VariantId) {
+		return SubmitGameFillBlankAttempt429JSONResponse{
+			Message: "rate limit exceeded — max 5 submissions per hour per variant",
+		}, nil
+	}
+
 	variant, err := s.DB.FetchVariantByVariantID(ctx, req.VariantId)
 	if err != nil {
 		slog.Error("SubmitGameFillBlankAttempt: FetchVariantByVariantID", "error", err)
