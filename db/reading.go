@@ -94,7 +94,7 @@ func (db *DB) GetStreak(ctx context.Context, authID, scripture string) (*StreakR
 	          ),
 	          gaps AS (
 	            SELECT day,
-	                   day - (ROW_NUMBER() OVER (ORDER BY day DESC))::int * INTERVAL '1 day' AS grp
+	                   day + (ROW_NUMBER() OVER (ORDER BY day DESC))::int * INTERVAL '1 day' AS grp
 	            FROM days
 	          ),
 	          runs AS (
