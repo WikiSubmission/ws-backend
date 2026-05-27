@@ -17,8 +17,10 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -112,6 +114,108 @@ var ErrNoChapterText = fmt.Errorf("chapter has no English verses")
 
 // ErrNoProposals means the model returned (or validation kept) zero proposals.
 var ErrNoProposals = fmt.Errorf("no usable proposals")
+
+// ErrRateLimited wraps a Groq token/rate-limit rejection so callers can tell it
+// apart from other failures and back off before retrying.
+var ErrRateLimited = errors.New("groq rate limit")
+
+// WindowResult reports the outcome of curating a single verse window, with a
+// cursor (NextVerse) and Done flag so a caller can drive the chapter to
+// completion one window at a time and show progress.
+type WindowResult struct {
+	Chapter     int
+	WindowStart int
+	WindowEnd   int
+	Proposed    int
+	Dropped     []Dropped
+	NextVerse   int // pass as afterVerse on the next call
+	Done        bool
+	VersesTotal int
+}
+
+// RunWindow curates the first uncovered verse window that starts after
+// afterVerse (pass 0 to begin), inserts its kept proposals, and returns a
+// cursor for the next call. It performs at most one model request and does not
+// pace internally — the caller paces between calls and backs off on
+// ErrRateLimited. Verses already covered by proposed/approved passages are
+// skipped, and the cursor advances even when a window yields nothing, so
+// repeated calls always make progress and never loop.
+func RunWindow(ctx context.Context, database *db.DB, cfg Config, chapter, afterVerse int) (*WindowResult, error) {
+	contents, err := database.FetchChapterVerseContents(ctx, "en", chapter)
+	if err != nil {
+		return nil, fmt.Errorf("fetch chapter text: %w", err)
+	}
+	versesTotal := len(contents)
+	if versesTotal == 0 {
+		return nil, ErrNoChapterText
+	}
+
+	covered, err := fetchCoveredVerses(ctx, database, chapter)
+	if err != nil {
+		return nil, fmt.Errorf("fetch covered verses: %w", err)
+	}
+	windows := buildWindows(contents, covered)
+
+	idx := -1
+	for i, w := range windows {
+		if w.start > afterVerse {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		slog.Info("curate window: nothing left", "chapter", chapter, "after_verse", afterVerse, "verses_total", versesTotal)
+		return &WindowResult{Chapter: chapter, NextVerse: afterVerse, Done: true, VersesTotal: versesTotal}, nil
+	}
+
+	w := windows[idx]
+	text := renderWindow(chapter, w, contents)
+	slog.Info("curate window: requesting", "chapter", chapter, "window", fmt.Sprintf("%d-%d", w.start, w.end), "est_tokens", requestTokenEstimate(text))
+
+	props, err := ProposePassages(ctx, cfg, chapter, w.start, w.end, text)
+	if err != nil {
+		if errors.Is(err, ErrRateLimited) {
+			slog.Warn("curate window: rate limited", "chapter", chapter, "window", fmt.Sprintf("%d-%d", w.start, w.end))
+		} else {
+			slog.Error("curate window: model failed", "chapter", chapter, "window", fmt.Sprintf("%d-%d", w.start, w.end), "error", err)
+		}
+		return nil, err
+	}
+
+	kept, dropped := ValidateProposals(props)
+	inRange := make([]Proposal, 0, len(kept))
+	for _, p := range kept {
+		if p.VerseStart >= w.start && p.VerseEnd <= w.end {
+			inRange = append(inRange, p)
+		} else {
+			dropped = append(dropped, Dropped{p, fmt.Sprintf("outside window %d-%d", w.start, w.end)})
+		}
+	}
+	if len(inRange) > 0 {
+		if err := InsertProposals(ctx, database, chapter, inRange, false); err != nil {
+			return nil, fmt.Errorf("insert proposals: %w", err)
+		}
+	}
+
+	done := idx == len(windows)-1
+	slog.Info("curate window: done",
+		"chapter", chapter,
+		"window", fmt.Sprintf("%d-%d", w.start, w.end),
+		"proposed", len(inRange),
+		"dropped", len(dropped),
+		"done", done,
+	)
+	return &WindowResult{
+		Chapter:     chapter,
+		WindowStart: w.start,
+		WindowEnd:   w.end,
+		Proposed:    len(inRange),
+		Dropped:     dropped,
+		NextVerse:   w.end,
+		Done:        done,
+		VersesTotal: versesTotal,
+	}, nil
+}
 
 // Run curates one chapter end to end: fetch text, split into paced windows,
 // call the model per window, validate, and insert kept proposals as
@@ -475,6 +579,13 @@ func ProposePassages(ctx context.Context, cfg Config, chapter, verseStart, verse
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
+		// 413 (request too large) and 429 are Groq's token/rate-limit responses;
+		// flag them so the caller can pace and retry rather than give up.
+		if resp.StatusCode == http.StatusRequestEntityTooLarge ||
+			resp.StatusCode == http.StatusTooManyRequests ||
+			strings.Contains(string(respBody), "rate_limit_exceeded") {
+			return nil, fmt.Errorf("%w: groq %d: %s", ErrRateLimited, resp.StatusCode, string(respBody))
+		}
 		return nil, fmt.Errorf("groq %d: %s", resp.StatusCode, string(respBody))
 	}
 

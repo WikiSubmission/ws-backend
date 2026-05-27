@@ -193,14 +193,18 @@ func (h *GamesAdminHandler) LoadLemmas(c *gin.Context) {
 }
 
 type curateRequest struct {
-	Chapter int   `json:"chapter"`
-	Refine  *bool `json:"refine,omitempty"`
+	Chapter    int `json:"chapter"`
+	AfterVerse int `json:"after_verse"`
 }
 
-// Curate handles POST /admin/games/curate. It runs GROQ curation for a chapter
-// and inserts the kept proposals as status='proposed'. GROQ_API_KEY must be
-// configured on the server; a missing key returns 503 and an upstream GROQ
-// failure returns 502 so the UI can tell config from transient errors apart.
+// Curate handles POST /admin/games/curate. It curates one verse window of a
+// chapter per call (starting after `after_verse`), inserts the kept proposals
+// as status='proposed', and returns a cursor (`next_verse`) plus `done` so the
+// client can loop a long chapter window-by-window and show progress.
+//
+// GROQ_API_KEY must be configured (503 otherwise). A Groq rate/token limit
+// returns 429 so the client can back off; any other upstream failure returns
+// 502 with the reason.
 func (h *GamesAdminHandler) Curate(c *gin.Context) {
 	var req curateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -222,30 +226,31 @@ func (h *GamesAdminHandler) Curate(c *gin.Context) {
 		Model:   os.Getenv("GROQ_MODEL"),
 		BaseURL: os.Getenv("GROQ_BASE_URL"),
 	}
-	refine := req.Refine != nil && *req.Refine
 
-	res, err := curate.Run(c.Request.Context(), h.DB, cfg, req.Chapter, refine)
+	res, err := curate.RunWindow(c.Request.Context(), h.DB, cfg, req.Chapter, req.AfterVerse)
 	if err != nil {
 		switch {
 		case errors.Is(err, curate.ErrNoChapterText):
 			c.JSON(http.StatusBadRequest, gin.H{"message": "chapter has no English verses"})
-		case errors.Is(err, curate.ErrNoProposals):
-			c.JSON(http.StatusBadGateway, gin.H{"message": "the model returned no usable proposals for this chapter"})
+		case errors.Is(err, curate.ErrRateLimited):
+			c.JSON(http.StatusTooManyRequests, gin.H{"message": "Groq rate limit reached; pausing before the next window"})
 		default:
-			// Editors are trusted, so surface the upstream reason (e.g. a Groq
-			// rate limit or timeout) to make failures actionable.
-			slog.Error("admin Curate: failed", "chapter", req.Chapter, "error", err)
+			// Editors are trusted, so surface the upstream reason to make
+			// failures actionable.
+			slog.Error("admin Curate: failed", "chapter", req.Chapter, "after_verse", req.AfterVerse, "error", err)
 			c.JSON(http.StatusBadGateway, gin.H{"message": "curation failed: " + err.Error()})
 		}
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
-		"chapter":  res.Chapter,
-		"proposed": res.Proposed,
-		"dropped":  len(res.Dropped),
-		"refine":   res.Refine,
-		"skipped":  res.Skipped,
-		"partial":  res.Partial,
+		"chapter":      res.Chapter,
+		"proposed":     res.Proposed,
+		"dropped":      len(res.Dropped),
+		"window_start": res.WindowStart,
+		"window_end":   res.WindowEnd,
+		"next_verse":   res.NextVerse,
+		"done":         res.Done,
+		"verses_total": res.VersesTotal,
 	}})
 }
