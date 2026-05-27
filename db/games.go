@@ -265,7 +265,8 @@ func (db *DB) MaxVariantCounter(ctx context.Context, passageID int64, language, 
 func (db *DB) InsertVariant(ctx context.Context, v *GameVariantRow) (*GameVariantRow, error) {
 	defer observe("insert_game_variant", time.Now())
 
-	query := `INSERT INTO game_variants
+	// Alias the target as v so the shared variantCols (v.*) resolve in RETURNING.
+	query := `INSERT INTO game_variants AS v
 	          (variant_id, passage_id, language, difficulty, size, counter, seed, blanks, rendered)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	          RETURNING ` + variantCols
@@ -294,7 +295,8 @@ const attemptCols = `a.id, a.attempt_id, a.user_id, a.variant_id, a.size, a.diff
 func (db *DB) InsertAttempt(ctx context.Context, authID string, a *GameAttemptRow) (*GameAttemptRow, error) {
 	defer observe("insert_game_attempt", time.Now())
 
-	query := `INSERT INTO game_attempts
+	// Alias the target as a so the shared attemptCols (a.*) resolve in RETURNING.
+	query := `INSERT INTO game_attempts AS a
 	          (attempt_id, user_id, variant_id, size, difficulty,
 	           correct_count, total_count, hints_used, score, elapsed_ms, per_blank)
 	          SELECT $1, u.id, $2, $3, $4, $5, $6, $7, $8, $9, $10

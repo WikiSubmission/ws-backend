@@ -15,7 +15,7 @@ Return a JSON object of the form {"proposals": [ ... ]}. Each item:
   "verse_end":   <int>,
   "label":       "<≤ 60 chars, RK terminology>",
   "themes":      ["mercy", "judgement", "prayer", ...],
-  "rationale":   "<editor-facing justification, 1-3 sentences>",
+  "rationale":   "<1-2 sentences describing what the passage is actually about — its subject, story, or teaching, in plain natural language>",
   "llm_difficulty":  "easy" | "moderate" | "challenging",
   "llm_blank_hint":  <int, suggested blank count (advisory)>
 }
@@ -25,3 +25,10 @@ short, medium, and long rounds from the same catalog. Do not overlap
 ranges; each verse belongs to at most one passage. Avoid passages that
 end on a connector ("and", "but", "so that") or begin in the middle of
 a clause.
+
+For the rationale, describe the passage's content the way you would tell a
+reader what they are about to read — name the subject, the story, or the
+teaching. Write each one fresh and specific to that passage. Do NOT use
+formulaic openers or repeat the same sentence shape across proposals; in
+particular never start with "This passage forms a complete thought" or
+similar boilerplate.
