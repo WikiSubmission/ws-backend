@@ -300,6 +300,14 @@ func StartServer(database *db.DB) {
 	editor.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
 	editor.POST("/curate", gamesAdmin.Curate)
 
+	// In-play check endpoint (instant per-blank feedback). Lives outside the
+	// OpenAPI surface like the editor routes, so it must be registered before
+	// the validator. Returns only correct/incorrect, never the answer.
+	gamesPlay := handlers.GamesPlayHandler{DB: database}
+	play := r.Group("/api/v1/games/fill-blank")
+	play.Use(auth.RequireAuth(verifier))
+	play.POST("/check", gamesPlay.CheckBlank)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
