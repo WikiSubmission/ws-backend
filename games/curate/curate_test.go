@@ -1,17 +1,17 @@
-package main
+package curate
 
 import "testing"
 
 func TestValidateProposals(t *testing.T) {
 	cases := []struct {
 		name        string
-		in          []proposal
+		in          []Proposal
 		wantKept    int
 		wantDropped int
 	}{
 		{
 			name: "happy path",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 1, VerseEnd: 7, Label: "Opening"},
 				{VerseStart: 8, VerseEnd: 12, Label: "Belief"},
 			},
@@ -19,21 +19,21 @@ func TestValidateProposals(t *testing.T) {
 		},
 		{
 			name: "too short",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 1, VerseEnd: 2, Label: "Tiny"},
 			},
 			wantDropped: 1,
 		},
 		{
 			name: "too long",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 1, VerseEnd: 50, Label: "Huge"},
 			},
 			wantDropped: 1,
 		},
 		{
 			name: "overlap drops second",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 1, VerseEnd: 10, Label: "A"},
 				{VerseStart: 5, VerseEnd: 14, Label: "B"},
 			},
@@ -42,14 +42,14 @@ func TestValidateProposals(t *testing.T) {
 		},
 		{
 			name: "empty label",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 1, VerseEnd: 5, Label: "  "},
 			},
 			wantDropped: 1,
 		},
 		{
 			name: "invalid range",
-			in: []proposal{
+			in: []Proposal{
 				{VerseStart: 10, VerseEnd: 5, Label: "Reversed"},
 			},
 			wantDropped: 1,
@@ -57,7 +57,7 @@ func TestValidateProposals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			kept, dropped := validateProposals(tc.in)
+			kept, dropped := ValidateProposals(tc.in)
 			if len(kept) != tc.wantKept {
 				t.Errorf("kept = %d, want %d (%+v)", len(kept), tc.wantKept, kept)
 			}
@@ -81,9 +81,9 @@ func TestNormalizeDifficulty(t *testing.T) {
 		{"", true, ""},
 	}
 	for _, tc := range cases {
-		got := normalizeDifficulty(tc.in)
+		got := NormalizeDifficulty(tc.in)
 		if tc.wantNil && got != nil {
-			t.Errorf("normalizeDifficulty(%q) = %q, want nil", tc.in, *got)
+			t.Errorf("NormalizeDifficulty(%q) = %q, want nil", tc.in, *got)
 			continue
 		}
 		if !tc.wantNil && (got == nil || *got != tc.wantStr) {
@@ -91,7 +91,7 @@ func TestNormalizeDifficulty(t *testing.T) {
 			if got != nil {
 				gv = *got
 			}
-			t.Errorf("normalizeDifficulty(%q) = %q, want %q", tc.in, gv, tc.wantStr)
+			t.Errorf("NormalizeDifficulty(%q) = %q, want %q", tc.in, gv, tc.wantStr)
 		}
 	}
 }

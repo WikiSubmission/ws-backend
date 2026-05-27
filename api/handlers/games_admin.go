@@ -6,14 +6,17 @@ package handlers
 // They back the editorial review web UI; see docs/games-review-web-spec.md.
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/games/curate"
 )
 
 // GamesAdminHandler holds the DB reference for the editorial routes.
@@ -187,4 +190,59 @@ func (h *GamesAdminHandler) LoadLemmas(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"language": "en", "lemma_rows": count}})
+}
+
+type curateRequest struct {
+	Chapter int   `json:"chapter"`
+	Refine  *bool `json:"refine,omitempty"`
+}
+
+// Curate handles POST /admin/games/curate. It runs GROQ curation for a chapter
+// and inserts the kept proposals as status='proposed'. GROQ_API_KEY must be
+// configured on the server; a missing key returns 503 and an upstream GROQ
+// failure returns 502 so the UI can tell config from transient errors apart.
+func (h *GamesAdminHandler) Curate(c *gin.Context) {
+	var req curateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid request body"})
+		return
+	}
+	if req.Chapter < 1 || req.Chapter > 114 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "chapter must be 1-114"})
+		return
+	}
+
+	apiKey := os.Getenv("GROQ_API_KEY")
+	if apiKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"message": "curation is not configured (GROQ_API_KEY missing)"})
+		return
+	}
+	cfg := curate.Config{
+		APIKey:  apiKey,
+		Model:   os.Getenv("GROQ_MODEL"),
+		BaseURL: os.Getenv("GROQ_BASE_URL"),
+	}
+	refine := req.Refine != nil && *req.Refine
+
+	res, err := curate.Run(c.Request.Context(), h.DB, cfg, req.Chapter, refine)
+	if err != nil {
+		switch {
+		case errors.Is(err, curate.ErrNoChapterText):
+			c.JSON(http.StatusBadRequest, gin.H{"message": "chapter has no English verses"})
+		case errors.Is(err, curate.ErrNoProposals):
+			c.JSON(http.StatusBadGateway, gin.H{"message": "the model returned no usable proposals"})
+		default:
+			slog.Error("admin Curate: failed", "chapter", req.Chapter, "error", err)
+			c.JSON(http.StatusBadGateway, gin.H{"message": "curation failed"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"chapter":  res.Chapter,
+		"proposed": res.Proposed,
+		"dropped":  len(res.Dropped),
+		"refine":   res.Refine,
+		"skipped":  res.Skipped,
+	}})
 }

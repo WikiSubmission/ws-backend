@@ -298,6 +298,7 @@ func StartServer(database *db.DB) {
 	editor.POST("/passages/:id/status", gamesAdmin.SetStatus)
 	editor.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
 	editor.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
+	editor.POST("/curate", gamesAdmin.Curate)
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
