@@ -13,3 +13,7 @@ db/dumps/
 
 # Scratch space (build_baseline.py, intermediate dumps)
 .tmp/
+
+# Python bytecode
+__pycache__/
+*.pyc
