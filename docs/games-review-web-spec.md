@@ -1,9 +1,9 @@
 # Quran Games — Editorial Review Web Interface (hand-off spec)
 
-> Status: ready to implement. This document is a self-contained brief for an
-> engineer (or agent) to build a simple web UI that replaces the
-> `api/cmd/games_review` CLI. Read it top to bottom; every file path and
-> signature below is real and current.
+> Status: BACKEND IMPLEMENTED — frontend remaining. The Go endpoints,
+> middleware, and maintenance actions described below are merged and live. The
+> remaining work is the frontend in the `org` Next.js app (section 6). Every
+> file path and signature is real and current.
 
 ## 1. Goal
 
@@ -11,7 +11,9 @@ Give a non-technical editor a browser page to:
 
 1. See passages GROQ proposed for the games catalog.
 2. Approve, reject, or mark "needs refinement" with one click.
-3. (Optional, nice-to-have) trigger GROQ curation for a chapter from the page.
+3. Run the one-time data activation (word frequencies, lemma data) from a
+   button, since prod has no shell / `just` / `psql` access.
+4. (Optional, nice-to-have) trigger GROQ curation for a chapter from the page.
 
 Access is restricted to a small allowlist of accounts identified by email,
 configured through an environment variable. Sign-in uses the Google / Apple
@@ -90,79 +92,53 @@ No new OAuth setup, no DB role changes. The allowlist is intentionally separate
 from the `users.role = admin` mechanism so granting editorial access does not
 grant broader admin rights.
 
-## 5. Backend tasks
+## 5. Backend (IMPLEMENTED — reference only)
 
-### B1. `RequireEditor` middleware
+All of the following is merged. The frontend just needs to call it.
 
-Add to `auth/middleware.go`:
+### Auth guard — `auth/middleware.go`
 
-```go
-// RequireEditor allows only emails present in GAMES_EDITOR_EMAILS (comma-
-// separated, case-insensitive). Must run after RequireAuth.
-func RequireEditor() gin.HandlerFunc
-```
+- `ParseEmailAllowlist(raw string) map[string]struct{}` parses
+  `GAMES_EDITOR_EMAILS` (comma-separated, trimmed, lowercased).
+- `RequireEditor(allowlist map[string]struct{}) gin.HandlerFunc` runs after
+  `RequireAuth`; non-members get `403`, unauthenticated get `401`. An empty
+  allowlist denies everyone.
 
-- Read and parse `GAMES_EDITOR_EMAILS` once at construction (pass the parsed
-  set in, or build a small constructor `NewEditorGuard(emails string)`), not on
-  every request.
-- Read the email from `c.GetString(ContextKeyEmail)`.
-- Empty allowlist or non-member → `c.AbortWithStatusJSON(403, gin.H{"error": "editor access required"})`.
-- Reuse `observability.AuthAttemptsTotal` labels if it is cheap to do so;
-  otherwise skip metrics.
+### Endpoints — all under `/api/v1/admin/games`, gated by RequireAuth + RequireEditor
 
-### B2. Editor HTTP handlers
-
-Create `api/handlers/games_review_http.go` (plain Gin handlers, NOT strict /
-OpenAPI handlers, mirroring how `api/users.go` admin handlers are written). The
-`Server` already holds `*db.DB`.
-
-Endpoints (all under `/api/v1/admin/games`):
-
-| Method | Path | Body / Query | Calls |
+| Method | Path | Body / Query | Behaviour |
 | --- | --- | --- | --- |
-| GET | `/passages` | `?status=&chapter=` | `FetchPassagesForReview` |
-| GET | `/passages/:id` | — | `FetchPassageByID` |
-| POST | `/passages/:id/status` | `{ "status": "approved"\|"rejected"\|"needs_refinement" }` | `SetPassageStatus` (editor email from `ContextKeyEmail`) |
-| POST | `/curate` | `{ "chapter": 1, "refine": false }` | curation package (Task B3) — optional |
+| GET | `/passages` | `?status=&chapter=` | list for review; `status` defaults to all when omitted, pass `proposed` to filter; full editorial fields returned |
+| GET | `/passages/:id` | — | single passage detail |
+| POST | `/passages/:id/status` | `{ "status": "approved" \| "rejected" \| "needs_refinement" }` | sets status; `approved` stamps `approved_at` and resolves `approved_by` from the signed-in editor email |
+| POST | `/maintenance/seed-frequency` | — | recomputes `game_word_frequency` from `verse_text` in-process; returns `{ data: { language, tokens } }` |
+| POST | `/maintenance/load-lemmas` | — | loads the lemma fixture embedded in the running binary into `game_lemma`; returns `{ data: { language, lemma_rows } }` |
 
-Response shape: reuse the existing envelope convention (`{ "data": ... }`). For
-the list, return the full editorial fields (label, themes, rationale,
-llm_difficulty, llm_blank_hint, status, verse range, approved_at/by). These are
-editor-only, so it is fine that they are absent from the public
-`GET /games/fill-blank/passages`.
+- Responses use the `{ "data": ... }` envelope. Errors use `{ "message": ... }`
+  with `400` (bad input), `404` (no such passage), `500` (server).
+- Handlers live in `api/handlers/games_admin.go` (`GamesAdminHandler`); routes
+  are registered in `api/server.go` BEFORE the OpenAPI validator (like the
+  Sanity routes) so they are intentionally outside the typed contract. No
+  `oapi-codegen` regeneration was needed.
 
-Validation:
+### Maintenance semantics (important for the UI copy)
 
-- `status` must be one of the three allowed values → else `400`.
-- `:id` must parse as int64 → else `400`.
-- `SetPassageStatus` returning `false` → `404`.
+- `seed-frequency` is pure in-process DB work and fully re-runnable in prod.
+  Improves blank-selection quality; not strictly required for play.
+- `load-lemmas` loads whatever fixture ships in the current deployment.
+  Generating the fixture needs the offline spaCy sidecar
+  (`scripts/games_lemma`, see `db/seeds/games_lemma_en.sql`). Until a non-empty
+  fixture is generated, committed, and redeployed, this is a safe no-op and
+  Hard-tier acceptance falls back to exact match. So the button "loads the
+  lemma data that shipped with this deploy", it does not run spaCy.
 
-### B3. Extract curation core (only if building the `/curate` endpoint)
+### Not built (still optional)
 
-Move `proposal`, `proposalEnvelope`, `proposePassages`, `validateProposals`,
-and `normalizeDifficulty` out of `api/cmd/groq_curate/main.go` into a new
-importable package, e.g. `api/games/curate/curate.go`. Have both the CLI
-(`cmd/groq_curate`) and the new endpoint import it. Keep the embedded
-`prompt.md` with the package.
-
-Curation calls an external API and writes proposals; it usually finishes within
-a few seconds but can approach the 60s client timeout. Run it synchronously for
-v1 and surface failures as `502`. If it proves slow, make it a background job
-later (out of scope here).
-
-### B4. Register routes
-
-In `api/server.go`, next to the existing admin group, add:
-
-```go
-editor := r.Group("/api/v1/admin/games")
-editor.Use(auth.RequireAuth(verifier))
-editor.Use(auth.RequireEditor()) // or NewEditorGuard(os.Getenv("GAMES_EDITOR_EMAILS"))
-// register the B2 handlers on `editor`
-```
-
-These routes sit outside the OpenAPI validator (like the current `/users`
-admin routes), so no `oapi-codegen` regeneration is needed.
+`POST /curate` (run GROQ from the page) was deferred. To add it later, extract
+`proposePassages` / `validateProposals` / `normalizeDifficulty` from
+`api/cmd/groq_curate/main.go` into an importable package and add an endpoint;
+surface failures as `502`. Curation also still works from `just
+games-curate-chapter N`.
 
 ## 6. Frontend tasks
 
@@ -189,8 +165,8 @@ Because the editor endpoints are deliberately outside the OpenAPI contract,
 - A thin client that uses `fetch` with the bearer token, similar to
   `me-client.ts`.
 
-Endpoints to wire: list passages (with status / chapter filters), set status,
-and optionally curate.
+Endpoints to wire (all live): list passages (status / chapter filters), set
+status, seed-frequency, load-lemmas.
 
 ### F3. UI
 
@@ -201,7 +177,17 @@ Keep it minimal. One page:
   llm_blank_hint, rationale, current status.
 - Per row: Approve / Reject / Needs refinement buttons that POST the status and
   optimistically update (or refetch).
-- (Optional) a "Curate chapter N" input + button calling `/curate`.
+- A small "Maintenance" panel with two buttons (these replace the `just`
+  commands the editor cannot run in prod):
+  - "Rebuild word frequencies" → `POST /maintenance/seed-frequency`. Show the
+    returned token count. Safe to re-run anytime.
+  - "Load lemma data" → `POST /maintenance/load-lemmas`. Show the returned
+    `lemma_rows`. Note in the UI that it loads the data shipped with the current
+    deploy; `0` rows means no fixture has been generated/deployed yet (Hard tier
+    still works via exact match).
+  Disable the buttons while their request is in flight; surface a success toast
+  with the count and an error toast on `500`.
+- (Optional) a "Curate chapter N" input + button if/when `/curate` is added.
 
 No design system work required beyond what the org app already provides.
 
@@ -217,7 +203,8 @@ No design system work required beyond what the org app already provides.
 
 - Editing passage text / verse ranges in the UI. Approve/reject only.
 - Bulk approve. One passage at a time is fine for v1.
-- Frequency / lemma seeding from the UI. Those stay as CLI jobs.
+- Generating the lemma fixture from the UI. The spaCy step stays offline; the UI
+  only triggers loading the already-shipped fixture and rebuilding frequencies.
 - Replacing the role-based `RequireAdmin` mechanism. The editor allowlist is
   additive and separate.
 
@@ -231,14 +218,20 @@ No design system work required beyond what the org app already provides.
    "not authorized" page.
 4. An unauthenticated request to any `/api/v1/admin/games/*` endpoint gets
    `401`.
-5. Backend `go build ./...`, `go vet ./...`, and `go test ./...` stay green.
-   Add a unit test for the email-allowlist parser/matcher in `auth`.
+5. "Rebuild word frequencies" returns a non-zero token count on a seeded DB.
+   "Load lemma data" returns the embedded fixture row count (0 until a real
+   fixture ships).
+6. Backend stays green (already true at hand-off): `go build ./...`,
+   `go vet ./...`, `go test ./...`.
 
-## 10. Suggested commit breakdown
+## 10. Remaining work (frontend only)
 
-1. `feat(auth): editor email allowlist guard` — B1 + allowlist parser + test.
-2. `feat(games): admin review endpoints` — B2, B4, (B3 if doing curate).
-3. Frontend PR in `org`: protected studio route + review UI (F1–F3).
+Backend is merged. The only PR left is in `org`:
+
+1. Protected studio route + review UI + maintenance panel (F1–F3).
+
+(If `POST /curate` is wanted later, that is a separate backend follow-up; see
+section 5 "Not built".)
 
 ## 11. Reference: current CLI behaviour to mirror
 

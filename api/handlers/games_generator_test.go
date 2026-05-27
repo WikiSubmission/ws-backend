@@ -113,10 +113,10 @@ func TestSeedFor(t *testing.T) {
 
 func TestTokenizeVerse(t *testing.T) {
 	cases := []struct {
-		name    string
-		in      string
-		want    []string // surfaces
-		normEq  map[int]string
+		name   string
+		in     string
+		want   []string // surfaces
+		normEq map[int]string
 	}{
 		{
 			name: "simple",
@@ -317,8 +317,8 @@ func TestGenerateVariantSkipsStopwordsForEasyMedium(t *testing.T) {
 
 func TestGenerateVariantBlankCountWithinBand(t *testing.T) {
 	cases := []struct {
-		size           string
-		minB, maxB     int
+		size       string
+		minB, maxB int
 	}{
 		{"short", 5, 8},
 		{"medium", 12, 18},

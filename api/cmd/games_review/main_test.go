@@ -4,11 +4,11 @@ import "testing"
 
 func TestResolveStatusChange(t *testing.T) {
 	cases := []struct {
-		name                          string
-		approve, reject, needsRefine  bool
-		wantStatus                    string
-		wantChanging                  bool
-		wantErr                       bool
+		name                         string
+		approve, reject, needsRefine bool
+		wantStatus                   string
+		wantChanging                 bool
+		wantErr                      bool
 	}{
 		{"none", false, false, false, "", false, false},
 		{"approve", true, false, false, "approved", true, false},

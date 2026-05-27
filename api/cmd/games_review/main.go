@@ -30,13 +30,13 @@ import (
 
 func main() {
 	var (
-		id           = flag.Int64("id", 0, "Passage id to show or modify")
-		status       = flag.String("status", "proposed", "Status filter for list mode: proposed|approved|rejected|needs_refinement|all")
-		chapter      = flag.Int("chapter", 0, "Chapter filter for list mode (1-114)")
-		approve      = flag.Bool("approve", false, "Set the --id passage to approved")
-		reject       = flag.Bool("reject", false, "Set the --id passage to rejected")
-		needsRefine  = flag.Bool("needs-refinement", false, "Set the --id passage to needs_refinement")
-		by           = flag.String("by", "", "Editor email recorded as approved_by (approve only)")
+		id          = flag.Int64("id", 0, "Passage id to show or modify")
+		status      = flag.String("status", "proposed", "Status filter for list mode: proposed|approved|rejected|needs_refinement|all")
+		chapter     = flag.Int("chapter", 0, "Chapter filter for list mode (1-114)")
+		approve     = flag.Bool("approve", false, "Set the --id passage to approved")
+		reject      = flag.Bool("reject", false, "Set the --id passage to rejected")
+		needsRefine = flag.Bool("needs-refinement", false, "Set the --id passage to needs_refinement")
+		by          = flag.String("by", "", "Editor email recorded as approved_by (approve only)")
 	)
 	flag.Parse()
 

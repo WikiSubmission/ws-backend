@@ -12,11 +12,17 @@ word is absent from game_lemma. Dropping them keeps the fixture small.
 This is a one-time / regenerate-on-demand job. The committed SQL fixture is
 what production loads; spaCy is never needed at deploy or request time.
 
-Usage:
+Usage (prefer the just recipe, which fills in the right paths):
+    just games-build-lemma-fixture local
+which is equivalent to:
     psql "$DB_URL" -tAc \\
       "SELECT DISTINCT word_normalized FROM game_word_frequency WHERE language='en'" \\
       | python3 generate_lemma_fixture.py --language en \\
-      > ../../assets/source_data/games_lemma_en.sql
+      > ../../db/seeds/games_lemma_en.sql
+
+The output lives at db/seeds/games_lemma_en.sql so it is embedded into the Go
+binary (db/seeds.go) and can be loaded in prod by the editor's "Load lemma
+data" button. Commit the regenerated file and redeploy.
 
 Requires:
     pip install -r requirements.txt

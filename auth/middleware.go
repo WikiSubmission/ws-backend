@@ -10,6 +10,40 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
+// ParseEmailAllowlist turns a comma-separated env value into a lookup set of
+// lowercased, trimmed emails. Empty entries are ignored.
+func ParseEmailAllowlist(raw string) map[string]struct{} {
+	set := make(map[string]struct{})
+	for part := range strings.SplitSeq(raw, ",") {
+		e := strings.ToLower(strings.TrimSpace(part))
+		if e != "" {
+			set[e] = struct{}{}
+		}
+	}
+	return set
+}
+
+// RequireEditor allows only authenticated users whose email is in the allowlist
+// (built from GAMES_EDITOR_EMAILS via ParseEmailAllowlist). Must run after
+// RequireAuth so the email claim is on the context. An empty allowlist denies
+// everyone.
+func RequireEditor(allowlist map[string]struct{}) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		email, _ := c.Get(ContextKeyEmail)
+		emailStr, _ := email.(string)
+		emailStr = strings.ToLower(strings.TrimSpace(emailStr))
+		if emailStr == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+			return
+		}
+		if _, ok := allowlist[emailStr]; !ok {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
+			return
+		}
+		c.Next()
+	}
+}
+
 const (
 	ContextKeyUID   = "user_id"
 	ContextKeyEmail = "user_email"

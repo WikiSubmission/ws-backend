@@ -284,6 +284,21 @@ func StartServer(database *db.DB) {
 	}
 	registerSanityRoutes(r, sanityClient)
 
+	// Editor routes (Quran Games catalog) live OUTSIDE the OpenAPI surface, so
+	// like the sanity routes they must be registered before the validator or it
+	// would 404 them. Gated by an email allowlist (GAMES_EDITOR_EMAILS),
+	// separate from the DB role-based admin gate. Backs the editorial review UI.
+	gamesAdmin := handlers.GamesAdminHandler{DB: database}
+	editorAllowlist := auth.ParseEmailAllowlist(os.Getenv("GAMES_EDITOR_EMAILS"))
+	editor := r.Group("/api/v1/admin/games")
+	editor.Use(auth.RequireAuth(verifier))
+	editor.Use(auth.RequireEditor(editorAllowlist))
+	editor.GET("/passages", gamesAdmin.ListPassages)
+	editor.GET("/passages/:id", gamesAdmin.GetPassage)
+	editor.POST("/passages/:id/status", gamesAdmin.SetStatus)
+	editor.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
+	editor.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))

@@ -34,16 +34,23 @@ just games-build-lemma-fixture local
 ```
 
 This dumps the distinct vocabulary from `game_word_frequency`, pipes it through
-`generate_lemma_fixture.py`, and writes
-`assets/source_data/games_lemma_en.sql`. Commit that file.
+`generate_lemma_fixture.py`, and writes `db/seeds/games_lemma_en.sql`. That path
+is embedded into the Go binary (`db/seeds.go`), so commit the file and redeploy.
 
 ## Load the fixture
 
-```bash
-just games-seed-lemma local      # or: railway, hetzner, ...
-```
+Two ways:
 
-Idempotent: the fixture wraps a `DELETE` for the language plus
+- Prod (no shell access): redeploy with the committed fixture, then click
+  "Load lemma data" in the editorial UI. That endpoint loads the fixture
+  embedded in the running binary.
+- Local / direct DB:
+
+  ```bash
+  just games-seed-lemma local      # or: railway, hetzner, ...
+  ```
+
+Idempotent either way: the fixture wraps a `DELETE` for the language plus
 `INSERT ... ON CONFLICT DO UPDATE` in a transaction.
 
 ## Notes

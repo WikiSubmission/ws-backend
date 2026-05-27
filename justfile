@@ -348,18 +348,21 @@ games-build-lemma-fixture TARGET="local":
     #!/usr/bin/env bash
     set -euo pipefail
     url="$(just url "$1")"
-    out="assets/source_data/games_lemma_en.sql"
+    out="db/seeds/games_lemma_en.sql"
     psql "$url" --set ON_ERROR_STOP=1 -tAc \
       "SELECT DISTINCT word_normalized FROM game_word_frequency WHERE language='en' ORDER BY word_normalized" \
       | python3 scripts/games_lemma/generate_lemma_fixture.py --language en > "$out"
-    echo "Wrote $out — commit it, then run: just games-seed-lemma $1"
+    echo "Wrote $out — commit it so it ships embedded, then redeploy and click"
+    echo "\"Load lemma data\" in the editor (or run: just games-seed-lemma $1)."
 
-# Load the committed lemma fixture into game_lemma. Idempotent. Hard-tier
-# acceptance falls back to exact match until this is run.
+# Load the committed lemma fixture into game_lemma on a target DB. Idempotent.
+# In prod prefer the editor's "Load lemma data" button, which loads the fixture
+# embedded in the running binary. Hard-tier acceptance falls back to exact match
+# until a non-empty fixture is loaded.
 games-seed-lemma TARGET="local":
     #!/usr/bin/env bash
     set -euo pipefail
-    fixture="assets/source_data/games_lemma_en.sql"
+    fixture="db/seeds/games_lemma_en.sql"
     if [ ! -f "$fixture" ]; then
       echo "Fixture $fixture not found. Build it first: just games-build-lemma-fixture $1" >&2
       exit 1

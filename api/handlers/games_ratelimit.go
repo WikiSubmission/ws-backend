@@ -70,8 +70,8 @@ func (l *keyedLimiter) cleanup() {
 // gamesLimiters holds the two limiters protecting submit. Constructed once
 // per Server and shared across requests.
 type gamesLimiters struct {
-	perUserMinute   *keyedLimiter // 10 / 1m per user
-	perUserVariant  *keyedLimiter // 5 / 1h per (user, variant)
+	perUserMinute  *keyedLimiter // 10 / 1m per user
+	perUserVariant *keyedLimiter // 5 / 1h per (user, variant)
 }
 
 func newGamesLimiters() *gamesLimiters {

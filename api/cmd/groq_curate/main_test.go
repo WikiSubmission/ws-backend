@@ -70,9 +70,9 @@ func TestValidateProposals(t *testing.T) {
 
 func TestNormalizeDifficulty(t *testing.T) {
 	cases := []struct {
-		in       string
-		wantNil  bool
-		wantStr  string
+		in      string
+		wantNil bool
+		wantStr string
 	}{
 		{"easy", false, "easy"},
 		{"  Moderate ", false, "moderate"},

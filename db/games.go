@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -14,22 +15,22 @@ import (
 // ── Row types ──────────────────────────────────────────────────────────────
 
 type GamePassageRow struct {
-	ID            int64     `db:"id"`
-	ChapterStart  int       `db:"chapter_start"`
-	VerseStart    int       `db:"verse_start"`
-	ChapterEnd    int       `db:"chapter_end"`
-	VerseEnd      int       `db:"verse_end"`
-	Label         string    `db:"label"`
-	Themes        []string  `db:"themes"`
-	Rationale     string    `db:"rationale"`
-	LlmDifficulty *string   `db:"llm_difficulty"`
-	LlmBlankHint  *int      `db:"llm_blank_hint"`
-	Status        string    `db:"status"`
-	Source        string    `db:"source"`
+	ID            int64      `db:"id"`
+	ChapterStart  int        `db:"chapter_start"`
+	VerseStart    int        `db:"verse_start"`
+	ChapterEnd    int        `db:"chapter_end"`
+	VerseEnd      int        `db:"verse_end"`
+	Label         string     `db:"label"`
+	Themes        []string   `db:"themes"`
+	Rationale     string     `db:"rationale"`
+	LlmDifficulty *string    `db:"llm_difficulty"`
+	LlmBlankHint  *int       `db:"llm_blank_hint"`
+	Status        string     `db:"status"`
+	Source        string     `db:"source"`
 	ApprovedAt    *time.Time `db:"approved_at"`
-	ApprovedBy    *int      `db:"approved_by"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ApprovedBy    *int       `db:"approved_by"`
+	CreatedAt     time.Time  `db:"created_at"`
+	UpdatedAt     time.Time  `db:"updated_at"`
 }
 
 type GameVariantRow struct {
@@ -455,6 +456,98 @@ func (db *DB) FetchWeeklyLeaderboard(ctx context.Context, size, difficulty strin
 	}
 	defer rows.Close()
 	return pgx.CollectRows(rows, pgx.RowToStructByName[GameLeaderboardRow])
+}
+
+// RebuildWordFrequency tokenizes every verse_text row for the language,
+// normalizes each token (lowercase, letters and digits only), counts
+// occurrences, and replaces game_word_frequency for that language in a single
+// transaction. Returns the number of distinct tokens written. Idempotent.
+func (db *DB) RebuildWordFrequency(ctx context.Context, language string) (int, error) {
+	defer observe("rebuild_word_frequency", time.Now())
+
+	rows, err := db.Pool.Query(ctx, `
+		SELECT vt.content
+		FROM verse_text vt
+		JOIN languages l ON l.id = vt.lang_id
+		WHERE l.code = $1
+	`, language)
+	if err != nil {
+		return 0, fmt.Errorf("read verse_text: %w", err)
+	}
+	counts := make(map[string]int)
+	for rows.Next() {
+		var content string
+		if err := rows.Scan(&content); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan verse_text: %w", err)
+		}
+		for _, tok := range frequencyTokens(content) {
+			counts[tok]++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate verse_text: %w", err)
+	}
+	rows.Close()
+
+	if len(counts) == 0 {
+		return 0, fmt.Errorf("no tokens collected for language %q (is verse_text populated?)", language)
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx, `DELETE FROM game_word_frequency WHERE language = $1`, language); err != nil {
+		return 0, fmt.Errorf("clear frequencies: %w", err)
+	}
+
+	batch := &pgx.Batch{}
+	for word, freq := range counts {
+		batch.Queue(
+			`INSERT INTO game_word_frequency (language, word_normalized, frequency) VALUES ($1, $2, $3)`,
+			language, word, freq)
+	}
+	br := tx.SendBatch(ctx, batch)
+	for range counts {
+		if _, err := br.Exec(); err != nil {
+			br.Close() //nolint:errcheck
+			return 0, fmt.Errorf("insert frequency: %w", err)
+		}
+	}
+	if err := br.Close(); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return len(counts), nil
+}
+
+// frequencyTokens splits text into normalized word tokens: runs of letters and
+// digits, lowercased. Matches the keys used in game_word_frequency and the
+// normalization applied to guesses at submit time.
+func frequencyTokens(s string) []string {
+	out := []string{}
+	var b strings.Builder
+	flush := func() {
+		if b.Len() > 0 {
+			out = append(out, b.String())
+			b.Reset()
+		}
+	}
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(unicode.ToLower(r))
+		} else {
+			flush()
+		}
+	}
+	flush()
+	return out
 }
 
 // FetchFrequencies returns corpus counts for the given normalized words.
