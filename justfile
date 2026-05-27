@@ -340,12 +340,33 @@ seed-admin EMAIL:
 games-seed-frequency:
     go run ./api/cmd/games_seed_frequency/ --language en
 
-# Placeholder for lemma seeding — the lemma table is populated from a Python
-# sidecar fixture that is not yet checked in. Until then Hard-tier acceptance
-# falls back to exact match.
-games-seed-lemma:
-    @echo "games-seed-lemma: lemma fixture not yet available. Hard tier falls back to exact match." >&2
-    @exit 1
+# Regenerate the lemma fixture from the seeded frequency vocabulary using the
+# spaCy sidecar. Requires the venv from scripts/games_lemma to be active (see
+# scripts/games_lemma/README.md). Writes assets/source_data/games_lemma_en.sql,
+# which must then be committed. Run games-seed-frequency first.
+games-build-lemma-fixture TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$(just url "$1")"
+    out="assets/source_data/games_lemma_en.sql"
+    psql "$url" --set ON_ERROR_STOP=1 -tAc \
+      "SELECT DISTINCT word_normalized FROM game_word_frequency WHERE language='en' ORDER BY word_normalized" \
+      | python3 scripts/games_lemma/generate_lemma_fixture.py --language en > "$out"
+    echo "Wrote $out — commit it, then run: just games-seed-lemma $1"
+
+# Load the committed lemma fixture into game_lemma. Idempotent. Hard-tier
+# acceptance falls back to exact match until this is run.
+games-seed-lemma TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fixture="assets/source_data/games_lemma_en.sql"
+    if [ ! -f "$fixture" ]; then
+      echo "Fixture $fixture not found. Build it first: just games-build-lemma-fixture $1" >&2
+      exit 1
+    fi
+    url="$(just url "$1")"
+    psql "$url" --set ON_ERROR_STOP=1 -f "$fixture"
+    echo "Loaded $fixture into game_lemma on $1."
 
 # Propose passages for one chapter via GROQ. Requires GROQ_API_KEY in env.
 # Writes rows to game_passages with status='proposed' for editor review.
