@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -361,16 +363,114 @@ func (s *Server) PutMeCoverToCover(ctx context.Context, request PutMeCoverToCove
 	if !validScripture(scripture) {
 		return PutMeCoverToCover400JSONResponse{BadRequestJSONResponse{Message: "scripture must be 'quran' or 'bible'"}}, nil
 	}
+	// Read the previous marker before upserting so we can count how many
+	// verses the user actually advanced through, not just the single update.
+	oldKey := ""
+	if prev, perr := s.DB.FetchCoverToCover(ctx, authID, scripture); perr == nil && prev != nil {
+		oldKey = prev.VerseKey
+	}
+
 	b, err := s.DB.UpsertCoverToCover(ctx, authID, scripture, req.VerseKey)
 	if err != nil {
 		slog.Error("PutMeCoverToCover: DB error", "error", err)
 		return PutMeCoverToCover500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-	day := time.Now().UTC().Format("2006-01-02")
-	if logErr := s.DB.IncrementReadingLog(ctx, authID, scripture, day, 1); logErr != nil {
-		slog.Error("PutMeCoverToCover: reading log error", "error", logErr)
+
+	// Count verses covered between the old marker (exclusive) and the new
+	// marker (inclusive). A backward or unchanged marker logs nothing.
+	versesRead := s.coverToCoverDelta(ctx, scripture, oldKey, req.VerseKey)
+	if versesRead > 0 {
+		day := time.Now().UTC().Format("2006-01-02")
+		if logErr := s.DB.IncrementReadingLog(ctx, authID, scripture, day, versesRead); logErr != nil {
+			slog.Error("PutMeCoverToCover: reading log error", "error", logErr)
+		}
 	}
 	return PutMeCoverToCover200JSONResponse(BookmarkEnvelope{Data: bookmarkFromRow(b)}), nil
+}
+
+// coverToCoverDelta returns the number of verses newly covered when the
+// cover-to-cover marker moves from oldKey to newKey. It uses the absolute
+// verse ordinal of each marker so cross-chapter advances are counted
+// correctly. An empty oldKey means the marker is being set for the first
+// time, so every verse up to and including newKey counts. If a key cannot be
+// parsed or looked up, it falls back to 1 (the prior behavior) rather than
+// silently dropping the update.
+func (s *Server) coverToCoverDelta(ctx context.Context, scripture, oldKey, newKey string) int {
+	newOrd, ok := s.verseOrdinal(ctx, scripture, newKey)
+	if !ok {
+		return 1
+	}
+	oldOrd := 0
+	if oldKey != "" {
+		if o, ok := s.verseOrdinal(ctx, scripture, oldKey); ok {
+			oldOrd = o
+		}
+	}
+	return coveredCount(oldOrd, newOrd)
+}
+
+// coveredCount is the verses-newly-read arithmetic, split out so it can be
+// tested without a database. A backward or unchanged marker yields zero.
+func coveredCount(oldOrd, newOrd int) int {
+	if delta := newOrd - oldOrd; delta > 0 {
+		return delta
+	}
+	return 0
+}
+
+// parseVerseKey splits a verse_key into its numeric components for the given
+// scripture: "chapter:verse" for the Quran (2 parts) and
+// "book:chapter:verse" for the Bible (3 parts). It returns ok=false on any
+// malformed component or wrong part count.
+func parseVerseKey(scripture, key string) ([]int, bool) {
+	parts := strings.Split(strings.TrimSpace(key), ":")
+	want := 0
+	switch scripture {
+	case "quran":
+		want = 2
+	case "bible":
+		want = 3
+	default:
+		return nil, false
+	}
+	if len(parts) != want {
+		return nil, false
+	}
+	nums := make([]int, 0, want)
+	for _, p := range parts {
+		n, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil {
+			return nil, false
+		}
+		nums = append(nums, n)
+	}
+	return nums, true
+}
+
+// verseOrdinal resolves a verse_key to its absolute position within the
+// scripture. Quran keys are "chapter:verse"; Bible keys are
+// "book:chapter:verse".
+func (s *Server) verseOrdinal(ctx context.Context, scripture, key string) (int, bool) {
+	nums, ok := parseVerseKey(scripture, key)
+	if !ok {
+		return 0, false
+	}
+	switch scripture {
+	case "quran":
+		ord, err := s.DB.QuranVerseOrdinal(ctx, nums[0], nums[1])
+		if err != nil {
+			return 0, false
+		}
+		return ord, true
+	case "bible":
+		ord, err := s.DB.BibleVerseOrdinal(ctx, nums[0], nums[1], nums[2])
+		if err != nil {
+			return 0, false
+		}
+		return ord, true
+	default:
+		return 0, false
+	}
 }
 
 func (s *Server) GetMeCoverToCover(ctx context.Context, request GetMeCoverToCoverRequestObject) (GetMeCoverToCoverResponseObject, error) {
