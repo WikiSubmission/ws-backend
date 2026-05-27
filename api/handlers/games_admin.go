@@ -230,10 +230,12 @@ func (h *GamesAdminHandler) Curate(c *gin.Context) {
 		case errors.Is(err, curate.ErrNoChapterText):
 			c.JSON(http.StatusBadRequest, gin.H{"message": "chapter has no English verses"})
 		case errors.Is(err, curate.ErrNoProposals):
-			c.JSON(http.StatusBadGateway, gin.H{"message": "the model returned no usable proposals"})
+			c.JSON(http.StatusBadGateway, gin.H{"message": "the model returned no usable proposals for this chapter"})
 		default:
+			// Editors are trusted, so surface the upstream reason (e.g. a Groq
+			// rate limit or timeout) to make failures actionable.
 			slog.Error("admin Curate: failed", "chapter", req.Chapter, "error", err)
-			c.JSON(http.StatusBadGateway, gin.H{"message": "curation failed"})
+			c.JSON(http.StatusBadGateway, gin.H{"message": "curation failed: " + err.Error()})
 		}
 		return
 	}

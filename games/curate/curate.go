@@ -28,7 +28,9 @@ const (
 	// DefaultModel and DefaultBaseURL match the Groq OpenAI-compatible API.
 	DefaultModel   = "llama-3.3-70b-versatile"
 	DefaultBaseURL = "https://api.groq.com/openai/v1"
-	apiTimeout     = 60 * time.Second
+	// Long chapters (e.g. chapter 2 with 286 verses) produce a large prompt and
+	// a long completion, so allow generous headroom over a short chapter.
+	apiTimeout = 180 * time.Second
 )
 
 // Proposal is one passage the model proposed for a chapter.
