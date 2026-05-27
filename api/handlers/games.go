@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/oklog/ulid/v2"
 	"github.com/wikiSubmission/ws-backend/db"
@@ -295,6 +296,9 @@ func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant
 			opts := append([]string(nil), b.Options...)
 			gb.Options = &opts
 		}
+		if v.Difficulty == "medium" {
+			gb.Hint = blankHint(b.Answer)
+		}
 		apiBlanks[i] = gb
 	}
 	apiRendered := make([]GameRenderedVerse, len(rendered))
@@ -311,6 +315,26 @@ func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant
 		Blanks:         apiBlanks,
 		Replay:         false,
 	}, nil
+}
+
+// blankHint derives the medium-tier hint metadata from an answer. It exposes
+// the first character, the first two characters, and the character count —
+// never the full answer.
+func blankHint(answer string) *GameBlankHint {
+	runes := []rune(answer)
+	firstLetter := ""
+	if len(runes) >= 1 {
+		firstLetter = string(runes[0])
+	}
+	firstTwo := firstLetter
+	if len(runes) >= 2 {
+		firstTwo = string(runes[:2])
+	}
+	return &GameBlankHint{
+		FirstLetter: firstLetter,
+		FirstTwo:    firstTwo,
+		Length:      utf8.RuneCountInString(answer),
+	}
 }
 
 // ── POST /games/fill-blank/submit ──────────────────────────────────────────
