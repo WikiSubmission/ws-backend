@@ -357,6 +357,15 @@ games-curate-chapter CHAPTER:
 games-refine-rejected CHAPTER:
     go run ./api/cmd/groq_curate/ --chapter "{{CHAPTER}}" --refine-rejected
 
+# Editorial review. With no args lists proposed passages; forwards any flags
+# to the tool, e.g.:
+#   just games-review --status all
+#   just games-review --id 42
+#   just games-review --id 42 --approve --by editor@example.com
+#   just games-review --id 42 --reject
+games-review *ARGS:
+    go run ./api/cmd/games_review/ {{ARGS}}
+
 # Full local rebuild: drop, set up, import legacy, seed
 rebuild: db-drop db-setup
     just source-import local

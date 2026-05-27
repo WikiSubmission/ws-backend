@@ -98,6 +98,72 @@ func (db *DB) FetchApprovedPassages(ctx context.Context, theme *string, chapter 
 	return pgx.CollectRows(rows, pgx.RowToStructByName[GamePassageRow])
 }
 
+// FetchPassagesForReview lists passages for the editorial workflow, optionally
+// filtered by status and/or chapter. Unlike FetchApprovedPassages this returns
+// every status and includes the editor-only fields. Ordered newest first.
+func (db *DB) FetchPassagesForReview(ctx context.Context, status *string, chapter *int) ([]GamePassageRow, error) {
+	defer observe("fetch_game_passages_for_review", time.Now())
+
+	var b strings.Builder
+	b.WriteString(`SELECT `)
+	b.WriteString(passageCols)
+	b.WriteString(` FROM game_passages p WHERE 1=1`)
+
+	args := []any{}
+	if status != nil && *status != "" {
+		args = append(args, *status)
+		fmt.Fprintf(&b, ` AND p.status = $%d`, len(args))
+	}
+	if chapter != nil {
+		args = append(args, *chapter)
+		fmt.Fprintf(&b, ` AND p.chapter_start <= $%d AND p.chapter_end >= $%d`, len(args), len(args))
+	}
+	b.WriteString(` ORDER BY p.created_at DESC, p.id DESC`)
+
+	rows, err := db.Pool.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[GamePassageRow])
+}
+
+// SetPassageStatus updates a passage's review status. When the new status is
+// 'approved', approved_at is set to now() and approved_by resolves from
+// editorEmail (when provided and the email maps to a users row); for any other
+// status both approval fields are cleared. Returns false when no row matched.
+func (db *DB) SetPassageStatus(ctx context.Context, id int64, status string, editorEmail *string) (bool, error) {
+	defer observe("set_game_passage_status", time.Now())
+
+	if status == "approved" {
+		tag, err := db.Pool.Exec(ctx, `
+			UPDATE game_passages
+			SET status = $2,
+			    approved_at = now(),
+			    approved_by = (SELECT id FROM users WHERE email = $3),
+			    updated_at = now()
+			WHERE id = $1
+		`, id, status, editorEmail)
+		if err != nil {
+			return false, err
+		}
+		return tag.RowsAffected() > 0, nil
+	}
+
+	tag, err := db.Pool.Exec(ctx, `
+		UPDATE game_passages
+		SET status = $2,
+		    approved_at = NULL,
+		    approved_by = NULL,
+		    updated_at = now()
+		WHERE id = $1
+	`, id, status)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 func (db *DB) FetchPassageByID(ctx context.Context, id int64) (*GamePassageRow, error) {
 	defer observe("fetch_game_passage_by_id", time.Now())
 
