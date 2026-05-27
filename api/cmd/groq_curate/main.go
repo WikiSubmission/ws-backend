@@ -77,4 +77,7 @@ func main() {
 		verb = "Refined"
 	}
 	fmt.Printf("%s %d passage(s) for chapter %d.\n", verb, res.Proposed, *chapter)
+	if res.Partial {
+		fmt.Printf("Stopped early on a rate limit; run again to curate the remaining verses.\n")
+	}
 }

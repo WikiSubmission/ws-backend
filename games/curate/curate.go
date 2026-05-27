@@ -4,6 +4,12 @@
 // It is the importable core shared by the groq_curate CLI and the editorial
 // admin endpoint (POST /api/v1/admin/games/curate). Network and DB work live
 // here; callers supply configuration and a *db.DB.
+//
+// Long chapters exceed Groq's per-minute token limit in a single request, so a
+// run is split into verse windows sized under a token budget and paced to
+// respect the limit. Each window is inserted as it completes, and verses
+// already covered by existing proposed/approved passages are skipped, so a run
+// interrupted by a rate limit resumes cleanly on the next invocation.
 package curate
 
 import (
@@ -28,9 +34,20 @@ const (
 	// DefaultModel and DefaultBaseURL match the Groq OpenAI-compatible API.
 	DefaultModel   = "llama-3.3-70b-versatile"
 	DefaultBaseURL = "https://api.groq.com/openai/v1"
-	// Long chapters (e.g. chapter 2 with 286 verses) produce a large prompt and
-	// a long completion, so allow generous headroom over a short chapter.
-	apiTimeout = 180 * time.Second
+	apiTimeout     = 180 * time.Second
+
+	// maxCompletionTokens caps the model's output, which counts toward the
+	// per-request token total Groq enforces.
+	maxCompletionTokens = 3000
+	// tpmBudget is the tokens-per-minute ceiling we pace against. Set below
+	// Groq's 12k free-tier TPM to leave headroom for estimation error.
+	tpmBudget = 11000
+	// maxVerseTokensPerWindow bounds the verse text in one request so prompt +
+	// completion stays comfortably under tpmBudget.
+	maxVerseTokensPerWindow = 6000
+	// minWindowVerses is the smallest passage the model can form, so a window
+	// shorter than this cannot yield a proposal.
+	minWindowVerses = 3
 )
 
 // Proposal is one passage the model proposed for a chapter.
@@ -82,9 +99,12 @@ type Result struct {
 	Proposed int       // passages inserted
 	Dropped  []Dropped // proposals rejected during validation
 	Refine   bool
-	// Skipped is true in refine mode when the chapter has nothing to refine,
-	// so no model call was made.
+	// Skipped is true in refine mode when the chapter has nothing to refine, so
+	// no model call was made.
 	Skipped bool
+	// Partial is true when a rate limit stopped the run before all windows were
+	// curated. Re-running resumes from the uncovered verses.
+	Partial bool
 }
 
 // ErrNoChapterText means the chapter has no English verses to curate.
@@ -93,16 +113,19 @@ var ErrNoChapterText = fmt.Errorf("chapter has no English verses")
 // ErrNoProposals means the model returned (or validation kept) zero proposals.
 var ErrNoProposals = fmt.Errorf("no usable proposals")
 
-// Run curates one chapter end to end: fetch text, call the model, validate, and
-// insert kept proposals as status='proposed'. When refine is true it only
-// proceeds if the chapter has rejected/needs_refinement passages, replacing
-// them. The Groq call surfaces as an error so callers can map it to 502.
+// Run curates one chapter end to end: fetch text, split into paced windows,
+// call the model per window, validate, and insert kept proposals as
+// status='proposed'. When refine is true it first clears the chapter's
+// rejected/needs_refinement passages (only if any exist) and re-curates the
+// freed verses. Verses already covered by proposed/approved passages are
+// skipped, so the operation is resumable. A Groq failure surfaces as an error
+// when nothing was inserted yet, or as Partial=true once progress was made.
 func Run(ctx context.Context, database *db.DB, cfg Config, chapter int, refine bool) (*Result, error) {
-	chapterText, err := FetchChapterText(ctx, database, chapter)
+	contents, err := database.FetchChapterVerseContents(ctx, "en", chapter)
 	if err != nil {
 		return nil, fmt.Errorf("fetch chapter text: %w", err)
 	}
-	if chapterText == "" {
+	if len(contents) == 0 {
 		return nil, ErrNoChapterText
 	}
 
@@ -114,31 +137,169 @@ func Run(ctx context.Context, database *db.DB, cfg Config, chapter int, refine b
 		if n == 0 {
 			return &Result{Chapter: chapter, Refine: true, Skipped: true}, nil
 		}
+		if err := clearRefinable(ctx, database, chapter); err != nil {
+			return nil, fmt.Errorf("clear refinable: %w", err)
+		}
 	}
 
-	proposals, err := ProposePassages(ctx, cfg, chapter, chapterText)
+	covered, err := fetchCoveredVerses(ctx, database, chapter)
 	if err != nil {
-		return nil, err
-	}
-	if len(proposals) == 0 {
-		return nil, ErrNoProposals
+		return nil, fmt.Errorf("fetch covered verses: %w", err)
 	}
 
-	valid, dropped := ValidateProposals(proposals)
-	if len(valid) == 0 {
-		return &Result{Chapter: chapter, Dropped: dropped, Refine: refine}, ErrNoProposals
+	windows := buildWindows(contents, covered)
+	if len(windows) == 0 {
+		// Nothing left to curate (whole chapter already covered).
+		return &Result{Chapter: chapter, Refine: refine}, nil
 	}
 
-	if err := InsertProposals(ctx, database, chapter, valid, refine); err != nil {
-		return nil, fmt.Errorf("insert proposals: %w", err)
+	pacer := newPacer(tpmBudget)
+	var totalProposed int
+	var allDropped []Dropped
+
+	for _, w := range windows {
+		text := renderWindow(chapter, w, contents)
+		if err := pacer.wait(ctx, requestTokenEstimate(text)); err != nil {
+			// Context cancelled while pacing; keep what we inserted.
+			return &Result{Chapter: chapter, Proposed: totalProposed, Dropped: allDropped, Refine: refine, Partial: totalProposed > 0}, nil
+		}
+
+		props, err := ProposePassages(ctx, cfg, chapter, w.start, w.end, text)
+		if err != nil {
+			if totalProposed > 0 {
+				// A rate limit or transient failure stopped us mid-chapter.
+				// Earlier windows are already committed; re-running resumes.
+				return &Result{Chapter: chapter, Proposed: totalProposed, Dropped: allDropped, Refine: refine, Partial: true}, nil
+			}
+			return nil, err
+		}
+
+		kept, dropped := ValidateProposals(props)
+		allDropped = append(allDropped, dropped...)
+
+		inRange := make([]Proposal, 0, len(kept))
+		for _, p := range kept {
+			if p.VerseStart >= w.start && p.VerseEnd <= w.end {
+				inRange = append(inRange, p)
+			} else {
+				allDropped = append(allDropped, Dropped{p, fmt.Sprintf("outside window %d-%d", w.start, w.end)})
+			}
+		}
+		if len(inRange) > 0 {
+			if err := InsertProposals(ctx, database, chapter, inRange, false); err != nil {
+				return nil, fmt.Errorf("insert proposals: %w", err)
+			}
+			totalProposed += len(inRange)
+		}
 	}
 
-	return &Result{Chapter: chapter, Proposed: len(valid), Dropped: dropped, Refine: refine}, nil
+	if totalProposed == 0 {
+		return &Result{Chapter: chapter, Dropped: allDropped, Refine: refine}, ErrNoProposals
+	}
+	return &Result{Chapter: chapter, Proposed: totalProposed, Dropped: allDropped, Refine: refine}, nil
+}
+
+// ── Windowing ─────────────────────────────────────────────────────────────
+
+type window struct {
+	start int
+	end   int
+}
+
+// estimateTokens is a rough char-based token estimate, good enough for sizing
+// windows below the API's token limit (English averages ~4 chars/token).
+func estimateTokens(s string) int {
+	return len(s)/4 + 1
+}
+
+// requestTokenEstimate approximates the tokens one window request consumes:
+// system prompt + verse text + the reserved completion.
+func requestTokenEstimate(verseText string) int {
+	return estimateTokens(systemPrompt) + estimateTokens(verseText) + maxCompletionTokens + 32
+}
+
+// buildWindows splits a chapter into contiguous runs of uncovered verses, each
+// bounded by maxVerseTokensPerWindow. A long uncovered run is split across
+// several windows; runs shorter than minWindowVerses are skipped.
+func buildWindows(contents []string, covered map[int]bool) []window {
+	n := len(contents)
+	var windows []window
+	v := 1
+	for v <= n {
+		for v <= n && covered[v] {
+			v++
+		}
+		if v > n {
+			break
+		}
+		start := v
+		tokens := 0
+		for v <= n && !covered[v] {
+			// +5 approximates the "[c:v] " prefix and newline per line.
+			lineTokens := estimateTokens(contents[v-1]) + 5
+			if v > start && tokens+lineTokens > maxVerseTokensPerWindow {
+				break
+			}
+			tokens += lineTokens
+			v++
+		}
+		end := v - 1
+		if end-start+1 >= minWindowVerses {
+			windows = append(windows, window{start, end})
+		}
+	}
+	return windows
+}
+
+func renderWindow(chapter int, w window, contents []string) string {
+	var b strings.Builder
+	for v := w.start; v <= w.end; v++ {
+		fmt.Fprintf(&b, "[%d:%d] %s\n", chapter, v, contents[v-1])
+	}
+	return b.String()
+}
+
+// ── Pacing ──────────────────────────────────────────────────────────────────
+
+// pacer throttles requests to stay under a tokens-per-minute budget. It tracks
+// tokens spent in the current rolling minute and sleeps when the next request
+// would exceed the budget.
+type pacer struct {
+	budget      int
+	spent       int
+	windowStart time.Time
+}
+
+func newPacer(budget int) *pacer {
+	return &pacer{budget: budget, windowStart: time.Now()}
+}
+
+func (p *pacer) wait(ctx context.Context, cost int) error {
+	now := time.Now()
+	if now.Sub(p.windowStart) >= time.Minute {
+		p.spent = 0
+		p.windowStart = now
+	}
+	if p.spent > 0 && p.spent+cost > p.budget {
+		sleep := time.Minute - now.Sub(p.windowStart)
+		if sleep > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(sleep):
+			}
+		}
+		p.spent = 0
+		p.windowStart = time.Now()
+	}
+	p.spent += cost
+	return nil
 }
 
 // ── DB helpers ──────────────────────────────────────────────────────────────
 
 // FetchChapterText renders a chapter's English verses as "[c:v] text" lines.
+// Retained for callers that want the whole chapter as one string.
 func FetchChapterText(ctx context.Context, database *db.DB, chapter int) (string, error) {
 	contents, err := database.FetchChapterVerseContents(ctx, "en", chapter)
 	if err != nil {
@@ -158,6 +319,38 @@ func countRefinable(ctx context.Context, database *db.DB, chapter int) (int, err
 		WHERE chapter_start = $1 AND status IN ('rejected', 'needs_refinement')
 	`, chapter).Scan(&n)
 	return n, err
+}
+
+func clearRefinable(ctx context.Context, database *db.DB, chapter int) error {
+	_, err := database.Pool.Exec(ctx, `
+		DELETE FROM game_passages
+		WHERE chapter_start = $1 AND status IN ('rejected', 'needs_refinement')
+	`, chapter)
+	return err
+}
+
+// fetchCoveredVerses returns the verses already claimed by proposed or approved
+// passages in the chapter, so curation does not re-propose over them.
+func fetchCoveredVerses(ctx context.Context, database *db.DB, chapter int) (map[int]bool, error) {
+	rows, err := database.Pool.Query(ctx, `
+		SELECT verse_start, verse_end FROM game_passages
+		WHERE chapter_start = $1 AND status IN ('proposed', 'approved')
+	`, chapter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	covered := make(map[int]bool)
+	for rows.Next() {
+		var start, end int
+		if err := rows.Scan(&start, &end); err != nil {
+			return nil, err
+		}
+		for v := start; v <= end; v++ {
+			covered[v] = true
+		}
+	}
+	return covered, rows.Err()
 }
 
 // InsertProposals writes kept proposals as status='proposed'. In refine mode it
@@ -220,10 +413,11 @@ type chatMessage struct {
 }
 
 type chatRequest struct {
-	Model          string         `json:"model"`
-	Messages       []chatMessage  `json:"messages"`
-	Temperature    float64        `json:"temperature"`
-	ResponseFormat map[string]any `json:"response_format,omitempty"`
+	Model               string         `json:"model"`
+	Messages            []chatMessage  `json:"messages"`
+	Temperature         float64        `json:"temperature"`
+	MaxCompletionTokens int            `json:"max_completion_tokens,omitempty"`
+	ResponseFormat      map[string]any `json:"response_format,omitempty"`
 }
 
 type chatResponse struct {
@@ -238,9 +432,13 @@ type chatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// ProposePassages asks the model to propose passages for one chapter.
-func ProposePassages(ctx context.Context, cfg Config, chapter int, chapterText string) ([]Proposal, error) {
-	user := fmt.Sprintf("Chapter %d (Rashad Khalifa translation, English):\n\n%s\n\nReturn JSON as specified.", chapter, chapterText)
+// ProposePassages asks the model to propose passages for one verse window of a
+// chapter. verseText holds the rendered "[c:v] text" lines for verseStart..End.
+func ProposePassages(ctx context.Context, cfg Config, chapter, verseStart, verseEnd int, verseText string) ([]Proposal, error) {
+	user := fmt.Sprintf(
+		"Chapter %d (Rashad Khalifa translation, English), verses %d-%d:\n\n%s\nOnly propose passages whose verse_start and verse_end fall within %d-%d. Return JSON as specified.",
+		chapter, verseStart, verseEnd, verseText, verseStart, verseEnd,
+	)
 
 	reqBody := chatRequest{
 		Model: cfg.model(),
@@ -248,8 +446,9 @@ func ProposePassages(ctx context.Context, cfg Config, chapter int, chapterText s
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: user},
 		},
-		Temperature:    0.3,
-		ResponseFormat: map[string]any{"type": "json_object"},
+		Temperature:         0.3,
+		MaxCompletionTokens: maxCompletionTokens,
+		ResponseFormat:      map[string]any{"type": "json_object"},
 	}
 	body, err := json.Marshal(reqBody)
 	if err != nil {

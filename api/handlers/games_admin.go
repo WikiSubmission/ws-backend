@@ -246,5 +246,6 @@ func (h *GamesAdminHandler) Curate(c *gin.Context) {
 		"dropped":  len(res.Dropped),
 		"refine":   res.Refine,
 		"skipped":  res.Skipped,
+		"partial":  res.Partial,
 	}})
 }

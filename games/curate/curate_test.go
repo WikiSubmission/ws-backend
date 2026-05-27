@@ -1,6 +1,9 @@
 package curate
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateProposals(t *testing.T) {
 	cases := []struct {
@@ -66,6 +69,67 @@ func TestValidateProposals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildWindows(t *testing.T) {
+	// A realistic verse length (~240 chars ≈ 60 tokens) so a long chapter
+	// exceeds maxVerseTokensPerWindow and must split.
+	verse := func(n int) []string {
+		line := strings.Repeat("word ", 48) // ~240 chars
+		out := make([]string, n)
+		for i := range out {
+			out[i] = line
+		}
+		return out
+	}
+
+	t.Run("short chapter is one window", func(t *testing.T) {
+		ws := buildWindows(verse(7), map[int]bool{})
+		if len(ws) != 1 || ws[0].start != 1 || ws[0].end != 7 {
+			t.Fatalf("got %+v, want one window 1-7", ws)
+		}
+	})
+
+	t.Run("long chapter splits into multiple windows", func(t *testing.T) {
+		ws := buildWindows(verse(286), map[int]bool{})
+		if len(ws) < 2 {
+			t.Fatalf("expected multiple windows for 286 verses, got %d", len(ws))
+		}
+		// Windows must be contiguous, ordered, and cover every verse exactly once.
+		want := 1
+		for _, w := range ws {
+			if w.start != want {
+				t.Fatalf("window starts at %d, want %d (%+v)", w.start, want, ws)
+			}
+			if w.end < w.start {
+				t.Fatalf("window end %d before start %d", w.end, w.start)
+			}
+			want = w.end + 1
+		}
+		if want != 287 {
+			t.Fatalf("windows cover up to %d, want 286", want-1)
+		}
+	})
+
+	t.Run("covered verses are skipped", func(t *testing.T) {
+		covered := map[int]bool{}
+		for v := 1; v <= 5; v++ {
+			covered[v] = true
+		}
+		ws := buildWindows(verse(12), covered)
+		if len(ws) != 1 || ws[0].start != 6 || ws[0].end != 12 {
+			t.Fatalf("got %+v, want one window 6-12", ws)
+		}
+	})
+
+	t.Run("runs shorter than the minimum are dropped", func(t *testing.T) {
+		covered := map[int]bool{3: true, 4: true, 5: true, 6: true, 7: true}
+		// Uncovered runs: 1-2 (too short) and 8-10 (kept).
+		ws := buildWindows(verse(10), covered)
+		if len(ws) != 1 || ws[0].start != 8 || ws[0].end != 10 {
+			t.Fatalf("got %+v, want one window 8-10", ws)
+		}
+	})
 }
 
 func TestNormalizeDifficulty(t *testing.T) {
