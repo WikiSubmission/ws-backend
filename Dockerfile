@@ -19,6 +19,7 @@ COPY api/    ./api/
 COPY db/     ./db/
 COPY auth/   ./auth/
 COPY sanity/ ./sanity/
+COPY games/  ./games/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).
