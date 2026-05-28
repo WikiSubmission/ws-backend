@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -410,25 +411,20 @@ type GameLeaderboardRow struct {
 	VariantID   string    `db:"variant_id"`
 }
 
-// FetchGlobalLeaderboard returns each user's best attempt (by score) for the
-// given (size, difficulty), ordered score DESC, elapsed_ms ASC.
+// FetchGlobalLeaderboard returns each user's best attempt (by score) across
+// every (size, difficulty) combination, ordered score DESC, elapsed_ms ASC.
+// Difficulty multipliers applied at submit time make scores comparable across
+// tiers. When size or difficulty is non-empty the result is filtered to that
+// segment; pass "" for an unsegmented board.
 func (db *DB) FetchGlobalLeaderboard(ctx context.Context, size, difficulty string, limit int) ([]GameLeaderboardRow, error) {
 	defer observe("fetch_global_game_leaderboard", time.Now())
 
-	query := `
-		SELECT DISTINCT ON (a.user_id)
-		       a.user_id, u.display_name, a.score, a.size, a.difficulty,
-		       a.elapsed_ms, a.completed_at, a.variant_id
-		FROM game_attempts a
-		JOIN users u ON u.id = a.user_id
-		WHERE a.size = $1 AND a.difficulty = $2
-		ORDER BY a.user_id, a.score DESC, a.elapsed_ms ASC NULLS LAST
-	`
-	// Wrap to apply final ordering and limit.
-	wrapped := `SELECT * FROM (` + query + `) t
+	inner, args := buildLeaderboardInner(size, difficulty, "")
+	wrapped := `SELECT * FROM (` + inner + `) t
 	           ORDER BY t.score DESC, t.elapsed_ms ASC NULLS LAST, t.completed_at ASC
-	           LIMIT $3`
-	rows, err := db.Pool.Query(ctx, wrapped, size, difficulty, limit)
+	           LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+	rows, err := db.Pool.Query(ctx, wrapped, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -439,25 +435,46 @@ func (db *DB) FetchGlobalLeaderboard(ctx context.Context, size, difficulty strin
 func (db *DB) FetchWeeklyLeaderboard(ctx context.Context, size, difficulty string, limit int) ([]GameLeaderboardRow, error) {
 	defer observe("fetch_weekly_game_leaderboard", time.Now())
 
-	query := `
-		SELECT DISTINCT ON (a.user_id)
-		       a.user_id, u.display_name, a.score, a.size, a.difficulty,
-		       a.elapsed_ms, a.completed_at, a.variant_id
-		FROM game_attempts a
-		JOIN users u ON u.id = a.user_id
-		WHERE a.size = $1 AND a.difficulty = $2
-		  AND a.completed_at >= NOW() - INTERVAL '7 days'
-		ORDER BY a.user_id, a.score DESC, a.elapsed_ms ASC NULLS LAST
-	`
-	wrapped := `SELECT * FROM (` + query + `) t
+	inner, args := buildLeaderboardInner(size, difficulty, "a.completed_at >= NOW() - INTERVAL '7 days'")
+	wrapped := `SELECT * FROM (` + inner + `) t
 	           ORDER BY t.score DESC, t.elapsed_ms ASC NULLS LAST, t.completed_at ASC
-	           LIMIT $3`
-	rows, err := db.Pool.Query(ctx, wrapped, size, difficulty, limit)
+	           LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+	rows, err := db.Pool.Query(ctx, wrapped, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	return pgx.CollectRows(rows, pgx.RowToStructByName[GameLeaderboardRow])
+}
+
+func buildLeaderboardInner(size, difficulty, extraWhere string) (string, []any) {
+	args := make([]any, 0, 3)
+	clauses := make([]string, 0, 3)
+	if size != "" {
+		args = append(args, size)
+		clauses = append(clauses, "a.size = $"+strconv.Itoa(len(args)))
+	}
+	if difficulty != "" {
+		args = append(args, difficulty)
+		clauses = append(clauses, "a.difficulty = $"+strconv.Itoa(len(args)))
+	}
+	if extraWhere != "" {
+		clauses = append(clauses, extraWhere)
+	}
+	where := ""
+	if len(clauses) > 0 {
+		where = "WHERE " + strings.Join(clauses, " AND ")
+	}
+	return `
+		SELECT DISTINCT ON (a.user_id)
+		       a.user_id, u.display_name, a.score, a.size, a.difficulty,
+		       a.elapsed_ms, a.completed_at, a.variant_id
+		FROM game_attempts a
+		JOIN users u ON u.id = a.user_id
+		` + where + `
+		ORDER BY a.user_id, a.score DESC, a.elapsed_ms ASC NULLS LAST
+	`, args
 }
 
 // RebuildWordFrequency tokenizes every verse_text row for the language,

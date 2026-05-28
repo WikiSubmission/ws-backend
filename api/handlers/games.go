@@ -574,13 +574,13 @@ func (s *Server) GetGameFillBlankLeaderboard(ctx context.Context, request GetGam
 	var err error
 	switch params.Scope {
 	case "global", "weekly":
-		if params.Size == nil || params.Difficulty == nil {
-			return GetGameFillBlankLeaderboard400JSONResponse{
-				BadRequestJSONResponse: BadRequestJSONResponse{Message: "size and difficulty are required for global/weekly leaderboards"},
-			}, nil
+		var size, difficulty string
+		if params.Size != nil {
+			size = string(*params.Size)
 		}
-		size := string(*params.Size)
-		difficulty := string(*params.Difficulty)
+		if params.Difficulty != nil {
+			difficulty = string(*params.Difficulty)
+		}
 		if params.Scope == "global" {
 			rows, err = s.DB.FetchGlobalLeaderboard(ctx, size, difficulty, limit)
 		} else {
