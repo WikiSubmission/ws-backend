@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -10,38 +11,66 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
-// ParseEmailAllowlist turns a comma-separated env value into a lookup set of
-// lowercased, trimmed emails. Empty entries are ignored.
-func ParseEmailAllowlist(raw string) map[string]struct{} {
-	set := make(map[string]struct{})
-	for part := range strings.SplitSeq(raw, ",") {
-		e := strings.ToLower(strings.TrimSpace(part))
-		if e != "" {
-			set[e] = struct{}{}
-		}
+// PermissionGamesEditor is the JSONB key on users.permissions that grants
+// access to the games editorial surface. Admins are always allowed; other
+// users need this permission set to true.
+const PermissionGamesEditor = "games_editor"
+
+// HasPermission reports whether the user's permissions JSONB blob has the
+// given key set to true.
+func HasPermission(raw json.RawMessage, key string) bool {
+	if len(raw) == 0 {
+		return false
 	}
-	return set
+	var perms map[string]any
+	if err := json.Unmarshal(raw, &perms); err != nil {
+		return false
+	}
+	v, ok := perms[key]
+	if !ok {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
 }
 
-// RequireEditor allows only authenticated users whose email is in the allowlist
-// (built from GAMES_EDITOR_EMAILS via ParseEmailAllowlist). Must run after
-// RequireAuth so the email claim is on the context. An empty allowlist denies
-// everyone.
-func RequireEditor(allowlist map[string]struct{}) gin.HandlerFunc {
+// RequireEditor allows admins and users granted the games_editor permission
+// via the admin access page. Must run after RequireAuth so the auth id is on
+// the context. The env-based allowlist (GAMES_EDITOR_EMAILS) it replaced has
+// been retired in favor of DB-backed access control.
+func RequireEditor(database *db.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		email, _ := c.Get(ContextKeyEmail)
-		emailStr, _ := email.(string)
-		emailStr = strings.ToLower(strings.TrimSpace(emailStr))
-		if emailStr == "" {
+		authID, exists := c.Get(ContextKeyUID)
+		authIDStr, _ := authID.(string)
+		if !exists || authIDStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 			return
 		}
-		if _, ok := allowlist[emailStr]; !ok {
+		user, err := database.FetchUserByAuthID(c.Request.Context(), authIDStr)
+		if err != nil || user == nil || !user.IsActive {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
 			return
 		}
+		if user.Role != "admin" && !HasPermission(user.Permissions, PermissionGamesEditor) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
+			return
+		}
+		c.Set(ContextKeyRole, user.Role)
 		c.Next()
 	}
+}
+
+// HasGamesEditorAccess reports whether the given user passes the same gate
+// as RequireEditor. Exposed so handlers serving the session shape can populate
+// session.isEditor consistently with the middleware.
+func HasGamesEditorAccess(u *db.UserRow) bool {
+	if u == nil || !u.IsActive {
+		return false
+	}
+	if u.Role == "admin" {
+		return true
+	}
+	return HasPermission(u.Permissions, PermissionGamesEditor)
 }
 
 const (
