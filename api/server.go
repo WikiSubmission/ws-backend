@@ -308,6 +308,18 @@ func StartServer(database *db.DB) {
 	play.Use(auth.RequireAuth(verifier))
 	play.POST("/check", gamesPlay.CheckBlank)
 
+	// Activity feed + consent. Out-of-contract /me routes that record search /
+	// browse events and expose a per-user consent toggle. Drops writes when
+	// consent is off, so the client need not check first.
+	meActivity := handlers.MeActivityHandler{DB: database}
+	activity := r.Group("/api/v1/me")
+	activity.Use(auth.RequireAuth(verifier))
+	activity.GET("/activity", meActivity.List)
+	activity.POST("/activity", meActivity.Record)
+	activity.DELETE("/activity", meActivity.Clear)
+	activity.GET("/consent", meActivity.GetConsent)
+	activity.PUT("/consent", meActivity.SetConsent)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
