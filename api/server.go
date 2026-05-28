@@ -359,18 +359,15 @@ func StartServer(database *db.DB) {
 	})
 
 	// ── Authenticated routes ─────────────────────────────────────────────────
+	// /users/me, GET /users, and PATCH /users/{id} are served by the strict
+	// handlers generated from openapi.yaml (see users_strict.go) and registered
+	// via RegisterHandlersWithOptions above. Auth and authID propagation happen
+	// in the validator's AuthenticationFunc. Only out-of-contract /users routes
+	// are registered manually below.
 	authed := r.Group("/api/v1")
 	authed.Use(auth.RequireAuth(verifier))
 	authed.POST("/users", userHandler.UpsertUser)
-	authed.GET("/users/me", userHandler.GetCurrentUser)
 	authed.GET("/users/:id", userHandler.GetUserByID)
-
-	// ── Admin routes ─────────────────────────────────────────────────────────
-	admin := r.Group("/api/v1")
-	admin.Use(auth.RequireAuth(verifier))
-	admin.Use(auth.RequireAdmin(database))
-	admin.GET("/users", userHandler.GetUsers)
-	admin.PATCH("/users/:id", userHandler.UpdateUser)
 
 	if err := serverImpl.InitializeCaches(context.Background()); err != nil {
 		slog.Error("Cache initialization failed — server cannot serve requests", slog.Any("error", err))
