@@ -8,6 +8,7 @@ package handlers
 import (
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -233,6 +234,14 @@ func (h *GamesAdminHandler) Curate(c *gin.Context) {
 		case errors.Is(err, curate.ErrNoChapterText):
 			c.JSON(http.StatusBadRequest, gin.H{"message": "chapter has no English verses"})
 		case errors.Is(err, curate.ErrRateLimited):
+			// Pass Groq's wait hint through so the client can honor it instead
+			// of guessing. Falls back to client-side exponential backoff when
+			// the upstream did not supply a value.
+			var rle *curate.RateLimitError
+			if errors.As(err, &rle) && rle.RetryAfter > 0 {
+				secs := int(math.Ceil(rle.RetryAfter.Seconds()))
+				c.Header("Retry-After", strconv.Itoa(secs))
+			}
 			c.JSON(http.StatusTooManyRequests, gin.H{"message": "Groq rate limit reached; pausing before the next window"})
 		default:
 			// Editors are trusted, so surface the upstream reason to make

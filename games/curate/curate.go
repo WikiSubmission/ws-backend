@@ -22,6 +22,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,8 +118,30 @@ var ErrNoChapterText = fmt.Errorf("chapter has no English verses")
 var ErrNoProposals = fmt.Errorf("no usable proposals")
 
 // ErrRateLimited wraps a Groq token/rate-limit rejection so callers can tell it
-// apart from other failures and back off before retrying.
+// apart from other failures and back off before retrying. Callers that need
+// the server-supplied wait hint should use errors.As with *RateLimitError.
 var ErrRateLimited = errors.New("groq rate limit")
+
+// RateLimitError carries the upstream wait hint (Retry-After header or a
+// duration parsed from the JSON error body) alongside the rate-limit signal.
+// RetryAfter is zero when no hint was provided; callers should fall back to
+// their own backoff in that case.
+type RateLimitError struct {
+	RetryAfter time.Duration
+	Status     int
+	Body       string
+}
+
+func (e *RateLimitError) Error() string {
+	if e.RetryAfter > 0 {
+		return fmt.Sprintf("groq %d (retry after %s): %s", e.Status, e.RetryAfter, e.Body)
+	}
+	return fmt.Sprintf("groq %d: %s", e.Status, e.Body)
+}
+
+func (e *RateLimitError) Is(target error) bool {
+	return target == ErrRateLimited
+}
 
 // WindowResult reports the outcome of curating a single verse window, with a
 // cursor (NextVerse) and Done flag so a caller can drive the chapter to
@@ -584,7 +608,11 @@ func ProposePassages(ctx context.Context, cfg Config, chapter, verseStart, verse
 		if resp.StatusCode == http.StatusRequestEntityTooLarge ||
 			resp.StatusCode == http.StatusTooManyRequests ||
 			strings.Contains(string(respBody), "rate_limit_exceeded") {
-			return nil, fmt.Errorf("%w: groq %d: %s", ErrRateLimited, resp.StatusCode, string(respBody))
+			return nil, &RateLimitError{
+				RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), respBody),
+				Status:     resp.StatusCode,
+				Body:       string(respBody),
+			}
 		}
 		return nil, fmt.Errorf("groq %d: %s", resp.StatusCode, string(respBody))
 	}
@@ -656,4 +684,55 @@ func ValidateProposals(props []Proposal) (kept []Proposal, dropped []Dropped) {
 		kept = append(kept, p)
 	}
 	return kept, dropped
+}
+
+// parseRetryAfter extracts a wait hint from the Retry-After response header or,
+// failing that, the JSON error body where Groq sometimes embeds phrasing like
+// "Please try again in 47.123s". Returns 0 when nothing parseable is found, so
+// callers know to use their own backoff.
+func parseRetryAfter(headerValue string, body []byte) time.Duration {
+	if d := parseRetryAfterHeader(headerValue); d > 0 {
+		return d
+	}
+	return parseRetryAfterBody(body)
+}
+
+func parseRetryAfterHeader(v string) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	// RFC 7231 allows either a delta in seconds or an HTTP-date. Groq uses
+	// delta-seconds, possibly fractional.
+	if secs, err := strconv.ParseFloat(v, 64); err == nil && secs > 0 {
+		return time.Duration(secs * float64(time.Second))
+	}
+	if t, err := http.ParseTime(v); err == nil {
+		if d := time.Until(t); d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
+var retryBodyRe = regexp.MustCompile(`(?i)try again in ([0-9]+(?:\.[0-9]+)?)(ms|s|m)`)
+
+func parseRetryAfterBody(body []byte) time.Duration {
+	m := retryBodyRe.FindSubmatch(body)
+	if len(m) != 3 {
+		return 0
+	}
+	n, err := strconv.ParseFloat(string(m[1]), 64)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	switch string(m[2]) {
+	case "ms":
+		return time.Duration(n * float64(time.Millisecond))
+	case "s":
+		return time.Duration(n * float64(time.Second))
+	case "m":
+		return time.Duration(n * float64(time.Minute))
+	}
+	return 0
 }

@@ -1,8 +1,10 @@
 package curate
 
 import (
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateProposals(t *testing.T) {
@@ -157,5 +159,42 @@ func TestNormalizeDifficulty(t *testing.T) {
 			}
 			t.Errorf("NormalizeDifficulty(%q) = %q, want %q", tc.in, gv, tc.wantStr)
 		}
+	}
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+		body   string
+		want   time.Duration
+	}{
+		{"header seconds", "30", "", 30 * time.Second},
+		{"header fractional seconds", "12.5", "", 12500 * time.Millisecond},
+		{"header empty body parses milliseconds", "", `{"error":"please try again in 250ms"}`, 250 * time.Millisecond},
+		{"header empty body parses seconds", "", `try again in 47.123s`, 47123 * time.Millisecond},
+		{"header empty body parses minutes", "", `try again in 2m`, 2 * time.Minute},
+		{"header wins over body", "5", `try again in 60s`, 5 * time.Second},
+		{"nothing", "", `{"error":"something else"}`, 0},
+		{"negative ignored", "-5", "", 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseRetryAfter(tc.header, []byte(tc.body))
+			if got != tc.want {
+				t.Errorf("parseRetryAfter(%q, %q) = %s, want %s", tc.header, tc.body, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRateLimitErrorIs(t *testing.T) {
+	e := &RateLimitError{RetryAfter: 5 * time.Second, Status: 429, Body: "rate_limit_exceeded"}
+	if !errors.Is(e, ErrRateLimited) {
+		t.Fatal("errors.Is(*RateLimitError, ErrRateLimited) = false, want true")
+	}
+	var target *RateLimitError
+	if !errors.As(e, &target) || target.RetryAfter != 5*time.Second {
+		t.Fatalf("errors.As did not extract RetryAfter (got %+v)", target)
 	}
 }
