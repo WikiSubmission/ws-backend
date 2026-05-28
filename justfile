@@ -355,6 +355,34 @@ games-build-lemma-fixture TARGET="local":
     echo "Wrote $out — commit it so it ships embedded, then redeploy and click"
     echo "\"Load lemma data\" in the editor (or run: just games-seed-lemma $1)."
 
+# One-shot lemma fixture refresh: bootstraps the Python venv if missing, then
+# generates db/seeds/games_lemma_en.sql from the chosen target DB's vocabulary.
+# Run once per language, NOT per curation pass. Re-run only when the source
+# translation changes or you bump spaCy. Pass LANGUAGE to support new languages
+# (a corresponding db/seeds/games_lemma_<lang>.sql will be written and must be
+# wired into db/seeds.go before it can ship).
+games-refresh-lemmas TARGET="local" LANGUAGE="en":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    venv="scripts/games_lemma/.venv"
+    if [ ! -d "$venv" ]; then
+      echo "Creating Python venv at $venv (first run only)…"
+      python3 -m venv "$venv"
+      "$venv/bin/pip" install --quiet -r scripts/games_lemma/requirements.txt
+      "$venv/bin/python" -m spacy download en_core_web_sm
+    fi
+    url="$(just url "$1")"
+    out="db/seeds/games_lemma_$2.sql"
+    psql "$url" --set ON_ERROR_STOP=1 -tAc \
+      "SELECT DISTINCT word_normalized FROM game_word_frequency WHERE language='$2' ORDER BY word_normalized" \
+      | "$venv/bin/python" scripts/games_lemma/generate_lemma_fixture.py --language "$2" > "$out"
+    echo ""
+    echo "Wrote $out. Next steps:"
+    echo "  git add $out scripts/games_lemma/requirements.txt"
+    echo "  git commit -m 'feat(games): refresh $2 lemma fixture'"
+    echo "  git push && redeploy"
+    echo "  then click \"Load lemma data\" in /admin/games/fill-blank"
+
 # Load the committed lemma fixture into game_lemma on a target DB. Idempotent.
 # In prod prefer the editor's "Load lemma data" button, which loads the fixture
 # embedded in the running binary. Hard-tier acceptance falls back to exact match
