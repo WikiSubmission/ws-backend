@@ -355,6 +355,7 @@ func StartServer(database *db.DB) {
 	authed := r.Group("/api/v1")
 	authed.Use(auth.RequireAuth(verifier))
 	authed.POST("/users", userHandler.UpsertUser)
+	authed.GET("/users/me", userHandler.GetCurrentUser)
 	authed.GET("/users/:id", userHandler.GetUserByID)
 
 	// ── Admin routes ─────────────────────────────────────────────────────────

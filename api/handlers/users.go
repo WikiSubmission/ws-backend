@@ -86,6 +86,28 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
 }
 
+// GetCurrentUser handles GET /api/v1/users/me.
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	authID := c.GetString(auth.ContextKeyUID)
+	if authID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "not authenticated"})
+		return
+	}
+
+	user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
+	if err != nil {
+		slog.Error("GetCurrentUser: DB error", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal server error"})
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": userRowToResponse(user), "error": nil})
+}
+
 // GetUserByID handles GET /api/v1/users/:id.
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	idParam := c.Param("id")
