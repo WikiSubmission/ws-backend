@@ -319,6 +319,13 @@ func StartServer(database *db.DB) {
 	activity.DELETE("/activity", meActivity.Clear)
 	activity.GET("/consent", meActivity.GetConsent)
 	activity.PUT("/consent", meActivity.SetConsent)
+	meExport := handlers.MeExportHandler{
+		DB:     database,
+		Drive:  handlers.NoopDriveUploader{},
+		Mailer: handlers.SMTPEmailSender{},
+	}
+	activity.POST("/export", meExport.PostExport)
+	activity.GET("/export/status", meExport.GetStatus)
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
