@@ -66,6 +66,31 @@ func emailFromContext(ctx context.Context) (string, bool) {
 	return "", false
 }
 
+func nameFromContext(ctx context.Context) (string, bool) {
+	if v := ctx.Value(auth.ContextKeyName); v != nil {
+		if s, ok := v.(string); ok && s != "" {
+			return s, true
+		}
+	}
+
+	if gc, ok := ctx.(*gin.Context); ok {
+		if v, exists := gc.Get(auth.ContextKeyName); exists {
+			if s, ok := v.(string); ok && s != "" {
+				return s, true
+			}
+		}
+		if gc.Request != nil {
+			if v := gc.Request.Context().Value(auth.ContextKeyName); v != nil {
+				if s, ok := v.(string); ok && s != "" {
+					return s, true
+				}
+			}
+		}
+	}
+
+	return "", false
+}
+
 // ensureCurrentUser provisions a users row on first /me write so insert-select
 // queries that rely on users.auth_id always have a matching user id. Also
 // ensures the user has a default bookmark category to land their first save.
@@ -74,13 +99,22 @@ func (s *Server) ensureCurrentUser(ctx context.Context, authID string) error {
 	if err != nil {
 		return err
 	}
+	var displayName *string
+	if name, ok := nameFromContext(ctx); ok {
+		n := name
+		displayName = &n
+	}
 	if user == nil {
 		email, ok := emailFromContext(ctx)
 		if !ok {
 			return fmt.Errorf("no users row for auth id %q and no email claim available", authID)
 		}
-		if _, err := s.DB.UpsertUser(ctx, authID, email, nil); err != nil {
+		if _, err := s.DB.UpsertUser(ctx, authID, email, displayName); err != nil {
 			return err
+		}
+	} else if displayName != nil && (user.DisplayName == nil || *user.DisplayName == "") {
+		if err := s.DB.UpdateUserDisplayName(ctx, user.ID, *displayName); err != nil {
+			return fmt.Errorf("backfill display_name: %w", err)
 		}
 	}
 

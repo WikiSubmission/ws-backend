@@ -31,12 +31,13 @@ func NewAuthJSVerifier(secret string) (*AuthJSVerifier, error) {
 	return &AuthJSVerifier{key: key}, nil
 }
 
-// VerifyToken parses and validates the HS256 JWT, returning (authID, email, error).
+// VerifyToken parses and validates the HS256 JWT, returning (authID, email, name, error).
 // authID is the namespaced subject claim, e.g. "google:12345" or "email:user@x.com".
-func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email string, err error) {
+// name is the optional human-readable display name carried by the Auth.js layer.
+func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email string, name string, err error) {
 	if v.key == nil {
 		observability.JWTValidationsTotal.WithLabelValues("not_configured").Inc()
-		return "", "", errors.New("auth: verifier not configured")
+		return "", "", "", errors.New("auth: verifier not configured")
 	}
 	token, err := jwt.Parse(
 		[]byte(tokenString),
@@ -46,14 +47,17 @@ func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email s
 	)
 	if err != nil {
 		observability.JWTValidationsTotal.WithLabelValues(classifyJWTError(err)).Inc()
-		return "", "", err
+		return "", "", "", err
 	}
 	observability.JWTValidationsTotal.WithLabelValues("valid").Inc()
 	authID = token.Subject()
 	if e, ok := token.Get("email"); ok {
 		email, _ = e.(string)
 	}
-	return authID, email, nil
+	if n, ok := token.Get("name"); ok {
+		name, _ = n.(string)
+	}
+	return authID, email, name, nil
 }
 
 func classifyJWTError(err error) string {

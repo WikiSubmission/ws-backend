@@ -466,9 +466,15 @@ func buildLeaderboardInner(size, difficulty, extraWhere string) (string, []any) 
 	if len(clauses) > 0 {
 		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
+	// Fall back to the local-part of the email when display_name is not set,
+	// so users who never set a name still surface as something recognisable
+	// (e.g. "hesham" rather than "anonymous"). The domain is dropped to avoid
+	// exposing the full address on a public leaderboard.
 	return `
 		SELECT DISTINCT ON (a.user_id)
-		       a.user_id, u.display_name, a.score, a.size, a.difficulty,
+		       a.user_id,
+		       COALESCE(NULLIF(u.display_name, ''), split_part(u.email, '@', 1)) AS display_name,
+		       a.score, a.size, a.difficulty,
 		       a.elapsed_ms, a.completed_at, a.variant_id
 		FROM game_attempts a
 		JOIN users u ON u.id = a.user_id
@@ -681,7 +687,9 @@ func (db *DB) FetchVariantLeaderboard(ctx context.Context, variantID string, lim
 
 	query := `
 		SELECT DISTINCT ON (a.user_id)
-		       a.user_id, u.display_name, a.score, a.size, a.difficulty,
+		       a.user_id,
+		       COALESCE(NULLIF(u.display_name, ''), split_part(u.email, '@', 1)) AS display_name,
+		       a.score, a.size, a.difficulty,
 		       a.elapsed_ms, a.completed_at, a.variant_id
 		FROM game_attempts a
 		JOIN users u ON u.id = a.user_id

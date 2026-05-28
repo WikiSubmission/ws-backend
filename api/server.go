@@ -251,7 +251,7 @@ func StartServer(database *db.DB) {
 					return fmt.Errorf("missing bearer token")
 				}
 				token := strings.TrimPrefix(header, "Bearer ")
-				authID, email, err := verifier.VerifyToken(token)
+				authID, email, name, err := verifier.VerifyToken(token)
 				if err != nil {
 					return fmt.Errorf("invalid token")
 				}
@@ -261,13 +261,16 @@ func StartServer(database *db.DB) {
 				if gc := middleware.GetGinContext(ctx); gc != nil {
 					reqCtx := context.WithValue(gc.Request.Context(), auth.ContextKeyUID, authID)
 					reqCtx = context.WithValue(reqCtx, auth.ContextKeyEmail, email)
+					reqCtx = context.WithValue(reqCtx, auth.ContextKeyName, name)
 					gc.Request = gc.Request.WithContext(reqCtx)
 					gc.Set(auth.ContextKeyUID, authID)
 					gc.Set(auth.ContextKeyEmail, email)
+					gc.Set(auth.ContextKeyName, name)
 				}
 
 				reqCtx := context.WithValue(req.Context(), auth.ContextKeyUID, authID)
 				reqCtx = context.WithValue(reqCtx, auth.ContextKeyEmail, email)
+				reqCtx = context.WithValue(reqCtx, auth.ContextKeyName, name)
 				input.RequestValidationInput.Request = req.WithContext(reqCtx)
 				return nil
 			},

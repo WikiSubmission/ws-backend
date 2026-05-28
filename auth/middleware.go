@@ -76,6 +76,7 @@ func HasGamesEditorAccess(u *db.UserRow) bool {
 const (
 	ContextKeyUID   = "user_id"
 	ContextKeyEmail = "user_email"
+	ContextKeyName  = "user_name"
 	ContextKeyRole  = "user_role"
 )
 
@@ -89,7 +90,7 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 			return
 		}
 		token := strings.TrimPrefix(header, "Bearer ")
-		authID, email, err := verifier.VerifyToken(token)
+		authID, email, name, err := verifier.VerifyToken(token)
 		if err != nil {
 			observability.AuthAttemptsTotal.WithLabelValues("invalid_token").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
@@ -98,9 +99,11 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 		observability.AuthAttemptsTotal.WithLabelValues("success").Inc()
 		reqCtx := context.WithValue(c.Request.Context(), ContextKeyUID, authID)
 		reqCtx = context.WithValue(reqCtx, ContextKeyEmail, email)
+		reqCtx = context.WithValue(reqCtx, ContextKeyName, name)
 		c.Request = c.Request.WithContext(reqCtx)
 		c.Set(ContextKeyUID, authID)
 		c.Set(ContextKeyEmail, email)
+		c.Set(ContextKeyName, name)
 		c.Next()
 	}
 }
