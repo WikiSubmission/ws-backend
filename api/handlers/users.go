@@ -36,13 +36,6 @@ type UpsertUserRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`
 }
 
-// UpdateUserRequest is the body for PATCH /users/:id.
-type UpdateUserRequest struct {
-	Role        *string         `json:"role,omitempty"`
-	Permissions json.RawMessage `json:"permissions,omitempty"`
-	IsActive    *bool           `json:"is_active,omitempty"`
-}
-
 func userRowToResponse(u *db.UserRow) UserResponse {
 	return UserResponse{
 		ID:          u.ID,
@@ -204,7 +197,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	if req.Role != nil {
-		if err := h.DB.UpdateUserRole(c.Request.Context(), id, *req.Role); err != nil {
+		if err := h.DB.UpdateUserRole(c.Request.Context(), id, string(*req.Role)); err != nil {
 			slog.Error("UpdateUser: UpdateUserRole error", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 			return
@@ -212,7 +205,12 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	if req.Permissions != nil {
-		if err := h.DB.UpdateUserPermissions(c.Request.Context(), id, req.Permissions); err != nil {
+		permissionsRaw, err := json.Marshal(req.Permissions)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid permissions payload"})
+			return
+		}
+		if err := h.DB.UpdateUserPermissions(c.Request.Context(), id, permissionsRaw); err != nil {
 			slog.Error("UpdateUser: UpdateUserPermissions error", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 			return
