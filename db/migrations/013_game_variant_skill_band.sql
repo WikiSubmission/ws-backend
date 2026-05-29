@@ -4,9 +4,20 @@
 ALTER TABLE game_variants
   ADD COLUMN IF NOT EXISTS skill_band TEXT NOT NULL DEFAULT 'medium';
 
-ALTER TABLE game_variants
-  ADD CONSTRAINT game_variants_skill_band_values
-  CHECK (skill_band IN ('easy', 'medium', 'hard'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'game_variants_skill_band_values'
+      AND conrelid = 'game_variants'::regclass
+  ) THEN
+    ALTER TABLE game_variants
+      ADD CONSTRAINT game_variants_skill_band_values
+      CHECK (skill_band IN ('easy', 'medium', 'hard'));
+  END IF;
+END
+$$;
 
 -- Existing variants default to 'medium' — safe to expand the unique key.
 DROP INDEX IF EXISTS game_variants_unique_config;
