@@ -133,8 +133,16 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		return StartGameFillBlankVariant200JSONResponse{Data: api}, nil
 	}
 
+	// Determine the player's skill band from their recent accuracy at this tier.
+	recentAcc, err := s.DB.FetchRecentAccuracy(ctx, authID, difficulty, 10)
+	if err != nil {
+		slog.Warn("StartGameFillBlankVariant: FetchRecentAccuracy failed, defaulting to medium", "error", err)
+		recentAcc = &db.RecentAccuracyResult{Count: 0}
+	}
+	skillBand := computeSkillBand(recentAcc.Count, recentAcc.MeanAccuracy)
+
 	// Auto-pick: lowest-counter variant the user has not yet attempted.
-	v, err := s.DB.FetchNextUnseenVariant(ctx, authID, passage.ID, language, difficulty, size)
+	v, err := s.DB.FetchNextUnseenVariant(ctx, authID, passage.ID, language, difficulty, size, skillBand)
 	if err != nil {
 		slog.Error("StartGameFillBlankVariant: FetchNextUnseenVariant", "error", err)
 		return StartGameFillBlankVariant500JSONResponse{
@@ -153,8 +161,8 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 	}
 
 	// No unseen variant exists. Mint a new one if we still have headroom;
-	// otherwise cycle back to the oldest variant in the group.
-	maxCounter, err := s.DB.MaxVariantCounter(ctx, passage.ID, language, difficulty, size)
+	// otherwise cycle back to the oldest variant in the band group.
+	maxCounter, err := s.DB.MaxVariantCounter(ctx, passage.ID, language, difficulty, size, skillBand)
 	if err != nil {
 		slog.Error("StartGameFillBlankVariant: MaxVariantCounter", "error", err)
 		return StartGameFillBlankVariant500JSONResponse{
@@ -162,7 +170,7 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}, nil
 	}
 	if maxCounter >= maxVariantsPerGroup {
-		oldest, err := s.DB.OldestVariantInGroup(ctx, passage.ID, language, difficulty, size)
+		oldest, err := s.DB.OldestVariantInGroup(ctx, passage.ID, language, difficulty, size, skillBand)
 		if err != nil {
 			slog.Error("StartGameFillBlankVariant: OldestVariantInGroup", "error", err)
 			return StartGameFillBlankVariant500JSONResponse{
@@ -185,7 +193,7 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		return StartGameFillBlankVariant200JSONResponse{Data: api}, nil
 	}
 
-	minted, err := s.mintVariant(ctx, passage, language, difficulty, size, maxCounter+1)
+	minted, err := s.mintVariant(ctx, passage, language, difficulty, size, skillBand, maxCounter+1)
 	if err != nil {
 		slog.Error("StartGameFillBlankVariant: mintVariant", "error", err)
 		return StartGameFillBlankVariant500JSONResponse{
@@ -204,7 +212,7 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 
 // mintVariant fetches passage verses, runs the generator, and persists the
 // result.
-func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, language, difficulty, size string, counter int) (*db.GameVariantRow, error) {
+func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, language, difficulty, size, skillBand string, counter int) (*db.GameVariantRow, error) {
 	verses, err := s.DB.FetchVersesWithTranslations(ctx,
 		passage.ChapterStart, passage.ChapterEnd, passage.VerseStart, passage.VerseEnd,
 		[]string{language})
@@ -263,6 +271,7 @@ func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, la
 		Language:    language,
 		Difficulty:  difficulty,
 		Size:        size,
+		SkillBand:   skillBand,
 		Counter:     counter,
 		Verses:      genVerses,
 		Frequencies: freqs,
@@ -305,6 +314,7 @@ func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant
 	for i, rv := range rendered {
 		apiRendered[i] = GameRenderedVerse{VerseKey: rv.VerseKey, Text: rv.Text}
 	}
+	band := GameVariantSkillBand(v.SkillBand)
 	return GameVariant{
 		VariantId:      v.VariantID,
 		Passage:        passageToAPI(passage),
@@ -314,6 +324,7 @@ func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant
 		RenderedVerses: apiRendered,
 		Blanks:         apiBlanks,
 		Replay:         false,
+		SkillBand:      &band,
 	}, nil
 }
 
@@ -345,6 +356,29 @@ var difficultyMultipliers = map[string]float64{
 	"medium":       1.5,
 	"hard":         2.0,
 	"professional": 3.0,
+}
+
+// bandBonuses rewards players who receive harder blanks within their tier.
+var bandBonuses = map[string]float64{
+	"easy":   1.0,
+	"medium": 1.0,
+	"hard":   1.05,
+}
+
+// computeSkillBand derives the adaptive difficulty band from a user's recent
+// accuracy. count is the number of same-tier attempts considered; accuracy is
+// their mean correct fraction over those attempts.
+func computeSkillBand(count int, accuracy float64) string {
+	if count < 3 {
+		return "medium" // cold start
+	}
+	if accuracy < 0.50 {
+		return "easy"
+	}
+	if accuracy >= 0.85 {
+		return "hard"
+	}
+	return "medium"
 }
 
 const hintPenaltyPerHint = 25
@@ -451,8 +485,12 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 
 	base := float64(correctCount) / float64(len(blanks)) * 1000.0
 	mult := difficultyMultipliers[variant.Difficulty]
+	bandBonus, ok := bandBonuses[variant.SkillBand]
+	if !ok {
+		bandBonus = 1.0
+	}
 	penalty := req.HintsUsed * hintPenaltyPerHint
-	score := int(base*mult) - penalty
+	score := int(base*mult*bandBonus) - penalty
 	if score < 0 {
 		score = 0
 	}

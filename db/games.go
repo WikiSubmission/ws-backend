@@ -41,6 +41,7 @@ type GameVariantRow struct {
 	Language   string          `db:"language"`
 	Difficulty string          `db:"difficulty"`
 	Size       string          `db:"size"`
+	SkillBand  string          `db:"skill_band"`
 	Counter    int             `db:"counter"`
 	Seed       int64           `db:"seed"`
 	Blanks     json.RawMessage `db:"blanks"`
@@ -188,7 +189,7 @@ func (db *DB) FetchPassageByID(ctx context.Context, id int64) (*GamePassageRow, 
 // ── Variant queries ────────────────────────────────────────────────────────
 
 const variantCols = `v.id, v.variant_id, v.passage_id, v.language, v.difficulty,
-	v.size, v.counter, v.seed, v.blanks, v.rendered, v.created_at`
+	v.size, v.skill_band, v.counter, v.seed, v.blanks, v.rendered, v.created_at`
 
 func (db *DB) FetchVariantByVariantID(ctx context.Context, variantID string) (*GameVariantRow, error) {
 	defer observe("fetch_game_variant_by_variant_id", time.Now())
@@ -210,10 +211,10 @@ func (db *DB) FetchVariantByVariantID(ctx context.Context, variantID string) (*G
 }
 
 // FetchNextUnseenVariant returns the lowest-counter variant for the given
-// (passage, language, difficulty, size) that the user (resolved via auth_id)
-// has not yet submitted. Returns nil if every existing variant has been
-// attempted by the user — the caller is then expected to mint a new variant.
-func (db *DB) FetchNextUnseenVariant(ctx context.Context, authID string, passageID int64, language, difficulty, size string) (*GameVariantRow, error) {
+// (passage, language, difficulty, size, skillBand) that the user (resolved
+// via auth_id) has not yet submitted. Returns nil if every existing variant
+// in the band has been attempted — the caller is then expected to mint a new one.
+func (db *DB) FetchNextUnseenVariant(ctx context.Context, authID string, passageID int64, language, difficulty, size, skillBand string) (*GameVariantRow, error) {
 	defer observe("fetch_next_unseen_game_variant", time.Now())
 
 	query := `SELECT ` + variantCols + `
@@ -222,14 +223,15 @@ func (db *DB) FetchNextUnseenVariant(ctx context.Context, authID string, passage
 	            AND v.language   = $2
 	            AND v.difficulty = $3
 	            AND v.size       = $4
+	            AND v.skill_band = $5
 	            AND NOT EXISTS (
 	                SELECT 1 FROM game_attempts a
 	                JOIN users u ON u.id = a.user_id
-	                WHERE u.auth_id = $5 AND a.variant_id = v.variant_id
+	                WHERE u.auth_id = $6 AND a.variant_id = v.variant_id
 	            )
 	          ORDER BY v.counter ASC
 	          LIMIT 1`
-	rows, err := db.Pool.Query(ctx, query, passageID, language, difficulty, size, authID)
+	rows, err := db.Pool.Query(ctx, query, passageID, language, difficulty, size, skillBand, authID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,15 +247,15 @@ func (db *DB) FetchNextUnseenVariant(ctx context.Context, authID string, passage
 }
 
 // MaxVariantCounter returns the highest counter assigned in the
-// (passage, language, difficulty, size) group, or 0 if none exist.
-func (db *DB) MaxVariantCounter(ctx context.Context, passageID int64, language, difficulty, size string) (int, error) {
+// (passage, language, difficulty, size, skillBand) group, or 0 if none exist.
+func (db *DB) MaxVariantCounter(ctx context.Context, passageID int64, language, difficulty, size, skillBand string) (int, error) {
 	defer observe("max_game_variant_counter", time.Now())
 
 	var counter *int
 	err := db.Pool.QueryRow(ctx,
 		`SELECT MAX(counter) FROM game_variants
-		 WHERE passage_id = $1 AND language = $2 AND difficulty = $3 AND size = $4`,
-		passageID, language, difficulty, size).Scan(&counter)
+		 WHERE passage_id = $1 AND language = $2 AND difficulty = $3 AND size = $4 AND skill_band = $5`,
+		passageID, language, difficulty, size, skillBand).Scan(&counter)
 	if err != nil {
 		return 0, err
 	}
@@ -268,11 +270,11 @@ func (db *DB) InsertVariant(ctx context.Context, v *GameVariantRow) (*GameVarian
 
 	// Alias the target as v so the shared variantCols (v.*) resolve in RETURNING.
 	query := `INSERT INTO game_variants AS v
-	          (variant_id, passage_id, language, difficulty, size, counter, seed, blanks, rendered)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	          (variant_id, passage_id, language, difficulty, size, skill_band, counter, seed, blanks, rendered)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	          RETURNING ` + variantCols
 	rows, err := db.Pool.Query(ctx, query,
-		v.VariantID, v.PassageID, v.Language, v.Difficulty, v.Size,
+		v.VariantID, v.PassageID, v.Language, v.Difficulty, v.Size, v.SkillBand,
 		v.Counter, v.Seed, v.Blanks, v.Rendered)
 	if err != nil {
 		return nil, err
@@ -396,6 +398,36 @@ func (db *DB) FetchUserGameStats(ctx context.Context, authID string) (*GameUserS
 	}
 	stats.ByDifficulty = by
 	return &stats, nil
+}
+
+// RecentAccuracyResult holds aggregated accuracy data for adaptive difficulty.
+type RecentAccuracyResult struct {
+	Count        int     `db:"count"`
+	MeanAccuracy float64 `db:"mean_accuracy"`
+}
+
+// FetchRecentAccuracy returns the count and mean accuracy for the user's last n
+// attempts at the given difficulty tier. Used to compute their skill band.
+func (db *DB) FetchRecentAccuracy(ctx context.Context, authID, difficulty string, n int) (*RecentAccuracyResult, error) {
+	defer observe("fetch_recent_accuracy", time.Now())
+
+	var res RecentAccuracyResult
+	err := db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int                                          AS count,
+		       COALESCE(AVG(acc), 0.0)::float                        AS mean_accuracy
+		FROM (
+		    SELECT a.correct_count::float / NULLIF(a.total_count, 0) AS acc
+		    FROM game_attempts a
+		    JOIN users u ON u.id = a.user_id
+		    WHERE u.auth_id = $1 AND a.difficulty = $2
+		    ORDER BY a.completed_at DESC
+		    LIMIT $3
+		) sub
+	`, authID, difficulty, n).Scan(&res.Count, &res.MeanAccuracy)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 // ── Leaderboard ────────────────────────────────────────────────────────────
@@ -659,15 +691,16 @@ func (db *DB) FetchChapterVerseContents(ctx context.Context, language string, ch
 	return out, rows.Err()
 }
 
-// OldestVariantInGroup returns the lowest-counter variant in the group.
+// OldestVariantInGroup returns the lowest-counter variant in the band group.
 // Used for the replay-cycle fallback when the user has exhausted the catalog.
-func (db *DB) OldestVariantInGroup(ctx context.Context, passageID int64, language, difficulty, size string) (*GameVariantRow, error) {
+func (db *DB) OldestVariantInGroup(ctx context.Context, passageID int64, language, difficulty, size, skillBand string) (*GameVariantRow, error) {
 	defer observe("fetch_oldest_variant_in_group", time.Now())
 	query := `SELECT ` + variantCols + `
 	          FROM game_variants v
-	          WHERE v.passage_id = $1 AND v.language = $2 AND v.difficulty = $3 AND v.size = $4
+	          WHERE v.passage_id = $1 AND v.language = $2 AND v.difficulty = $3
+	            AND v.size = $4 AND v.skill_band = $5
 	          ORDER BY v.counter ASC LIMIT 1`
-	rows, err := db.Pool.Query(ctx, query, passageID, language, difficulty, size)
+	rows, err := db.Pool.Query(ctx, query, passageID, language, difficulty, size, skillBand)
 	if err != nil {
 		return nil, err
 	}

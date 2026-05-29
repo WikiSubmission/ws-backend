@@ -58,9 +58,13 @@ func itoa(n int) string {
 
 func fixtureInputs(t *testing.T, difficulty, size string, counter int) generatorInputs {
 	t.Helper()
+	return fixtureInputsWithBand(t, difficulty, size, "medium", counter)
+}
+
+func fixtureInputsWithBand(t *testing.T, difficulty, size, skillBand string, counter int) generatorInputs {
+	t.Helper()
 	verses := fixtureVerses(30)
 	freqs := map[string]int{}
-	// Build trivial frequency map: each word's count across the fixture.
 	for _, v := range verses {
 		for _, w := range v.Words {
 			if w.Normalized == "" {
@@ -83,6 +87,7 @@ func fixtureInputs(t *testing.T, difficulty, size string, counter int) generator
 		Language:    "en",
 		Difficulty:  difficulty,
 		Size:        size,
+		SkillBand:   skillBand,
 		Counter:     counter,
 		Verses:      verses,
 		Frequencies: freqs,
@@ -93,19 +98,22 @@ func fixtureInputs(t *testing.T, difficulty, size string, counter int) generator
 // ── seedFor ─────────────────────────────────────────────────────────────────
 
 func TestSeedFor(t *testing.T) {
-	a := seedFor(42, "en", "hard", "medium", 7)
-	b := seedFor(42, "en", "hard", "medium", 7)
+	a := seedFor(42, "en", "hard", "medium", "medium", 7)
+	b := seedFor(42, "en", "hard", "medium", "medium", 7)
 	if a != b {
 		t.Fatalf("seedFor not deterministic: %d != %d", a, b)
 	}
-	if seedFor(42, "en", "hard", "medium", 8) == a {
+	if seedFor(42, "en", "hard", "medium", "medium", 8) == a {
 		t.Fatalf("seedFor collides on counter")
 	}
-	if seedFor(42, "en", "easy", "medium", 7) == a {
+	if seedFor(42, "en", "easy", "medium", "medium", 7) == a {
 		t.Fatalf("seedFor collides on difficulty")
 	}
-	if seedFor(43, "en", "hard", "medium", 7) == a {
+	if seedFor(43, "en", "hard", "medium", "medium", 7) == a {
 		t.Fatalf("seedFor collides on passage id")
+	}
+	if seedFor(42, "en", "hard", "medium", "hard", 7) == a {
+		t.Fatalf("seedFor collides on skill band")
 	}
 }
 
@@ -343,6 +351,40 @@ func TestGenerateVariantBlankCountWithinBand(t *testing.T) {
 				t.Errorf("blanks = %d, min = %d", len(blanks), tc.minB)
 			}
 		})
+	}
+}
+
+// ── Skill band changes output (different blank selection) ──────────────────
+
+func TestGenerateVariantBandChangesOutput(t *testing.T) {
+	easy, err := generateVariant(fixtureInputsWithBand(t, "hard", "medium", "easy", 1))
+	if err != nil {
+		t.Fatalf("easy band: %v", err)
+	}
+	hard, err := generateVariant(fixtureInputsWithBand(t, "hard", "medium", "hard", 1))
+	if err != nil {
+		t.Fatalf("hard band: %v", err)
+	}
+	if string(easy.Blanks) == string(hard.Blanks) {
+		t.Fatalf("easy and hard bands produced identical blank selection")
+	}
+}
+
+func TestGenerateVariantBandDeterministic(t *testing.T) {
+	in := fixtureInputsWithBand(t, "hard", "medium", "hard", 1)
+	v1, err := generateVariant(in)
+	if err != nil {
+		t.Fatalf("generateVariant: %v", err)
+	}
+	v2, err := generateVariant(in)
+	if err != nil {
+		t.Fatalf("generateVariant repeat: %v", err)
+	}
+	if v1.VariantID != v2.VariantID {
+		t.Fatalf("variant id changed: %q vs %q", v1.VariantID, v2.VariantID)
+	}
+	if string(v1.Blanks) != string(v2.Blanks) {
+		t.Fatalf("blanks not deterministic across bands")
 	}
 }
 

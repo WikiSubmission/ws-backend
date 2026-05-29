@@ -62,8 +62,12 @@ type generatorInputs struct {
 	Language   string
 	Difficulty string
 	Size       string
-	Counter    int
-	Verses     []generatorVerse
+	// SkillBand is the adaptive difficulty band: "easy", "medium", or "hard".
+	// It is part of the variant group key so band-specific variants are cached
+	// and shared across all players at the same band level — never per-user.
+	SkillBand string
+	Counter   int
+	Verses    []generatorVerse
 	// Frequencies maps normalized words to corpus counts. Missing entries are
 	// treated as freq=1 (very rare).
 	Frequencies map[string]int
@@ -77,9 +81,9 @@ type generatorInputs struct {
 
 // seedFor produces a deterministic seed from the variant key. Stable across
 // processes and architectures.
-func seedFor(passageID int64, lang, difficulty, size string, counter int) int64 {
+func seedFor(passageID int64, lang, difficulty, size, skillBand string, counter int) int64 {
 	h := fnv.New64a()
-	fmt.Fprintf(h, "p%d|%s|%s|%s|%d", passageID, lang, difficulty, size, counter)
+	fmt.Fprintf(h, "p%d|%s|%s|%s|%s|%d", passageID, lang, difficulty, size, skillBand, counter)
 	return int64(h.Sum64()) //nolint:gosec // intentional truncation, only used as a PRNG seed
 }
 
@@ -176,7 +180,7 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 		return nil, fmt.Errorf("passage has no verses")
 	}
 
-	seed := seedFor(in.PassageID, in.Language, in.Difficulty, in.Size, in.Counter)
+	seed := seedFor(in.PassageID, in.Language, in.Difficulty, in.Size, in.SkillBand, in.Counter)
 	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic by design
 
 	// Pick a contiguous verse window matching the requested size.
@@ -189,7 +193,7 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 	}
 
 	// Score candidate words across the window.
-	cands := scoreCandidates(window, in.Difficulty, in.Frequencies)
+	cands := scoreCandidates(window, in.Difficulty, in.SkillBand, in.Frequencies)
 	blanks := selectBlanks(cands, targetBlanks)
 
 	// Stable order: by appearance (verse order, then word position).
@@ -247,13 +251,14 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 		return nil, fmt.Errorf("marshal rendered: %w", err)
 	}
 
-	variantID := fmt.Sprintf("p%d-%s-%s-%s-%d", in.PassageID, in.Language, in.Difficulty, in.Size, in.Counter)
+	variantID := fmt.Sprintf("p%d-%s-%s-%s-%s-%d", in.PassageID, in.Language, in.Difficulty, in.Size, in.SkillBand, in.Counter)
 	return &db.GameVariantRow{
 		VariantID:  variantID,
 		PassageID:  in.PassageID,
 		Language:   in.Language,
 		Difficulty: in.Difficulty,
 		Size:       in.Size,
+		SkillBand:  in.SkillBand,
 		Counter:    in.Counter,
 		Seed:       seed,
 		Blanks:     blanksJSON,
@@ -290,7 +295,7 @@ type candidate struct {
 	score    float64
 }
 
-func scoreCandidates(window []generatorVerse, difficulty string, freqs map[string]int) []candidate {
+func scoreCandidates(window []generatorVerse, difficulty, skillBand string, freqs map[string]int) []candidate {
 	skipStopwords := difficulty == "easy" || difficulty == "medium"
 	minLen := 0
 	switch difficulty {
@@ -304,6 +309,20 @@ func scoreCandidates(window []generatorVerse, difficulty string, freqs map[strin
 	if difficulty == "easy" || difficulty == "medium" {
 		midBonus = 50.0
 		freqWeight = 2.0
+	}
+
+	// Layer skill band adjustments on top of the tier knobs. These shift the
+	// picker toward easier or harder words within the player's chosen tier.
+	switch skillBand {
+	case "easy":
+		midBonus *= 1.5  // stronger center-of-verse preference
+		freqWeight *= 0.5 // de-emphasize word rarity
+	case "hard":
+		midBonus *= 0.3  // allow edge-of-verse words
+		freqWeight *= 2.5 // heavily reward rarer words
+		if minLen < 4 {
+			minLen = 4 // enforce a minimum word length
+		}
 	}
 
 	cands := make([]candidate, 0, len(window)*8)

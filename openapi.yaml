@@ -3950,6 +3950,13 @@ components:
             True when this variant has already been played by the caller and
             the server cycled back because every other variant in the group
             has also been played.
+        skill_band:
+          type: string
+          enum: [easy, medium, hard]
+          description: >
+            The adaptive difficulty band used when selecting blanks for this
+            variant. Derived from the player's recent accuracy at this tier;
+            not settable by the client.
 
     GameVariantEnvelope:
       type: object
