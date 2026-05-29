@@ -96,21 +96,25 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}, nil
 	}
 
-	passage, err := s.DB.FetchPassageByID(ctx, req.PassageId)
-	if err != nil {
-		slog.Error("StartGameFillBlankVariant: FetchPassageByID", "error", err)
-		return StartGameFillBlankVariant500JSONResponse{
-			InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
-		}, nil
-	}
-	if passage == nil || passage.Status != "approved" {
-		return StartGameFillBlankVariant404JSONResponse{
-			NotFoundJSONResponse: NotFoundJSONResponse{Message: "passage not found"},
-		}, nil
-	}
-
-	// Resume: caller named a specific variant.
+	// Resume: caller named a specific variant — passage_id must also be provided.
 	if req.VariantId != nil && *req.VariantId != "" {
+		if req.PassageId == nil {
+			return StartGameFillBlankVariant400JSONResponse{
+				BadRequestJSONResponse: BadRequestJSONResponse{Message: "passage_id is required when variant_id is provided"},
+			}, nil
+		}
+		passage, err := s.DB.FetchPassageByID(ctx, *req.PassageId)
+		if err != nil {
+			slog.Error("StartGameFillBlankVariant: FetchPassageByID (resume)", "error", err)
+			return StartGameFillBlankVariant500JSONResponse{
+				InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
+			}, nil
+		}
+		if passage == nil || passage.Status != "approved" {
+			return StartGameFillBlankVariant404JSONResponse{
+				NotFoundJSONResponse: NotFoundJSONResponse{Message: "passage not found"},
+			}, nil
+		}
 		v, err := s.DB.FetchVariantByVariantID(ctx, *req.VariantId)
 		if err != nil {
 			slog.Error("StartGameFillBlankVariant: FetchVariantByVariantID", "error", err)
@@ -125,7 +129,7 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}
 		api, err := variantToAPI(v, passage)
 		if err != nil {
-			slog.Error("StartGameFillBlankVariant: variantToAPI", "error", err)
+			slog.Error("StartGameFillBlankVariant: variantToAPI (resume)", "error", err)
 			return StartGameFillBlankVariant500JSONResponse{
 				InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
 			}, nil
@@ -133,13 +137,44 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		return StartGameFillBlankVariant200JSONResponse{Data: api}, nil
 	}
 
-	// Determine the player's skill band from their recent accuracy at this tier.
+	// Compute the player's skill band from their recent accuracy at this tier.
 	recentAcc, err := s.DB.FetchRecentAccuracy(ctx, authID, difficulty, 10)
 	if err != nil {
 		slog.Warn("StartGameFillBlankVariant: FetchRecentAccuracy failed, defaulting to medium", "error", err)
 		recentAcc = &db.RecentAccuracyResult{Count: 0}
 	}
 	skillBand := computeSkillBand(recentAcc.Count, recentAcc.MeanAccuracy)
+
+	// Resolve the passage: use the caller's explicit choice if provided,
+	// otherwise pick one that matches the player's skill band.
+	var passage *db.GamePassageRow
+	if req.PassageId != nil {
+		passage, err = s.DB.FetchPassageByID(ctx, *req.PassageId)
+		if err != nil {
+			slog.Error("StartGameFillBlankVariant: FetchPassageByID", "error", err)
+			return StartGameFillBlankVariant500JSONResponse{
+				InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
+			}, nil
+		}
+		if passage == nil || passage.Status != "approved" {
+			return StartGameFillBlankVariant404JSONResponse{
+				NotFoundJSONResponse: NotFoundJSONResponse{Message: "passage not found"},
+			}, nil
+		}
+	} else {
+		passage, err = s.DB.FetchPassageForBand(ctx, skillBand)
+		if err != nil {
+			slog.Error("StartGameFillBlankVariant: FetchPassageForBand", "error", err)
+			return StartGameFillBlankVariant500JSONResponse{
+				InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
+			}, nil
+		}
+		if passage == nil {
+			return StartGameFillBlankVariant404JSONResponse{
+				NotFoundJSONResponse: NotFoundJSONResponse{Message: "no passages available"},
+			}, nil
+		}
+	}
 
 	// Auto-pick: lowest-counter variant the user has not yet attempted.
 	v, err := s.DB.FetchNextUnseenVariant(ctx, authID, passage.ID, language, difficulty, size, skillBand)

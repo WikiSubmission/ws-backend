@@ -167,6 +167,52 @@ func (db *DB) SetPassageStatus(ctx context.Context, id int64, status string, edi
 	return tag.RowsAffected() > 0, nil
 }
 
+// FetchPassageForBand returns a random approved passage whose llm_difficulty
+// matches the given skill band. Falls back to any approved passage when no
+// difficulty-matched passage exists (e.g. all passages have llm_difficulty NULL).
+func (db *DB) FetchPassageForBand(ctx context.Context, skillBand string) (*GamePassageRow, error) {
+	defer observe("fetch_passage_for_band", time.Now())
+
+	// Prefer passages whose difficulty matches the band.
+	rows, err := db.Pool.Query(ctx,
+		`SELECT `+passageCols+`
+		 FROM game_passages p
+		 WHERE p.status = 'approved'
+		   AND LOWER(COALESCE(p.llm_difficulty, '')) = LOWER($1)
+		 ORDER BY RANDOM() LIMIT 1`,
+		skillBand)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[GamePassageRow])
+	if err == nil {
+		return &row, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	// Fallback: any approved passage.
+	rows2, err := db.Pool.Query(ctx,
+		`SELECT `+passageCols+`
+		 FROM game_passages p
+		 WHERE p.status = 'approved'
+		 ORDER BY RANDOM() LIMIT 1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows2.Close()
+	row2, err := pgx.CollectOneRow(rows2, pgx.RowToStructByName[GamePassageRow])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &row2, nil
+}
+
 func (db *DB) FetchPassageByID(ctx context.Context, id int64) (*GamePassageRow, error) {
 	defer observe("fetch_game_passage_by_id", time.Now())
 
