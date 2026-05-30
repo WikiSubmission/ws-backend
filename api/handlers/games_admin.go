@@ -25,6 +25,17 @@ type GamesAdminHandler struct {
 	DB *db.DB
 }
 
+var supportedGameLanguages = map[string]struct{}{
+	"en": {}, "ar": {}, "ac": {}, "fa": {}, "ur": {},
+	"fr": {}, "de": {}, "es": {}, "sv": {}, "tr": {},
+	"id": {}, "tl": {}, "ru": {}, "bn": {}, "ta": {},
+}
+
+func validGameLanguage(lang string) bool {
+	_, ok := supportedGameLanguages[lang]
+	return ok
+}
+
 // reviewPassage is the editor-facing passage shape. Unlike the public
 // GamePassage it includes the editorial fields (rationale, llm hints, status,
 // approval metadata).
@@ -169,14 +180,44 @@ func (h *GamesAdminHandler) SetStatus(c *gin.Context) {
 
 // SeedFrequency handles POST /admin/games/maintenance/seed-frequency
 // Recomputes game_word_frequency from verse_text in-process. Safe to re-run.
+// Accepts ?language= (default "en"); must be one of the 15 supported codes.
 func (h *GamesAdminHandler) SeedFrequency(c *gin.Context) {
-	count, err := h.DB.RebuildWordFrequency(c.Request.Context(), "en")
+	language := c.DefaultQuery("language", "en")
+	if !validGameLanguage(language) {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "unsupported language code"})
+		return
+	}
+	count, err := h.DB.RebuildWordFrequency(c.Request.Context(), language)
 	if err != nil {
-		slog.Error("admin SeedFrequency: failed", "error", err)
+		slog.Error("admin SeedFrequency: failed", "error", err, "language", language)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "frequency rebuild failed"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"language": "en", "tokens": count}})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"language": language, "tokens": count}})
+}
+
+// GetFrequencyStats handles GET /admin/games/maintenance/frequency-stats
+// Returns per-language token counts from game_word_frequency.
+func (h *GamesAdminHandler) GetFrequencyStats(c *gin.Context) {
+	stats, err := h.DB.FrequencyStats(c.Request.Context())
+	if err != nil {
+		slog.Error("admin GetFrequencyStats: failed", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "could not load frequency stats"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
+// GetLemmaStats handles GET /admin/games/maintenance/lemma-stats
+// Returns per-language row counts from game_lemma.
+func (h *GamesAdminHandler) GetLemmaStats(c *gin.Context) {
+	stats, err := h.DB.LemmaStats(c.Request.Context())
+	if err != nil {
+		slog.Error("admin GetLemmaStats: failed", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "could not load lemma stats"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
 // LoadLemmas handles POST /admin/games/maintenance/load-lemmas

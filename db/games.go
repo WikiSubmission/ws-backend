@@ -784,6 +784,54 @@ func (db *DB) FetchFrequencies(ctx context.Context, language string, words []str
 	return out, rows.Err()
 }
 
+// LanguageStat holds a row count for a single language in a backend-only table.
+type LanguageStat struct {
+	Language string `json:"language"`
+	Count    int    `json:"count"`
+}
+
+// FrequencyStats returns the number of distinct tokens indexed per language in
+// game_word_frequency. Languages with no entries are absent from the result.
+func (db *DB) FrequencyStats(ctx context.Context) ([]LanguageStat, error) {
+	defer observe("frequency_stats", time.Now())
+	rows, err := db.Pool.Query(ctx,
+		`SELECT language, COUNT(*)::int FROM game_word_frequency GROUP BY language ORDER BY language`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LanguageStat
+	for rows.Next() {
+		var s LanguageStat
+		if err := rows.Scan(&s.Language, &s.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// LemmaStats returns the number of lemma rows indexed per language in
+// game_lemma. Languages with no entries are absent from the result.
+func (db *DB) LemmaStats(ctx context.Context) ([]LanguageStat, error) {
+	defer observe("lemma_stats", time.Now())
+	rows, err := db.Pool.Query(ctx,
+		`SELECT language, COUNT(*)::int FROM game_lemma GROUP BY language ORDER BY language`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LanguageStat
+	for rows.Next() {
+		var s LanguageStat
+		if err := rows.Scan(&s.Language, &s.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
 // FetchLemmasFor returns lemma assignments for the given normalized words.
 // Missing words are absent from the map.
 func (db *DB) FetchLemmasFor(ctx context.Context, language string, words []string) (map[string]string, error) {

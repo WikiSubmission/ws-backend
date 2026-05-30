@@ -299,6 +299,8 @@ func StartServer(database *db.DB) {
 	editor.GET("/passages", gamesAdmin.ListPassages)
 	editor.GET("/passages/:id", gamesAdmin.GetPassage)
 	editor.POST("/passages/:id/status", gamesAdmin.SetStatus)
+	editor.GET("/maintenance/frequency-stats", gamesAdmin.GetFrequencyStats)
+	editor.GET("/maintenance/lemma-stats", gamesAdmin.GetLemmaStats)
 	editor.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
 	editor.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
 	editor.POST("/curate", gamesAdmin.Curate)
