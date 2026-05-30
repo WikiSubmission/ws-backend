@@ -4012,8 +4012,8 @@ components:
         accepted_answer:
           type: string
           description: >
-            Returned only when `correct = true`. Incorrect blanks omit this
-            field so the user must replay to see the truth.
+            Always present on submit. The correct answer for this blank,
+            shown after the round ends regardless of whether the guess was right.
 
     GameSubmitResult:
       type: object

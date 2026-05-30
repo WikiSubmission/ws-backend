@@ -509,13 +509,11 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 	for i, b := range blanks {
 		guess := guessByIndex[b.Index]
 		ok := scoreGuess(guess, &b, variant.Difficulty, lemmaMap)
-		res := GamePerBlankResult{Index: b.Index, Correct: ok}
 		if ok {
 			correctCount++
-			answer := b.Answer
-			res.AcceptedAnswer = &answer
 		}
-		per[i] = res
+		answer := b.Answer
+		per[i] = GamePerBlankResult{Index: b.Index, Correct: ok, AcceptedAnswer: &answer}
 	}
 
 	base := float64(correctCount) / float64(len(blanks)) * 1000.0
