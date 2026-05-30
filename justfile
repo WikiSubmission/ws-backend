@@ -356,20 +356,35 @@ games-build-lemma-fixture TARGET="local":
     echo "\"Load lemma data\" in the editor (or run: just games-seed-lemma $1)."
 
 # One-shot lemma fixture refresh: bootstraps the Python venv if missing, then
-# generates db/seeds/games_lemma_en.sql from the chosen target DB's vocabulary.
-# Run once per language, NOT per curation pass. Re-run only when the source
-# translation changes or you bump spaCy. Pass LANGUAGE to support new languages
-# (a corresponding db/seeds/games_lemma_<lang>.sql will be written and must be
-# wired into db/seeds.go before it can ship).
+# generates db/seeds/games_lemma_<LANGUAGE>.sql from the chosen target DB's
+# vocabulary. Supported languages: en fr de es ru sv (those with spaCy models).
+# Run once per language, NOT per curation pass. Re-run only when translation
+# text changes or when you bump spaCy.
 games-refresh-lemmas TARGET="local" LANGUAGE="en":
     #!/usr/bin/env bash
     set -euo pipefail
+    declare -A MODELS=(
+      [en]="en_core_web_sm"
+      [fr]="fr_core_news_sm"
+      [de]="de_core_news_sm"
+      [es]="es_core_news_sm"
+      [ru]="ru_core_news_sm"
+      [sv]="sv_core_news_sm"
+    )
+    model="${MODELS[$2]:-}"
+    if [ -z "$model" ]; then
+      echo "No spaCy model for language '$2'. Supported: ${!MODELS[*]}" >&2
+      exit 1
+    fi
     venv="scripts/games_lemma/.venv"
     if [ ! -d "$venv" ]; then
       echo "Creating Python venv at $venv (first run only)…"
       python3 -m venv "$venv"
       "$venv/bin/pip" install --quiet -r scripts/games_lemma/requirements.txt
-      "$venv/bin/python" -m spacy download en_core_web_sm
+    fi
+    if ! "$venv/bin/python" -c "import spacy; spacy.load('$model')" 2>/dev/null; then
+      echo "Downloading spaCy model $model…"
+      "$venv/bin/python" -m spacy download "$model"
     fi
     url="$(just url "$1")"
     out="db/seeds/games_lemma_$2.sql"
@@ -377,11 +392,21 @@ games-refresh-lemmas TARGET="local" LANGUAGE="en":
       "SELECT DISTINCT word_normalized FROM game_word_frequency WHERE language='$2' ORDER BY word_normalized" \
       | "$venv/bin/python" scripts/games_lemma/generate_lemma_fixture.py --language "$2" > "$out"
     echo ""
-    echo "Wrote $out. Next steps:"
-    echo "  git add $out scripts/games_lemma/requirements.txt"
-    echo "  git commit -m 'feat(games): refresh $2 lemma fixture'"
-    echo "  git push && redeploy"
-    echo "  then click \"Load lemma data\" in /admin/games/fill-blank"
+    echo "Wrote $out."
+
+# Refresh lemma fixtures for all spaCy-supported languages in one pass.
+# Seeds word frequencies first (required), then generates all fixtures.
+# Commit the resulting db/seeds/games_lemma_*.sql files and redeploy.
+games-refresh-all-lemmas TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for lang in en fr de es ru sv; do
+      echo "=== $lang ==="
+      just games-refresh-lemmas {{TARGET}} "$lang"
+    done
+    echo ""
+    echo "All done. Commit db/seeds/games_lemma_*.sql and redeploy, then click"
+    echo "Load in /admin/games/fill-blank/maintenance for each language."
 
 # Load the committed lemma fixture into game_lemma on a target DB. Idempotent.
 # In prod prefer the editor's "Load lemma data" button, which loads the fixture

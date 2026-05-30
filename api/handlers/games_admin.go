@@ -222,16 +222,21 @@ func (h *GamesAdminHandler) GetLemmaStats(c *gin.Context) {
 
 // LoadLemmas handles POST /admin/games/maintenance/load-lemmas
 // Loads the lemma fixture embedded in the running binary into game_lemma.
-// Generating the fixture requires the offline spaCy sidecar; this endpoint only
-// loads whatever ships with the current deployment.
+// Accepts ?language= (default "en"). Returns lemma_rows=0 when no fixture is
+// shipped for that language; Hard-tier falls back to exact match in that case.
 func (h *GamesAdminHandler) LoadLemmas(c *gin.Context) {
-	count, err := h.DB.LoadLemmaFixture(c.Request.Context())
+	language := c.DefaultQuery("language", "en")
+	if !validGameLanguage(language) {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "unsupported language code"})
+		return
+	}
+	count, err := h.DB.LoadLemmaFixtureFor(c.Request.Context(), language)
 	if err != nil {
-		slog.Error("admin LoadLemmas: failed", "error", err)
+		slog.Error("admin LoadLemmas: failed", "error", err, "language", language)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "lemma load failed"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"language": "en", "lemma_rows": count}})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"language": language, "lemma_rows": count}})
 }
 
 type curateRequest struct {
