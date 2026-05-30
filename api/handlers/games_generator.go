@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/wikiSubmission/ws-backend/db"
+	"golang.org/x/text/unicode/norm"
 )
 
 // ── Public types stored inside game_variants.blanks / rendered ──────────────
@@ -97,8 +98,8 @@ var sizeTable = map[string]sizeTargets{
 	"long":   {minVerses: 15, maxVerses: 25, minBlanks: 12, maxBlanks: 18},
 }
 
-// stopwords is the fixed small set used to skip blanks for easy/medium tiers.
-var stopwords = map[string]struct{}{
+// stopwordsEn is the English stopword set used to skip blanks for easy/medium tiers.
+var stopwordsEn = map[string]struct{}{
 	"the": {}, "of": {}, "and": {}, "to": {}, "is": {}, "a": {}, "in": {},
 	"for": {}, "that": {}, "it": {}, "with": {}, "as": {}, "be": {}, "are": {},
 	"was": {}, "were": {}, "by": {}, "on": {}, "from": {}, "this": {}, "or": {},
@@ -109,11 +110,63 @@ var stopwords = map[string]struct{}{
 	"so": {}, "if": {}, "then": {}, "than": {}, "thus": {},
 }
 
+// stopwordsAr is the Arabic stopword set (normalized, diacritic-free) for
+// ar, ac, fa, and ur. Common prepositions, conjunctions, and particles that
+// add little memorization value as blank targets.
+var stopwordsAr = map[string]struct{}{
+	"و": {}, "في": {}, "من": {}, "على": {}, "عن": {},
+	"الى": {}, "ان": {}, "اذا": {}, "اذ": {}, "ما": {},
+	"لا": {}, "قد": {}, "هو": {}, "هي": {}, "هم": {},
+	"هن": {}, "نحن": {}, "انت": {}, "لن": {}, "لم": {},
+	"ثم": {}, "بل": {}, "لك": {}, "له": {}, "بها": {},
+}
+
+// stopwordsFor returns the stopword set for the given language code.
+func stopwordsFor(lang string) map[string]struct{} {
+	switch lang {
+	case "ar", "ac", "fa", "ur":
+		return stopwordsAr
+	default:
+		return stopwordsEn
+	}
+}
+
+// normalizeForLang applies language-specific normalization followed by the
+// base rule (strip non-letter/digit, lowercase). Used for both stored answers
+// and submitted guesses so that comparisons are diacritic/accent-insensitive.
+//
+// Arabic script (ar, ac, fa, ur): NFKD decomposes presentation forms and
+// maps hamza variants to plain alef; combining marks (harakat) are Mn
+// category and dropped by the IsLetter filter. Tatweel (U+0640) is
+// classified as IsLetter but is never part of a meaningful answer, so it is
+// excluded explicitly.
+//
+// Accented Latin (fr, de, es, sv, tr, tl): NFKD decomposes precomposed
+// characters (é→e+U+0301); the combining acute and similar Mn marks are
+// filtered by IsLetter, leaving only the base letters.
+func normalizeForLang(s, lang string) string {
+	switch lang {
+	case "ar", "ac", "fa", "ur", "fr", "de", "es", "sv", "tr", "tl":
+		s = norm.NFKD.String(s)
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if r == 0x0640 { // Arabic tatweel — IsLetter but never meaningful
+			continue
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return b.String()
+}
+
 // ── Tokenization (used by the handler before calling the generator) ────────
 
 // tokenizeVerse splits a verse string into ordered words plus surrounding
 // punctuation so the rendered output can be reconstructed faithfully.
-func tokenizeVerse(text string) []verseWord {
+// lang is used to produce a language-appropriate Normalized form for each word.
+func tokenizeVerse(text, lang string) []verseWord {
 	out := []verseWord{}
 	runes := []rune(text)
 	i := 0
@@ -141,7 +194,7 @@ func tokenizeVerse(text string) []verseWord {
 		out = append(out, verseWord{
 			Position:     position,
 			Surface:      surface,
-			Normalized:   strings.ToLower(stripNonWord(surface)),
+			Normalized:   normalizeForLang(surface, lang),
 			LeadingPunct: lead,
 		})
 		position++
@@ -173,9 +226,6 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 	if _, ok := map[string]struct{}{"easy": {}, "medium": {}, "hard": {}, "professional": {}}[in.Difficulty]; !ok {
 		return nil, fmt.Errorf("unknown difficulty %q", in.Difficulty)
 	}
-	if in.Language != "en" {
-		return nil, fmt.Errorf("unsupported language %q", in.Language)
-	}
 	if len(in.Verses) == 0 {
 		return nil, fmt.Errorf("passage has no verses")
 	}
@@ -192,8 +242,10 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 		targetBlanks += rng.Intn(targets.maxBlanks - targets.minBlanks + 1)
 	}
 
+	sw := stopwordsFor(in.Language)
+
 	// Score candidate words across the window.
-	cands := scoreCandidates(window, in.Difficulty, in.SkillBand, in.Frequencies)
+	cands := scoreCandidates(window, in.Difficulty, in.SkillBand, in.Frequencies, sw)
 	blanks := selectBlanks(cands, targetBlanks)
 
 	// Stable order: by appearance (verse order, then word position).
@@ -215,7 +267,7 @@ func generateVariant(in generatorInputs) (*db.GameVariantRow, error) {
 			AnswerLemma:  b.word.Normalized,
 		}
 		if in.Difficulty == "easy" {
-			rec.Options = pickDistractors(b.word, in.ChapterPool, in.Frequencies, rng)
+			rec.Options = pickDistractors(b.word, in.ChapterPool, in.Frequencies, rng, sw)
 		}
 		records = append(records, rec)
 	}
@@ -295,7 +347,7 @@ type candidate struct {
 	score    float64
 }
 
-func scoreCandidates(window []generatorVerse, difficulty, skillBand string, freqs map[string]int) []candidate {
+func scoreCandidates(window []generatorVerse, difficulty, skillBand string, freqs map[string]int, sw map[string]struct{}) []candidate {
 	skipStopwords := difficulty == "easy" || difficulty == "medium"
 	minLen := 0
 	switch difficulty {
@@ -335,7 +387,7 @@ func scoreCandidates(window []generatorVerse, difficulty, skillBand string, freq
 				continue
 			}
 			if skipStopwords {
-				if _, hit := stopwords[w.Normalized]; hit {
+				if _, hit := sw[w.Normalized]; hit {
 					continue
 				}
 			}
@@ -411,7 +463,7 @@ func selectBlanks(cands []candidate, target int) []candidate {
 
 // ── Easy-tier distractor selection ──────────────────────────────────────────
 
-func pickDistractors(answer verseWord, chapterPool []string, freqs map[string]int, rng *rand.Rand) []string {
+func pickDistractors(answer verseWord, chapterPool []string, freqs map[string]int, rng *rand.Rand, sw map[string]struct{}) []string {
 	// Filter to candidates within the same frequency band as the answer.
 	answerFreq := freqs[answer.Normalized]
 	if answerFreq < 1 {
@@ -426,7 +478,7 @@ func pickDistractors(answer verseWord, chapterPool []string, freqs map[string]in
 			if _, dup := seen[w]; dup {
 				continue
 			}
-			if _, hit := stopwords[w]; hit {
+			if _, hit := sw[w]; hit {
 				continue
 			}
 			f, ok := freqs[w]

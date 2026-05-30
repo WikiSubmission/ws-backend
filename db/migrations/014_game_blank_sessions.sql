@@ -20,3 +20,19 @@ CREATE TABLE IF NOT EXISTS game_blank_attempts (
   wrong_count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (session_id, blank_index)
 );
+
+-- Expand game_variants language constraint to all 15 supported translation codes.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'game_variants_language_values'
+      AND conrelid = 'game_variants'::regclass
+  ) THEN
+    ALTER TABLE game_variants DROP CONSTRAINT game_variants_language_values;
+  END IF;
+  ALTER TABLE game_variants
+    ADD CONSTRAINT game_variants_language_values
+    CHECK (language IN ('en','ar','ac','fa','ur','fr','de','es','sv','tr','id','tl','ru','bn','ta'));
+END
+$$;

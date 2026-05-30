@@ -49,7 +49,7 @@ func TestScoreGuess(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := scoreGuess(tc.guess, blank, tc.difficulty, tc.lemmas)
+			got := scoreGuess(tc.guess, blank, tc.difficulty, "en", tc.lemmas)
 			if got != tc.want {
 				t.Errorf("scoreGuess(%q, diff=%q) = %v, want %v", tc.guess, tc.difficulty, got, tc.want)
 			}

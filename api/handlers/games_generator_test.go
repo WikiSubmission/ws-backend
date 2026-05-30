@@ -31,7 +31,7 @@ func fixtureVerses(count int) []generatorVerse {
 		verseKey := "1:" + itoa(i+1)
 		out = append(out, generatorVerse{
 			VerseKey: verseKey,
-			Words:    tokenizeVerse(t),
+			Words:    tokenizeVerse(t, "en"),
 		})
 	}
 	return out
@@ -148,7 +148,7 @@ func TestTokenizeVerse(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tokenizeVerse(tc.in)
+			got := tokenizeVerse(tc.in, "en")
 			if len(got) != len(tc.want) {
 				t.Fatalf("len: got %d, want %d (%v)", len(got), len(tc.want), surfaces(got))
 			}
@@ -313,7 +313,7 @@ func TestGenerateVariantSkipsStopwordsForEasyMedium(t *testing.T) {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			for _, b := range blanks {
-				if _, hit := stopwords[strings.ToLower(b.Answer)]; hit {
+				if _, hit := stopwordsEn[strings.ToLower(b.Answer)]; hit {
 					t.Errorf("stopword %q chosen as blank at %s:%d", b.Answer, b.VerseKey, b.WordPosition)
 				}
 			}

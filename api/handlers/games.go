@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/oklog/ulid/v2"
@@ -90,12 +89,6 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 	difficulty := string(req.Difficulty)
 	language := string(req.Language)
 	size := string(req.Size)
-	if language != "en" {
-		return StartGameFillBlankVariant400JSONResponse{
-			BadRequestJSONResponse: BadRequestJSONResponse{Message: "language must be 'en' in v1"},
-		}, nil
-	}
-
 	// Resolve adaptive difficulty/size to concrete values before any further
 	// logic. Both can use the same cross-tier accuracy query.
 	if difficulty == "adaptive" || size == "adaptive" {
@@ -295,7 +288,7 @@ func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, la
 	uniqueWords := map[string]struct{}{}
 	for _, v := range verses {
 		key := fmt.Sprintf("%d:%d", v.ChapterNumber, v.VerseIndex)
-		words := tokenizeVerse(v.VerseContent)
+		words := tokenizeVerse(v.VerseContent, language)
 		genVerses = append(genVerses, generatorVerse{VerseKey: key, Words: words})
 		for _, w := range words {
 			if w.Normalized != "" {
@@ -321,7 +314,7 @@ func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, la
 		}
 		seen := map[string]struct{}{}
 		for _, content := range contents {
-			for _, w := range tokenizeVerse(content) {
+			for _, w := range tokenizeVerse(content, language) {
 				if w.Normalized == "" {
 					continue
 				}
@@ -560,10 +553,10 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 	if variant.Difficulty == "hard" {
 		words := make([]string, 0, len(blanks)*2)
 		for _, b := range blanks {
-			words = append(words, normalizeAnswer(b.Answer))
+			words = append(words, normalizeForLang(b.Answer, variant.Language))
 		}
 		for _, g := range req.Guesses {
-			words = append(words, normalizeAnswer(g.Value))
+			words = append(words, normalizeForLang(g.Value, variant.Language))
 		}
 		m, err := s.DB.FetchLemmasFor(ctx, variant.Language, words)
 		if err != nil {
@@ -582,7 +575,7 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 	correctCount := 0
 	for i, b := range blanks {
 		guess := guessByIndex[b.Index]
-		ok := scoreGuess(guess, &b, variant.Difficulty, lemmaMap)
+		ok := scoreGuess(guess, &b, variant.Difficulty, variant.Language, lemmaMap)
 		if ok {
 			correctCount++
 		}
@@ -666,9 +659,9 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 
 // scoreGuess applies the per-difficulty acceptance rule. Returns true if the
 // guess should be accepted.
-func scoreGuess(guess string, b *blankRecord, difficulty string, lemmaMap map[string]string) bool {
-	g := normalizeAnswer(guess)
-	a := normalizeAnswer(b.Answer)
+func scoreGuess(guess string, b *blankRecord, difficulty, lang string, lemmaMap map[string]string) bool {
+	g := normalizeForLang(guess, lang)
+	a := normalizeForLang(b.Answer, lang)
 	if g == "" {
 		return false
 	}
@@ -690,17 +683,10 @@ func scoreGuess(guess string, b *blankRecord, difficulty string, lemmaMap map[st
 	return false
 }
 
-// normalizeAnswer lowercases and strips non-letter/digit runes for matching.
-// Apostrophes are preserved so "God's" survives as "gods" only via fallback —
-// we strip them here to avoid that wart.
+// normalizeAnswer is a backward-compatible English normalizer. New call
+// sites should use normalizeForLang with the actual variant language.
 func normalizeAnswer(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(unicode.ToLower(r))
-		}
-	}
-	return b.String()
+	return normalizeForLang(s, "en")
 }
 
 func newAttemptID() string {

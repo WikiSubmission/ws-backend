@@ -74,13 +74,13 @@ func (h GamesPlayHandler) CheckBlank(c *gin.Context) {
 	// answer (mirrors the submit path).
 	var lemmaMap map[string]string
 	if variant.Difficulty == "hard" {
-		words := []string{normalizeAnswer(target.Answer), normalizeAnswer(req.Guess)}
+		words := []string{normalizeForLang(target.Answer, variant.Language), normalizeForLang(req.Guess, variant.Language)}
 		if m, lerr := h.DB.FetchLemmasFor(ctx, variant.Language, words); lerr == nil {
 			lemmaMap = m
 		}
 	}
 
-	correct := scoreGuess(req.Guess, target, variant.Difficulty, lemmaMap)
+	correct := scoreGuess(req.Guess, target, variant.Difficulty, variant.Language, lemmaMap)
 
 	maxAttempts := maxAttemptsForDifficulty(variant.Difficulty)
 	if maxAttempts == 0 || req.SessionID == "" {

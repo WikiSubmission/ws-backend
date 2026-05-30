@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS game_variants (
   blanks      JSONB  NOT NULL,
   rendered    JSONB  NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT game_variants_language_values CHECK (language IN ('en', 'ar')),
+  CONSTRAINT game_variants_language_values CHECK (language IN ('en','ar','ac','fa','ur','fr','de','es','sv','tr','id','tl','ru','bn','ta')),
   CONSTRAINT game_variants_difficulty_values CHECK (
     difficulty IN ('easy', 'medium', 'hard', 'professional')
   ),
