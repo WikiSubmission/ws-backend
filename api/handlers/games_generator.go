@@ -92,9 +92,9 @@ func seedFor(passageID int64, lang, difficulty, size, skillBand string, counter 
 type sizeTargets struct{ minVerses, maxVerses, minBlanks, maxBlanks int }
 
 var sizeTable = map[string]sizeTargets{
-	"short":  {minVerses: 3, maxVerses: 5, minBlanks: 5, maxBlanks: 8},
-	"medium": {minVerses: 8, maxVerses: 15, minBlanks: 12, maxBlanks: 18},
-	"long":   {minVerses: 20, maxVerses: 30, minBlanks: 25, maxBlanks: 35},
+	"short":  {minVerses: 3, maxVerses: 5, minBlanks: 3, maxBlanks: 5},
+	"medium": {minVerses: 6, maxVerses: 12, minBlanks: 6, maxBlanks: 10},
+	"long":   {minVerses: 15, maxVerses: 25, minBlanks: 12, maxBlanks: 18},
 }
 
 // stopwords is the fixed small set used to skip blanks for easy/medium tiers.
