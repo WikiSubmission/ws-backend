@@ -96,6 +96,23 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}, nil
 	}
 
+	// Resolve adaptive difficulty/size to concrete values before any further
+	// logic. Both can use the same cross-tier accuracy query.
+	if difficulty == "adaptive" || size == "adaptive" {
+		overall, err := s.DB.FetchRecentAccuracyAll(ctx, authID, 10)
+		if err != nil {
+			slog.Warn("StartGameFillBlankVariant: FetchRecentAccuracyAll failed, using defaults", "error", err)
+			overall = &db.RecentAccuracyResult{}
+		}
+		if difficulty == "adaptive" {
+			band := computeSkillBand(overall.Count, overall.MeanAccuracy)
+			difficulty = adaptiveDifficulty(band)
+		}
+		if size == "adaptive" {
+			size = adaptiveSize(overall.Count)
+		}
+	}
+
 	// Resume: caller named a specific variant — passage_id must also be provided.
 	if req.VariantId != nil && *req.VariantId != "" {
 		if req.PassageId == nil {
@@ -398,6 +415,30 @@ var bandBonuses = map[string]float64{
 	"easy":   1.0,
 	"medium": 1.0,
 	"hard":   1.05,
+}
+
+// adaptiveDifficulty maps a skill band to a concrete difficulty tier.
+func adaptiveDifficulty(band string) string {
+	switch band {
+	case "easy":
+		return "easy"
+	case "hard":
+		return "hard"
+	default:
+		return "medium"
+	}
+}
+
+// adaptiveSize maps a total-attempt count to a concrete round size. New
+// players get short rounds; experienced players get longer ones.
+func adaptiveSize(totalAttempts int) string {
+	if totalAttempts < 5 {
+		return "short"
+	}
+	if totalAttempts <= 20 {
+		return "medium"
+	}
+	return "long"
 }
 
 // computeSkillBand derives the adaptive difficulty band from a user's recent

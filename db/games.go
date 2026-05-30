@@ -476,6 +476,31 @@ func (db *DB) FetchRecentAccuracy(ctx context.Context, authID, difficulty string
 	return &res, nil
 }
 
+// FetchRecentAccuracyAll is like FetchRecentAccuracy but spans all difficulty
+// tiers. Used when the caller requests adaptive difficulty/size so we can
+// compute an overall band without filtering to a specific tier.
+func (db *DB) FetchRecentAccuracyAll(ctx context.Context, authID string, n int) (*RecentAccuracyResult, error) {
+	defer observe("fetch_recent_accuracy_all", time.Now())
+
+	var res RecentAccuracyResult
+	err := db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int                                          AS count,
+		       COALESCE(AVG(acc), 0.0)::float                        AS mean_accuracy
+		FROM (
+		    SELECT a.correct_count::float / NULLIF(a.total_count, 0) AS acc
+		    FROM game_attempts a
+		    JOIN users u ON u.id = a.user_id
+		    WHERE u.auth_id = $1
+		    ORDER BY a.completed_at DESC
+		    LIMIT $2
+		) sub
+	`, authID, n).Scan(&res.Count, &res.MeanAccuracy)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // ── Leaderboard ────────────────────────────────────────────────────────────
 
 type GameLeaderboardRow struct {
