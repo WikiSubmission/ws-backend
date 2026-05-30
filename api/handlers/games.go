@@ -113,6 +113,10 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}
 	}
 
+	// Generate a fresh session ID for this play. Sessions are cheap and
+	// short-lived; one is created per startVariant call regardless of path.
+	sessionID := newAttemptID()
+
 	// Resume: caller named a specific variant — passage_id must also be provided.
 	if req.VariantId != nil && *req.VariantId != "" {
 		if req.PassageId == nil {
@@ -144,7 +148,10 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 				NotFoundJSONResponse: NotFoundJSONResponse{Message: "variant not found"},
 			}, nil
 		}
-		api, err := variantToAPI(v, passage)
+		if err := s.DB.InsertGameSession(ctx, sessionID, v.VariantID, authID); err != nil {
+			slog.Warn("StartGameFillBlankVariant: InsertGameSession (resume)", "error", err)
+		}
+		api, err := variantToAPI(v, passage, sessionID)
 		if err != nil {
 			slog.Error("StartGameFillBlankVariant: variantToAPI (resume)", "error", err)
 			return StartGameFillBlankVariant500JSONResponse{
@@ -202,7 +209,10 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 		}, nil
 	}
 	if v != nil {
-		api, err := variantToAPI(v, passage)
+		if err := s.DB.InsertGameSession(ctx, sessionID, v.VariantID, authID); err != nil {
+			slog.Warn("StartGameFillBlankVariant: InsertGameSession", "error", err)
+		}
+		api, err := variantToAPI(v, passage, sessionID)
 		if err != nil {
 			slog.Error("StartGameFillBlankVariant: variantToAPI", "error", err)
 			return StartGameFillBlankVariant500JSONResponse{
@@ -234,7 +244,10 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 				InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
 			}, nil
 		}
-		api, err := variantToAPI(oldest, passage)
+		if err := s.DB.InsertGameSession(ctx, sessionID, oldest.VariantID, authID); err != nil {
+			slog.Warn("StartGameFillBlankVariant: InsertGameSession (replay)", "error", err)
+		}
+		api, err := variantToAPI(oldest, passage, sessionID)
 		if err != nil {
 			slog.Error("StartGameFillBlankVariant: variantToAPI replay", "error", err)
 			return StartGameFillBlankVariant500JSONResponse{
@@ -252,7 +265,10 @@ func (s *Server) StartGameFillBlankVariant(ctx context.Context, request StartGam
 			InternalServerErrrorJSONResponse: InternalServerErrrorJSONResponse{Message: "internal server error"},
 		}, nil
 	}
-	api, err := variantToAPI(minted, passage)
+	if err := s.DB.InsertGameSession(ctx, sessionID, minted.VariantID, authID); err != nil {
+		slog.Warn("StartGameFillBlankVariant: InsertGameSession (new)", "error", err)
+	}
+	api, err := variantToAPI(minted, passage, sessionID)
 	if err != nil {
 		slog.Error("StartGameFillBlankVariant: variantToAPI new", "error", err)
 		return StartGameFillBlankVariant500JSONResponse{
@@ -337,7 +353,7 @@ func (s *Server) mintVariant(ctx context.Context, passage *db.GamePassageRow, la
 
 // variantToAPI converts a stored variant into the client-facing shape. Strips
 // the `answer` / `answer_lemma` fields from every blank.
-func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant, error) {
+func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow, sessionID string) (GameVariant, error) {
 	var blanks []blankRecord
 	if err := json.Unmarshal(v.Blanks, &blanks); err != nil {
 		return GameVariant{}, fmt.Errorf("unmarshal blanks: %w", err)
@@ -369,6 +385,7 @@ func variantToAPI(v *db.GameVariantRow, passage *db.GamePassageRow) (GameVariant
 	band := GameVariantSkillBand(v.SkillBand)
 	return GameVariant{
 		VariantId:      v.VariantID,
+		SessionId:      sessionID,
 		Passage:        passageToAPI(passage),
 		Language:       GameVariantLanguage(v.Language),
 		Difficulty:     GameVariantDifficulty(v.Difficulty),
@@ -458,6 +475,22 @@ func computeSkillBand(count int, accuracy float64) string {
 }
 
 const hintPenaltyPerHint = 25
+
+// maxAttemptsForDifficulty returns the number of wrong attempts allowed per
+// blank. Easy uses multiple-choice and does not get attempt tracking.
+func maxAttemptsForDifficulty(difficulty string) int {
+	if difficulty == "easy" {
+		return 0
+	}
+	return 3
+}
+
+// wrongPenaltyForBlank computes the progressive penalty for wrongCount wrong
+// attempts on a single blank. Attempt N costs N×10 pts, so 1 wrong = 10,
+// 2 wrong = 30, 3 wrong = 60.
+func wrongPenaltyForBlank(wrongCount int) int {
+	return 10 * wrongCount * (wrongCount + 1) / 2
+}
 
 func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitGameFillBlankAttemptRequestObject) (SubmitGameFillBlankAttemptResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
@@ -563,8 +596,21 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 	if !ok {
 		bandBonus = 1.0
 	}
-	penalty := req.HintsUsed * hintPenaltyPerHint
-	score := int(base*mult*bandBonus) - penalty
+	hintPenalty := req.HintsUsed * hintPenaltyPerHint
+
+	wrongPenalty := 0
+	if req.SessionId != nil && *req.SessionId != "" {
+		wrongCounts, werr := s.DB.FetchBlankWrongCounts(ctx, *req.SessionId)
+		if werr != nil {
+			slog.Warn("SubmitGameFillBlankAttempt: FetchBlankWrongCounts", "error", werr)
+		} else {
+			for _, wc := range wrongCounts {
+				wrongPenalty += wrongPenaltyForBlank(wc)
+			}
+		}
+	}
+
+	score := int(base*mult*bandBonus) - hintPenalty - wrongPenalty
 	if score < 0 {
 		score = 0
 	}
@@ -612,7 +658,8 @@ func (s *Server) SubmitGameFillBlankAttempt(ctx context.Context, request SubmitG
 			TotalCount:           saved.TotalCount,
 			PerBlank:             per,
 			DifficultyMultiplier: mult,
-			HintPenalty:          penalty,
+			HintPenalty:          hintPenalty,
+			WrongPenalty:         wrongPenalty,
 		},
 	}, nil
 }

@@ -18,6 +18,7 @@ type GamesPlayHandler struct {
 
 type checkBlankRequest struct {
 	VariantID string `json:"variant_id"`
+	SessionID string `json:"session_id"`
 	Index     int    `json:"index"`
 	Guess     string `json:"guess"`
 }
@@ -80,5 +81,28 @@ func (h GamesPlayHandler) CheckBlank(c *gin.Context) {
 	}
 
 	correct := scoreGuess(req.Guess, target, variant.Difficulty, lemmaMap)
-	c.JSON(http.StatusOK, gin.H{"correct": correct})
+
+	maxAttempts := maxAttemptsForDifficulty(variant.Difficulty)
+	if maxAttempts == 0 || req.SessionID == "" {
+		// Easy difficulty or no session: no attempt tracking.
+		c.JSON(http.StatusOK, gin.H{"correct": correct})
+		return
+	}
+
+	attemptsRemaining := maxAttempts
+	if !correct {
+		wrongCount, err := h.DB.IncrementBlankWrong(ctx, req.SessionID, req.Index)
+		if err != nil {
+			slog.Error("CheckBlank: IncrementBlankWrong", "error", err)
+			// Non-fatal: still return the correctness result.
+			c.JSON(http.StatusOK, gin.H{"correct": correct, "attempts_remaining": maxAttempts - 1})
+			return
+		}
+		attemptsRemaining = max(0, maxAttempts-wrongCount)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"correct":            correct,
+		"attempts_remaining": attemptsRemaining,
+	})
 }

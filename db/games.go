@@ -366,6 +366,84 @@ func (db *DB) InsertAttempt(ctx context.Context, authID string, a *GameAttemptRo
 	return &row, nil
 }
 
+// ── Blank-attempt sessions ─────────────────────────────────────────────────
+
+// GameSessionRow is a minimal view of a game session used for auth validation.
+type GameSessionRow struct {
+	SessionID string `db:"session_id"`
+	VariantID string `db:"variant_id"`
+	AuthID    string `db:"auth_id"`
+}
+
+// InsertGameSession persists a new play session. Non-fatal on duplicate keys
+// (idempotent: resume paths may re-insert the same session_id).
+func (db *DB) InsertGameSession(ctx context.Context, sessionID, variantID, authID string) error {
+	defer observe("insert_game_session", time.Now())
+	_, err := db.Pool.Exec(ctx, `
+		INSERT INTO game_sessions (session_id, variant_id, auth_id)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (session_id) DO NOTHING
+	`, sessionID, variantID, authID)
+	return err
+}
+
+// FetchGameSession retrieves a session by ID for ownership validation.
+func (db *DB) FetchGameSession(ctx context.Context, sessionID string) (*GameSessionRow, error) {
+	defer observe("fetch_game_session", time.Now())
+	rows, err := db.Pool.Query(ctx,
+		`SELECT session_id, variant_id, auth_id FROM game_sessions WHERE session_id = $1`,
+		sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[GameSessionRow])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+// IncrementBlankWrong increments the wrong-attempt counter for one blank
+// within a session, returning the new total wrong count for that blank.
+func (db *DB) IncrementBlankWrong(ctx context.Context, sessionID string, blankIndex int) (int, error) {
+	defer observe("increment_blank_wrong", time.Now())
+	var count int
+	err := db.Pool.QueryRow(ctx, `
+		INSERT INTO game_blank_attempts (session_id, blank_index, wrong_count)
+		VALUES ($1, $2, 1)
+		ON CONFLICT (session_id, blank_index) DO UPDATE
+		  SET wrong_count = game_blank_attempts.wrong_count + 1
+		RETURNING wrong_count
+	`, sessionID, blankIndex).Scan(&count)
+	return count, err
+}
+
+// FetchBlankWrongCounts returns a map of blank_index → wrong_count for all
+// blanks in the session that had at least one wrong attempt.
+func (db *DB) FetchBlankWrongCounts(ctx context.Context, sessionID string) (map[int]int, error) {
+	defer observe("fetch_blank_wrong_counts", time.Now())
+	rows, err := db.Pool.Query(ctx,
+		`SELECT blank_index, wrong_count FROM game_blank_attempts WHERE session_id = $1`,
+		sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int]int{}
+	for rows.Next() {
+		var idx, count int
+		if err := rows.Scan(&idx, &count); err != nil {
+			return nil, err
+		}
+		out[idx] = count
+	}
+	return out, rows.Err()
+}
+
 // FetchUserAttempts returns the user's recent attempts (newest first), with
 // keyset pagination by completed_at. cursor is the completed_at of the last
 // row from the previous page (RFC3339); nil for the first page.
