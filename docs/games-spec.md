@@ -410,7 +410,7 @@ Both deferred until per-chapter quality is proven.
 ## 7. API endpoints
 
 All endpoints sit at the existing API base. New `/games/*` and `/me/games/*`
-prefixes. Every endpoint requires Supabase JWT auth (existing middleware).
+prefixes. Every endpoint requires Auth.js (HS256) JWT auth (existing middleware).
 
 OpenAPI fragments below are illustrative; canonical schema lands in
 `openapi.yaml` and is generated into Go types via `just generate`.

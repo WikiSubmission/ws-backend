@@ -10,7 +10,7 @@ Single Go module (`github.com/wikiSubmission/ws-backend`) with three packages:
 | --- | --- |
 | `api/` | Gin HTTP server, OpenAPI handlers, route registration |
 | `db/` | PostgreSQL layer (pgx/v5), migrations, row structs |
-| `auth/` | Supabase JWT verification and route guards |
+| `auth/` | Auth.js (HS256) JWT verification and route guards |
 
 **Request flow:**
 
@@ -22,7 +22,7 @@ api/server.go (Gin + OpenAPI validator) → handlers/Server.method() → db.DB.Q
 
 ## Prerequisites
 
-- Go 1.24+
+- Go 1.26+
 - PostgreSQL 18 (with `vector` and `pg_trgm` extensions)
 - `oapi-codegen` (installed as a Go tool — `go tool oapi-codegen`)
 - [`just`](https://github.com/casey/just) (replaces the previous Makefile)
@@ -42,7 +42,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DATABASE_PORT` | PostgreSQL port | `5432` |
 | `DATABASE_NAME` | PostgreSQL database name | — |
 | `DATABASE_SSL_MODE` | `disable`, `require`, `verify-full` | — |
-| `SUPABASE_JWKS_URL` | Supabase project JWKS endpoint used to verify bearer tokens | — |
+| `WS_BACKEND_JWT_SECRET` | Shared secret used to verify HS256 JWTs minted by the Auth.js frontend layer. When unset, the verifier is disabled and authenticated routes reject. | — |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins for authenticated API calls | `*` |
 | `SANITY_PROJECT_ID` | Sanity project ID. When unset, the Sanity proxy and `/communities` endpoint return `502`. | *(unset = proxy disabled)* |
 | `SANITY_DATASET` | Sanity dataset name | `production` |
@@ -120,7 +120,7 @@ The production image uses `gcr.io/distroless/static-debian12:nonroot` — no she
 
 ## Authentication
 
-Authenticated frontend calls use Supabase access tokens as bearer tokens. The backend verifies those JWTs against `SUPABASE_JWKS_URL`, then uses the token subject as the canonical `supabase_uid`.
+Authenticated frontend calls carry an HS256 JWT minted by the Auth.js (NextAuth v5) frontend layer as a bearer token. The backend verifies the signature with the shared `WS_BACKEND_JWT_SECRET`, then uses the namespaced subject claim (e.g. `google:12345`, `email:user@x.com`) as the canonical `auth_id`.
 
 Protected endpoints currently include:
 
