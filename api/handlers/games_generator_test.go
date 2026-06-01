@@ -328,9 +328,9 @@ func TestGenerateVariantBlankCountWithinBand(t *testing.T) {
 		size       string
 		minB, maxB int
 	}{
-		{"short", 5, 8},
-		{"medium", 12, 18},
-		{"long", 25, 35},
+		{"short", 3, 5},
+		{"medium", 6, 10},
+		{"long", 12, 18},
 	}
 	for _, tc := range cases {
 		t.Run(tc.size, func(t *testing.T) {
