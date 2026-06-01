@@ -233,6 +233,35 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		}
 	}
 
+	// Word and root scope return only the matched language per word: a root
+	// match lives on the Arabic word_text row, and an FTS match on the searched
+	// language's row. When the caller asks for additional word_langs (most
+	// importantly transliteration, `tl`), graft them onto the matched words via
+	// the same path /quran uses, so the words-scope `w` shape is consistent
+	// across endpoints. Sibling (non-matched) words are never introduced.
+	if searchErr == nil && (rootSearch || scope == string(Words)) &&
+		p.WordLangs != nil && len(*p.WordLangs) > 0 && len(verseRefMap) > 0 {
+		var chNums, viNums []int32
+		for vKey, v := range verseRefMap {
+			if v.Vi == nil {
+				continue
+			}
+			var cn int
+			if _, err := fmt.Sscanf(vKey, "%d:", &cn); err != nil {
+				slog.Warn("search: failed to parse verse key for word enrichment", "key", vKey, "error", err)
+				continue
+			}
+			chNums = append(chNums, int32(cn))
+			viNums = append(viNums, int32(*v.Vi))
+		}
+		wordsRaw, wErr := s.DB.FetchWordsForVersesByRefs(ctx, chNums, viNums, *p.WordLangs)
+		if wErr != nil {
+			slog.Warn("search: failed to enrich word langs", "q", queryLabel, "error", wErr)
+		} else {
+			enrichMatchedWordLangs(wordsRaw, verseRefMap)
+		}
+	}
+
 	cr := <-countCh
 	if searchErr != nil {
 		slog.Error("search query failed", "scope", scope, "q", queryLabel, "error", searchErr)
@@ -466,6 +495,32 @@ func attachWordsToVerses(
 			targetWord.M = wRow.Meaning
 		}
 		(*targetWord.Tx)[wRow.LangCode] = wRow.WordText
+	}
+}
+
+// enrichMatchedWordLangs grafts additional per-word text onto words already
+// present in verseRefMap, without adding sibling words. Word and root search
+// return only the matched language per word; this fills in the remaining
+// requested languages (e.g. transliteration) so the words-scope `w` matches
+// what /quran returns for the same word_langs. Words not already matched are
+// skipped, preserving word-search semantics (only matched words are returned).
+func enrichMatchedWordLangs(rows []db.WordRow, verseRefMap map[string]*VerseData) {
+	for _, wRow := range rows {
+		vKey := fmt.Sprintf("%d:%d", wRow.ChapterNumber, wRow.VerseIndex)
+		vData, ok := verseRefMap[vKey]
+		if !ok || vData.W == nil {
+			continue
+		}
+		for i := range *vData.W {
+			w := &(*vData.W)[i]
+			if w.Wi != nil && *w.Wi == wRow.WordIndex {
+				if w.Tx == nil {
+					w.Tx = &map[string]string{}
+				}
+				(*w.Tx)[wRow.LangCode] = wRow.WordText
+				break
+			}
+		}
 	}
 }
 
