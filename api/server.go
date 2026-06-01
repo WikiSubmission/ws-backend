@@ -331,6 +331,10 @@ func StartServer(database *db.DB) {
 	}
 	activity.POST("/export", meExport.PostExport)
 	activity.GET("/export/status", meExport.GetStatus)
+	pushHandler := handlers.PushHandler{DB: database, Sender: handlers.NewWebPushSender()}
+	activity.POST("/push/subscribe", pushHandler.Subscribe)
+	activity.DELETE("/push/subscribe", pushHandler.Unsubscribe)
+	activity.POST("/push/test", pushHandler.SendTest)
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
