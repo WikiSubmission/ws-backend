@@ -16,8 +16,11 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
-type DriveUploader interface {
-	UploadUserExport(ctx context.Context, userID int, payload []byte) (fileID string, shareURL string, err error)
+// ExportUploader stores a user's data-export payload and returns a stable
+// object key plus a time-limited download URL. UploadUserExport overwrites any
+// previous export for the same user.
+type ExportUploader interface {
+	UploadUserExport(ctx context.Context, userID int, payload []byte) (objectKey string, downloadURL string, err error)
 }
 
 type EmailSender interface {
@@ -25,15 +28,15 @@ type EmailSender interface {
 }
 
 type MeExportHandler struct {
-	DB     *db.DB
-	Drive  DriveUploader
-	Mailer EmailSender
+	DB       *db.DB
+	Uploader ExportUploader
+	Mailer   EmailSender
 }
 
-type NoopDriveUploader struct{}
+type NoopExportUploader struct{}
 
-func (NoopDriveUploader) UploadUserExport(context.Context, int, []byte) (string, string, error) {
-	return "", "", fmt.Errorf("drive uploader not configured")
+func (NoopExportUploader) UploadUserExport(context.Context, int, []byte) (string, string, error) {
+	return "", "", fmt.Errorf("export uploader not configured")
 }
 
 type SMTPEmailSender struct{}
@@ -161,7 +164,7 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 	}
 	raw, _ := json.Marshal(payload)
 
-	fileID, url, err := h.Drive.UploadUserExport(ctx, userID, raw)
+	objectKey, url, err := h.Uploader.UploadUserExport(ctx, userID, raw)
 	if err != nil {
 		errMsg := err.Error()
 		_ = h.DB.SetUserDataExportFailed(ctx, exportID, errMsg)
@@ -173,7 +176,7 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 	body := strings.Join([]string{
 		"Your wikisubmission.org data export is ready.",
 		"",
-		"Google Drive link:",
+		"Download link (valid for 30 days):",
 		url,
 		"",
 		"You can request another export in 24 hours.",
@@ -183,5 +186,5 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 		return
 	}
 
-	_ = h.DB.SetUserDataExportSent(ctx, exportID, fileID, url)
+	_ = h.DB.SetUserDataExportSent(ctx, exportID, objectKey, url)
 }

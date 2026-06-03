@@ -22,6 +22,7 @@ import (
 	middleware "github.com/oapi-codegen/gin-middleware"
 	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
+	wsaws "github.com/wikiSubmission/ws-backend/aws"
 	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
@@ -325,9 +326,9 @@ func StartServer(database *db.DB) {
 	activity.GET("/consent", meActivity.GetConsent)
 	activity.PUT("/consent", meActivity.SetConsent)
 	meExport := handlers.MeExportHandler{
-		DB:     database,
-		Drive:  handlers.NoopDriveUploader{},
-		Mailer: handlers.SMTPEmailSender{},
+		DB:       database,
+		Uploader: buildExportUploader(),
+		Mailer:   handlers.SMTPEmailSender{},
 	}
 	activity.POST("/export", meExport.PostExport)
 	activity.GET("/export/status", meExport.GetStatus)
@@ -427,4 +428,32 @@ func StartServer(database *db.DB) {
 	}
 
 	slog.Info("Server exited cleanly")
+}
+
+// buildExportUploader wires the S3-backed data-export uploader from the
+// environment (EXPORTS_BUCKET_NAME + the CloudFront signing vars). When the
+// required configuration is absent or invalid it falls back to a no-op uploader
+// so the service still boots in environments without AWS access (e.g. local
+// dev); export requests then fail gracefully as before.
+func buildExportUploader() handlers.ExportUploader {
+	bucket := os.Getenv("EXPORTS_BUCKET_NAME")
+	if bucket == "" {
+		slog.Warn("EXPORTS_BUCKET_NAME not set; user data export disabled")
+		return handlers.NoopExportUploader{}
+	}
+
+	client, err := wsaws.InitS3Client(context.Background())
+	if err != nil {
+		slog.Error("S3 client init failed; user data export disabled", slog.Any("error", err))
+		return handlers.NoopExportUploader{}
+	}
+
+	signer, err := wsaws.LoadSigner()
+	if err != nil {
+		slog.Error("CloudFront signer init failed; user data export disabled", slog.Any("error", err))
+		return handlers.NoopExportUploader{}
+	}
+
+	slog.Info("User data export uploader configured", "bucket", bucket)
+	return handlers.S3Uploader{Client: client, Signer: signer, Bucket: bucket}
 }
