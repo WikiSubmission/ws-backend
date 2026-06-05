@@ -28,7 +28,7 @@ func TestPurgeUserCategories_DeletesOnlySelected(t *testing.T) {
 	if _, err := db.UpsertNote(ctx, authID, "quran", "1:1", "note to delete", nil); err != nil {
 		t.Fatalf("UpsertNote: %v", err)
 	}
-	if _, err := db.CreateBookmark(ctx, authID, "quran", "2:255", "bm", "#fff", "bookmark"); err != nil {
+	if _, err := db.CreateBookmark(ctx, authID, "quran", "2:255", "bm", "#fff", "normal"); err != nil {
 		t.Fatalf("CreateBookmark: %v", err)
 	}
 	if _, err := db.UpsertCoverToCover(ctx, authID, "quran", "3:1"); err != nil {
@@ -76,7 +76,7 @@ func TestPurgeUserCategories_DeletesOnlySelected(t *testing.T) {
 		t.Fatalf("FetchBookmarks: %v", err)
 	}
 	for _, b := range bms {
-		if b.Kind == "bookmark" {
+		if b.Kind == "normal" {
 			t.Errorf("expected saved bookmark deleted, found %s", b.VerseKey)
 		}
 	}
