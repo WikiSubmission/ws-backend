@@ -18,6 +18,7 @@ RUN go mod download
 COPY api/    ./api/
 COPY db/     ./db/
 COPY auth/   ./auth/
+COPY aws/    ./aws/
 COPY sanity/ ./sanity/
 COPY games/  ./games/
 
