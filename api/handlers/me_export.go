@@ -167,9 +167,12 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 	objectKey, url, err := h.Uploader.UploadUserExport(ctx, userID, raw)
 	if err != nil {
 		errMsg := err.Error()
+		slog.Error("me-export upload failed", "export_id", exportID, "error", errMsg)
 		_ = h.DB.SetUserDataExportFailed(ctx, exportID, errMsg)
-		_ = h.Mailer.Send(email, "Your wikisubmission.org data export request failed.",
-			"We could not prepare your data export at this time.\n\nError: "+errMsg+"\n\nPlease try again later.")
+		if mailErr := h.Mailer.Send(email, "Your wikisubmission.org data export request failed.",
+			"We could not prepare your data export at this time.\n\nError: "+errMsg+"\n\nPlease try again later."); mailErr != nil {
+			slog.Error("me-export failure email send failed", "export_id", exportID, "error", mailErr)
+		}
 		return
 	}
 
@@ -182,9 +185,11 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 		"You can request another export in 24 hours.",
 	}, "\n")
 	if err := h.Mailer.Send(email, "Your wikisubmission.org data export is ready.", body); err != nil {
+		slog.Error("me-export success email send failed", "export_id", exportID, "error", err)
 		_ = h.DB.SetUserDataExportFailed(ctx, exportID, err.Error())
 		return
 	}
 
+	slog.Info("me-export sent", "export_id", exportID, "object_key", objectKey)
 	_ = h.DB.SetUserDataExportSent(ctx, exportID, objectKey, url)
 }
