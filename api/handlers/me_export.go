@@ -123,16 +123,13 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 	ctx := context.Background()
 	_ = h.DB.SetUserDataExportRunning(ctx, exportID)
 
-	payload := map[string]any{
-		"profile":        map[string]any{"user_id": userID, "auth_id": authID, "email": email},
-		"bookmarks":      map[string]any{},
-		"notes":          map[string]any{},
-		"cover_to_cover": map[string]any{},
-		"activity":       map[string]any{},
-		"game_attempts":  map[string]any{},
-		"consent":        map[string]any{},
+	payload := h.DB.BuildUserExport(ctx, userID, authID, email)
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		slog.Error("me-export marshal failed", "export_id", exportID, "error", err)
+		_ = h.DB.SetUserDataExportFailed(ctx, exportID, "failed to encode export payload")
+		return
 	}
-	raw, _ := json.Marshal(payload)
 
 	objectKey, url, err := h.Uploader.UploadUserExport(ctx, userID, raw)
 	if err != nil {
