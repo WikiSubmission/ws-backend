@@ -22,7 +22,6 @@ import (
 	middleware "github.com/oapi-codegen/gin-middleware"
 	apitembed "github.com/wikiSubmission/ws-backend/api/embed"
 	"github.com/wikiSubmission/ws-backend/api/handlers"
-	wsaws "github.com/wikiSubmission/ws-backend/aws"
 	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
@@ -434,25 +433,23 @@ func StartServer(database *db.DB) {
 // required configuration is absent or invalid it falls back to a no-op uploader
 // so the service still boots in environments without AWS access (e.g. local
 // dev); export requests then fail gracefully as before.
+// buildExportUploader wires the data-export uploader. All S3 + CloudFront access
+// lives in ws-lib: ws-backend stores exports via ws-lib's authenticated
+// /private/store endpoint over the internal network and holds no AWS credentials
+// or signing keys. When WSLIB_BASE_URL or STORE_AUTH_SECRET is absent it falls
+// back to a no-op uploader so the service still boots (feature disabled).
 func buildExportUploader() handlers.ExportUploader {
-	bucket := os.Getenv("EXPORTS_BUCKET_NAME")
-	if bucket == "" {
-		slog.Warn("EXPORTS_BUCKET_NAME not set; user data export disabled")
+	baseURL := strings.TrimRight(os.Getenv("WSLIB_BASE_URL"), "/")
+	secret := os.Getenv("STORE_AUTH_SECRET")
+	if baseURL == "" || secret == "" {
+		slog.Warn("WSLIB_BASE_URL or STORE_AUTH_SECRET not set; user data export disabled")
 		return handlers.NoopExportUploader{}
 	}
 
-	client, err := wsaws.InitS3Client(context.Background())
-	if err != nil {
-		slog.Error("S3 client init failed; user data export disabled", slog.Any("error", err))
-		return handlers.NoopExportUploader{}
+	slog.Info("User data export uploader configured (ws-lib)", "base_url", baseURL)
+	return handlers.WSLibExportUploader{
+		BaseURL: baseURL,
+		Secret:  []byte(secret),
+		Client:  &http.Client{Timeout: 30 * time.Second},
 	}
-
-	signer, err := wsaws.LoadSigner()
-	if err != nil {
-		slog.Error("CloudFront signer init failed; user data export disabled", slog.Any("error", err))
-		return handlers.NoopExportUploader{}
-	}
-
-	slog.Info("User data export uploader configured", "bucket", bucket)
-	return handlers.S3Uploader{Client: client, Signer: signer, Bucket: bucket}
 }
