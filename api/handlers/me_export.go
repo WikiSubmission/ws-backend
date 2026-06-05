@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/smtp"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,42 +20,15 @@ type ExportUploader interface {
 	UploadUserExport(ctx context.Context, userID int, payload []byte) (objectKey string, downloadURL string, err error)
 }
 
-type EmailSender interface {
-	Send(to, subject, body string) error
-}
-
 type MeExportHandler struct {
 	DB       *db.DB
 	Uploader ExportUploader
-	Mailer   EmailSender
 }
 
 type NoopExportUploader struct{}
 
 func (NoopExportUploader) UploadUserExport(context.Context, int, []byte) (string, string, error) {
 	return "", "", fmt.Errorf("export uploader not configured")
-}
-
-type SMTPEmailSender struct{}
-
-func (SMTPEmailSender) Send(to, subject, body string) error {
-	host := os.Getenv("SMTP_HOST")
-	port := os.Getenv("SMTP_PORT")
-	user := os.Getenv("SMTP_USER")
-	pass := os.Getenv("SMTP_PASSWORD")
-	from := os.Getenv("SMTP_FROM")
-	if host == "" || port == "" || user == "" || pass == "" || from == "" {
-		return fmt.Errorf("smtp is not configured")
-	}
-	msg := "From: " + from + "\r\n" +
-		"To: " + to + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: text/plain; charset=UTF-8\r\n\r\n" +
-		body
-	addr := host + ":" + port
-	authn := smtp.PlainAuth("", user, pass, host)
-	return smtp.SendMail(addr, authn, from, []string{to}, []byte(msg))
 }
 
 func computeRetryAfterSeconds(row *db.UserDataExportRow, now time.Time) int64 {
@@ -169,27 +139,12 @@ func (h MeExportHandler) runExport(exportID int64, userID int, authID, email str
 		errMsg := err.Error()
 		slog.Error("me-export upload failed", "export_id", exportID, "error", errMsg)
 		_ = h.DB.SetUserDataExportFailed(ctx, exportID, errMsg)
-		if mailErr := h.Mailer.Send(email, "Your wikisubmission.org data export request failed.",
-			"We could not prepare your data export at this time.\n\nError: "+errMsg+"\n\nPlease try again later."); mailErr != nil {
-			slog.Error("me-export failure email send failed", "export_id", exportID, "error", mailErr)
-		}
 		return
 	}
 
-	body := strings.Join([]string{
-		"Your wikisubmission.org data export is ready.",
-		"",
-		"Download link (valid for 30 days):",
-		url,
-		"",
-		"You can request another export in 24 hours.",
-	}, "\n")
-	if err := h.Mailer.Send(email, "Your wikisubmission.org data export is ready.", body); err != nil {
-		slog.Error("me-export success email send failed", "export_id", exportID, "error", err)
-		_ = h.DB.SetUserDataExportFailed(ctx, exportID, err.Error())
-		return
-	}
-
-	slog.Info("me-export sent", "export_id", exportID, "object_key", objectKey)
+	// The signed download URL is persisted on the row and surfaced to the user
+	// through GET /export/status, which the settings page polls and renders as a
+	// "Download your data" link. No email is sent.
+	slog.Info("me-export ready", "export_id", exportID, "object_key", objectKey)
 	_ = h.DB.SetUserDataExportSent(ctx, exportID, objectKey, url)
 }

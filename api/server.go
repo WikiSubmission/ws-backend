@@ -328,7 +328,6 @@ func StartServer(database *db.DB) {
 	meExport := handlers.MeExportHandler{
 		DB:       database,
 		Uploader: buildExportUploader(),
-		Mailer:   handlers.SMTPEmailSender{},
 	}
 	activity.POST("/export", meExport.PostExport)
 	activity.GET("/export/status", meExport.GetStatus)
