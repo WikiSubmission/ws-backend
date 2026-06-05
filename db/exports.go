@@ -7,6 +7,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// ExportCooldown is the minimum gap between successful data-export requests.
+// Enforced server-side (FindExportBlocker) so it cannot be bypassed from the
+// client. Raised from 24h to 15 days to curb abuse of the export pipeline.
+const ExportCooldown = 15 * 24 * time.Hour
+
 type UserDataExportRow struct {
 	ID          int64      `db:"id" json:"id"`
 	UserID      int        `db:"user_id" json:"user_id"`
@@ -50,7 +55,7 @@ func (db *DB) LatestUserDataExport(ctx context.Context, userID int) (*UserDataEx
 }
 
 func (db *DB) FindExportBlocker(ctx context.Context, userID int, now time.Time) (*UserDataExportRow, error) {
-	cutoff := now.Add(-24 * time.Hour)
+	cutoff := now.Add(-ExportCooldown)
 	rows, err := db.Pool.Query(ctx, `SELECT id, user_id, status, object_key, download_url, error, requested_at, sent_at
 		FROM user_data_exports
 		WHERE user_id = $1

@@ -330,6 +330,9 @@ func StartServer(database *db.DB) {
 	}
 	activity.POST("/export", meExport.PostExport)
 	activity.GET("/export/status", meExport.GetStatus)
+	meDelete := handlers.MeDeleteHandler{DB: database}
+	activity.POST("/delete-content", meDelete.PostDelete)
+	activity.GET("/delete-content/status", meDelete.GetDeleteStatus)
 	pushHandler := handlers.PushHandler{DB: database, Sender: handlers.NewWebPushSender()}
 	activity.POST("/push/subscribe", pushHandler.Subscribe)
 	activity.DELETE("/push/subscribe", pushHandler.Unsubscribe)

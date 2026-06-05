@@ -41,7 +41,7 @@ func computeRetryAfterSeconds(row *db.UserDataExportRow, now time.Time) int64 {
 		eligibleAt = row.RequestedAt.Add(15 * time.Minute)
 	case "sent":
 		if row.SentAt != nil {
-			eligibleAt = row.SentAt.Add(24 * time.Hour)
+			eligibleAt = row.SentAt.Add(db.ExportCooldown)
 		}
 	}
 	if eligibleAt.IsZero() || !eligibleAt.After(now) {
