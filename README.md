@@ -43,6 +43,11 @@ Copy `.env.example` to `.env` and fill in the values:
 | `DATABASE_NAME` | PostgreSQL database name | — |
 | `DATABASE_SSL_MODE` | `disable`, `require`, `verify-full` | — |
 | `WS_BACKEND_JWT_SECRET` | Shared secret used to verify HS256 JWTs minted by the Auth.js frontend layer. When unset, the verifier is disabled and authenticated routes reject. | — |
+| `VAPID_PUBLIC_KEY` | Web Push VAPID public key used by `/me/push/test`. Should correspond to `NEXT_PUBLIC_VAPID_PUBLIC_KEY` in the frontend. | *(unset = push send disabled)* |
+| `VAPID_PRIVATE_KEY` | Web Push VAPID private key used to sign push notifications. | *(unset = push send disabled)* |
+| `VAPID_SUBJECT` | Web Push VAPID subject URI. | `mailto:admin@wikisubmission.org` |
+| `WSLIB_BASE_URL` | Internal ws-lib base URL used to store user data exports. | *(unset = export upload disabled)* |
+| `STORE_AUTH_SECRET` | HMAC secret shared with ws-lib `/private/store` for user data exports. | *(unset = export upload disabled)* |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins for authenticated API calls | `*` |
 | `SANITY_PROJECT_ID` | Sanity project ID. When unset, the Sanity proxy and `/communities` endpoint return `502`. | *(unset = proxy disabled)* |
 | `SANITY_DATASET` | Sanity dataset name | `production` |

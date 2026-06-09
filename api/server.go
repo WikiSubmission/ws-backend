@@ -313,31 +313,6 @@ func StartServer(database *db.DB) {
 	play.Use(auth.RequireAuth(verifier))
 	play.POST("/check", gamesPlay.CheckBlank)
 
-	// Activity feed + consent. Out-of-contract /me routes that record search /
-	// browse events and expose a per-user consent toggle. Drops writes when
-	// consent is off, so the client need not check first.
-	meActivity := handlers.MeActivityHandler{DB: database}
-	activity := r.Group("/api/v1/me")
-	activity.Use(auth.RequireAuth(verifier))
-	activity.GET("/activity", meActivity.List)
-	activity.POST("/activity", meActivity.Record)
-	activity.DELETE("/activity", meActivity.Clear)
-	activity.GET("/consent", meActivity.GetConsent)
-	activity.PUT("/consent", meActivity.SetConsent)
-	meExport := handlers.MeExportHandler{
-		DB:       database,
-		Uploader: buildExportUploader(),
-	}
-	activity.POST("/export", meExport.PostExport)
-	activity.GET("/export/status", meExport.GetStatus)
-	meDelete := handlers.MeDeleteHandler{DB: database}
-	activity.POST("/delete-content", meDelete.PostDelete)
-	activity.GET("/delete-content/status", meDelete.GetDeleteStatus)
-	pushHandler := handlers.PushHandler{DB: database, Sender: handlers.NewWebPushSender()}
-	activity.POST("/push/subscribe", pushHandler.Subscribe)
-	activity.DELETE("/push/subscribe", pushHandler.Unsubscribe)
-	activity.POST("/push/test", pushHandler.SendTest)
-
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
@@ -355,7 +330,12 @@ func StartServer(database *db.DB) {
 	})
 
 	// 4. Register handlers using the BaseURL
-	serverImpl := &handlers.Server{DB: database, Sanity: sanityClient}
+	serverImpl := &handlers.Server{
+		DB:             database,
+		Sanity:         sanityClient,
+		ExportUploader: buildExportUploader(),
+		PushSender:     handlers.NewWebPushSender(),
+	}
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		serverImpl.Embedder = apitembed.NewOpenAIEmbedder(apiKey)
 		slog.Info("Semantic search enabled", "model", "text-embedding-3-small", "dims", 512)
