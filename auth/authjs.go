@@ -2,6 +2,8 @@ package auth
 
 import (
 	"errors"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -57,7 +59,28 @@ func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email s
 	if n, ok := token.Get("name"); ok {
 		name, _ = n.(string)
 	}
+	if authID == "" || email == "" || name == "" {
+		slog.Warn("auth token missing expected claim",
+			"provider", ProviderFromAuthID(authID),
+			"has_subject", authID != "",
+			"has_email", email != "",
+			"has_name", name != "",
+		)
+	}
 	return authID, email, name, nil
+}
+
+// ProviderFromAuthID extracts the provider prefix from an Auth.js subject such
+// as "google:12345", "apple:001234..." or "email:user@example.com".
+func ProviderFromAuthID(authID string) string {
+	if authID == "" {
+		return "unknown"
+	}
+	provider, _, ok := strings.Cut(authID, ":")
+	if !ok || provider == "" {
+		return "unknown"
+	}
+	return provider
 }
 
 func classifyJWTError(err error) string {

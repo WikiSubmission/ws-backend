@@ -66,6 +66,16 @@ func emailFromContext(ctx context.Context) (string, bool) {
 	return "", false
 }
 
+func contextHasEmail(ctx context.Context) bool {
+	_, ok := emailFromContext(ctx)
+	return ok
+}
+
+func contextHasName(ctx context.Context) bool {
+	_, ok := nameFromContext(ctx)
+	return ok
+}
+
 func nameFromContext(ctx context.Context) (string, bool) {
 	if v := ctx.Value(auth.ContextKeyName); v != nil {
 		if s, ok := v.(string); ok && s != "" {
@@ -97,6 +107,7 @@ func nameFromContext(ctx context.Context) (string, bool) {
 func (s *Server) ensureCurrentUser(ctx context.Context, authID string) error {
 	user, err := s.DB.FetchUserByAuthID(ctx, authID)
 	if err != nil {
+		slog.Error("ensureCurrentUser: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		return err
 	}
 	var displayName *string
@@ -107,15 +118,26 @@ func (s *Server) ensureCurrentUser(ctx context.Context, authID string) error {
 	if user == nil {
 		email, ok := emailFromContext(ctx)
 		if !ok {
+			slog.Warn("ensureCurrentUser: cannot provision user without email claim",
+				"provider", auth.ProviderFromAuthID(authID),
+				"has_name", displayName != nil,
+			)
 			return fmt.Errorf("no users row for auth id %q and no email claim available", authID)
 		}
+		slog.Info("ensureCurrentUser: provisioning user",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_display_name", displayName != nil,
+		)
 		if _, err := s.DB.UpsertUser(ctx, authID, email, displayName); err != nil {
+			slog.Error("ensureCurrentUser: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 			return err
 		}
 	} else if displayName != nil && (user.DisplayName == nil || *user.DisplayName == "") {
 		if err := s.DB.UpdateUserDisplayName(ctx, user.ID, *displayName); err != nil {
+			slog.Error("ensureCurrentUser: backfill display_name", "provider", auth.ProviderFromAuthID(authID), "user_id", user.ID, "error", err)
 			return fmt.Errorf("backfill display_name: %w", err)
 		}
+		slog.Info("ensureCurrentUser: display_name backfilled", "provider", auth.ProviderFromAuthID(authID), "user_id", user.ID)
 	}
 
 	if err := s.DB.EnsureDefaultBookmarkCategory(ctx, authID); err != nil {

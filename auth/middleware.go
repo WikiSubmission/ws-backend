@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -86,6 +87,7 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
 			observability.AuthAttemptsTotal.WithLabelValues("missing_token").Inc()
+			slog.Warn("auth request missing bearer token", "method", c.Request.Method, "path", c.FullPath())
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
 			return
 		}
@@ -93,10 +95,21 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 		authID, email, name, err := verifier.VerifyToken(token)
 		if err != nil {
 			observability.AuthAttemptsTotal.WithLabelValues("invalid_token").Inc()
+			slog.Warn("auth request rejected invalid token", "method", c.Request.Method, "path", c.FullPath(), "error", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
 		observability.AuthAttemptsTotal.WithLabelValues("success").Inc()
+		if authID == "" || email == "" || name == "" {
+			slog.Warn("auth request accepted with incomplete claims",
+				"method", c.Request.Method,
+				"path", c.FullPath(),
+				"provider", ProviderFromAuthID(authID),
+				"has_subject", authID != "",
+				"has_email", email != "",
+				"has_name", name != "",
+			)
+		}
 		reqCtx := context.WithValue(c.Request.Context(), ContextKeyUID, authID)
 		reqCtx = context.WithValue(reqCtx, ContextKeyEmail, email)
 		reqCtx = context.WithValue(reqCtx, ContextKeyName, name)

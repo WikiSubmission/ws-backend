@@ -38,15 +38,24 @@ func (h MeDeleteHandler) resolveUser(c *gin.Context) (*db.UserRow, bool) {
 	authID := c.GetString(auth.ContextKeyUID)
 	email := c.GetString(auth.ContextKeyEmail)
 	if authID == "" || email == "" {
+		slog.Warn("me-delete: missing auth claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_subject", authID != "",
+			"has_email", email != "",
+			"has_name", c.GetString(auth.ContextKeyName) != "",
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "not authenticated"})
 		return nil, false
 	}
-	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, nil); err != nil {
+	displayName := displayNameFromGin(c)
+	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, displayName); err != nil {
+		slog.Error("me-delete: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return nil, false
 	}
 	user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
 	if err != nil || user == nil {
+		slog.Error("me-delete: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err, "found", user != nil)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return nil, false
 	}

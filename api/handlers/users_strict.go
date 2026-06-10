@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
@@ -74,6 +75,11 @@ func (s *Server) GetCurrentUserAccess(ctx context.Context, _ GetCurrentUserAcces
 		return GetCurrentUserAccess500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
 	if user == nil {
+		slog.Warn("GetCurrentUserAccess: user row not found",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_email", contextHasEmail(ctx),
+			"has_name", contextHasName(ctx),
+		)
 		return GetCurrentUserAccess404JSONResponse{NotFoundJSONResponse{Message: "user not found"}}, nil
 	}
 
