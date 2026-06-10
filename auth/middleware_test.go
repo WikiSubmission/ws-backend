@@ -7,6 +7,22 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
+func TestProviderFromAuthID(t *testing.T) {
+	cases := map[string]string{
+		"google:12345":   "google",
+		"apple:001234":   "apple",
+		"email:user.com": "email",
+		"":               "unknown",
+		"missing-prefix": "unknown",
+		":missing":       "unknown",
+	}
+	for input, want := range cases {
+		if got := ProviderFromAuthID(input); got != want {
+			t.Fatalf("ProviderFromAuthID(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestHasPermission(t *testing.T) {
 	cases := []struct {
 		name string

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
@@ -20,13 +21,29 @@ func internalServerResponse() InternalServerErrrorJSONResponse {
 func (s *Server) ensureUserForActivity(ctx context.Context, authID string) error {
 	user, err := s.DB.FetchUserByAuthID(ctx, authID)
 	if err != nil || user != nil {
+		if err != nil {
+			slog.Error("ensureUserForActivity: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err)
+		}
 		return err
 	}
 	email, ok := emailFromContext(ctx)
 	if !ok {
+		slog.Warn("ensureUserForActivity: cannot provision user without email claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_name", contextHasName(ctx),
+		)
 		return fmt.Errorf("email claim required")
 	}
-	_, err = s.DB.UpsertUser(ctx, authID, email, nil)
+	var displayName *string
+	if name, ok := nameFromContext(ctx); ok {
+		n := name
+		displayName = &n
+	}
+	slog.Info("ensureUserForActivity: provisioning user", "provider", auth.ProviderFromAuthID(authID), "has_display_name", displayName != nil)
+	_, err = s.DB.UpsertUser(ctx, authID, email, displayName)
+	if err != nil {
+		slog.Error("ensureUserForActivity: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
+	}
 	return err
 }
 
@@ -91,15 +108,21 @@ func (s *Server) resolveCurrentUser(ctx context.Context) (*db.UserRow, string, s
 	}
 	email, ok := emailFromContext(ctx)
 	if !ok {
+		slog.Warn("resolveCurrentUser: missing email claim", "provider", auth.ProviderFromAuthID(authID), "has_name", contextHasName(ctx))
 		return nil, "", "", false
 	}
-	if _, err := s.DB.UpsertUser(ctx, authID, email, nil); err != nil {
-		slog.Error("resolveCurrentUser: UpsertUser", "error", err)
+	var displayName *string
+	if name, ok := nameFromContext(ctx); ok {
+		n := name
+		displayName = &n
+	}
+	if _, err := s.DB.UpsertUser(ctx, authID, email, displayName); err != nil {
+		slog.Error("resolveCurrentUser: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		return nil, "", "", false
 	}
 	user, err := s.DB.FetchUserByAuthID(ctx, authID)
 	if err != nil || user == nil {
-		slog.Error("resolveCurrentUser: FetchUserByAuthID", "error", err)
+		slog.Error("resolveCurrentUser: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		return nil, "", "", false
 	}
 	return user, authID, email, true

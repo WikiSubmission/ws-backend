@@ -24,7 +24,7 @@ type MeActivityHandler struct {
 func (h MeActivityHandler) ensureUser(c *gin.Context, authID string) bool {
 	user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
 	if err != nil {
-		slog.Error("me_activity: FetchUserByAuthID", "error", err)
+		slog.Error("me_activity: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return false
 	}
@@ -33,11 +33,20 @@ func (h MeActivityHandler) ensureUser(c *gin.Context, authID string) bool {
 	}
 	email := c.GetString(auth.ContextKeyEmail)
 	if email == "" {
+		slog.Warn("me_activity: cannot provision user without email claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_name", c.GetString(auth.ContextKeyName) != "",
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "email claim required"})
 		return false
 	}
-	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, nil); err != nil {
-		slog.Error("me_activity: UpsertUser", "error", err)
+	displayName := displayNameFromGin(c)
+	slog.Info("me_activity: provisioning user",
+		"provider", auth.ProviderFromAuthID(authID),
+		"has_display_name", displayName != nil,
+	)
+	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, displayName); err != nil {
+		slog.Error("me_activity: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return false
 	}

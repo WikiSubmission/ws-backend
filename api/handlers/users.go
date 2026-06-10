@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,14 @@ type UserResponse struct {
 // Email is intentionally absent — it is sourced from the verified JWT only.
 type UpsertUserRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`
+}
+
+func displayNameFromGin(c *gin.Context) *string {
+	name := strings.TrimSpace(c.GetString(auth.ContextKeyName))
+	if name == "" {
+		return nil
+	}
+	return &name
 }
 
 func userRowToResponse(u *db.UserRow) UserResponse {
@@ -83,6 +92,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	authID := c.GetString(auth.ContextKeyUID)
 	if authID == "" {
+		slog.Warn("GetCurrentUser: missing auth subject")
 		c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "not authenticated"})
 		return
 	}
@@ -94,10 +104,12 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 	if user == nil {
+		slog.Warn("GetCurrentUser: user row not found", "provider", auth.ProviderFromAuthID(authID))
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 		return
 	}
 
+	slog.Debug("GetCurrentUser: user row found", "provider", auth.ProviderFromAuthID(authID), "user_id", user.ID, "has_display_name", user.DisplayName != nil && *user.DisplayName != "")
 	c.JSON(http.StatusOK, gin.H{"data": userRowToResponse(user), "error": nil})
 }
 
@@ -118,6 +130,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 			return
 		}
 		if user == nil {
+			slog.Warn("GetUserByID(me): user row not found", "provider", auth.ProviderFromAuthID(authID))
 			c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 			return
 		}
@@ -159,26 +172,46 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 func (h *UserHandler) UpsertUser(c *gin.Context) {
 	var req UpsertUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Warn("UpsertUser: invalid request body", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
 	authID := c.GetString(auth.ContextKeyUID)
+	if authID == "" {
+		slog.Warn("UpsertUser: missing auth subject")
+		c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "not authenticated"})
+		return
+	}
 	// Email must come exclusively from the verified JWT — never from the request body.
 	// Trusting the body would allow a caller with a blank email claim to hijack any
 	// existing user row by supplying a victim email (ON CONFLICT updates auth_id).
 	email := c.GetString(auth.ContextKeyEmail)
 	if email == "" {
+		slog.Warn("UpsertUser: missing email claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_name", c.GetString(auth.ContextKeyName) != "",
+		)
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "email is required"})
 		return
 	}
 
-	user, err := h.DB.UpsertUser(c.Request.Context(), authID, email, req.DisplayName)
+	displayName := req.DisplayName
+	if displayName == nil {
+		displayName = displayNameFromGin(c)
+	}
+
+	slog.Info("UpsertUser: provisioning user",
+		"provider", auth.ProviderFromAuthID(authID),
+		"has_display_name", displayName != nil,
+	)
+	user, err := h.DB.UpsertUser(c.Request.Context(), authID, email, displayName)
 	if err != nil {
-		slog.Error("UpsertUser: DB error", "error", err)
+		slog.Error("UpsertUser: DB error", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal server error"})
 		return
 	}
+	slog.Info("UpsertUser: user provisioned", "provider", auth.ProviderFromAuthID(authID), "user_id", user.ID, "has_display_name", user.DisplayName != nil && *user.DisplayName != "")
 	c.JSON(http.StatusOK, gin.H{"data": userRowToResponse(user), "error": nil})
 }
 

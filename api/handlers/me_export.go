@@ -54,15 +54,24 @@ func (h MeExportHandler) PostExport(c *gin.Context) {
 	authID := c.GetString(auth.ContextKeyUID)
 	email := c.GetString(auth.ContextKeyEmail)
 	if authID == "" || email == "" {
+		slog.Warn("me-export: missing auth claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_subject", authID != "",
+			"has_email", email != "",
+			"has_name", c.GetString(auth.ContextKeyName) != "",
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "not authenticated"})
 		return
 	}
-	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, nil); err != nil {
+	displayName := displayNameFromGin(c)
+	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, displayName); err != nil {
+		slog.Error("me-export: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
 	user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
 	if err != nil || user == nil {
+		slog.Error("me-export: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err, "found", user != nil)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
@@ -92,15 +101,24 @@ func (h MeExportHandler) GetStatus(c *gin.Context) {
 	authID := c.GetString(auth.ContextKeyUID)
 	email := c.GetString(auth.ContextKeyEmail)
 	if authID == "" || email == "" {
+		slog.Warn("me-export: missing auth claim",
+			"provider", auth.ProviderFromAuthID(authID),
+			"has_subject", authID != "",
+			"has_email", email != "",
+			"has_name", c.GetString(auth.ContextKeyName) != "",
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "not authenticated"})
 		return
 	}
-	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, nil); err != nil {
+	displayName := displayNameFromGin(c)
+	if _, err := h.DB.UpsertUser(c.Request.Context(), authID, email, displayName); err != nil {
+		slog.Error("me-export: UpsertUser", "provider", auth.ProviderFromAuthID(authID), "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
 	user, err := h.DB.FetchUserByAuthID(c.Request.Context(), authID)
 	if err != nil || user == nil {
+		slog.Error("me-export: FetchUserByAuthID", "provider", auth.ProviderFromAuthID(authID), "error", err, "found", user != nil)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
