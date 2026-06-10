@@ -3,25 +3,39 @@ package db
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/joho/godotenv"
 )
 
-// setupTestDB connects to the database and skips the test if no env vars are set.
-// All integration tests should call this helper.
+// One pool + one migration run is shared across every integration test in this
+// package. Running DbSetup (which re-applies all migrations) per test would
+// burst dozens of short-lived pools and re-run the full migration set N times —
+// slow, and it intermittently trips pgx's per-connection statement cache after
+// the repeated DDL. Migrating once per process avoids that entirely.
+var (
+	sharedDBOnce sync.Once
+	sharedDB     *DB
+	sharedDBErr  error
+)
+
+// setupTestDB returns the package-shared DB, skipping the test when no database
+// is configured. The pool is created (and migrations applied) exactly once and
+// lives for the duration of the test binary.
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()
 	_ = godotenv.Load()
 	if os.Getenv("DATABASE_NAME") == "" {
 		t.Skip("Skipping integration test: no DATABASE_NAME env var set")
 	}
-	db, err := DbSetup()
-	if err != nil {
-		t.Fatalf("DbSetup failed: %v", err)
+	sharedDBOnce.Do(func() {
+		sharedDB, sharedDBErr = DbSetup()
+	})
+	if sharedDBErr != nil {
+		t.Fatalf("DbSetup failed: %v", sharedDBErr)
 	}
-	t.Cleanup(func() { db.Close() })
-	return db
+	return sharedDB
 }
 
 func TestFetchAllLanguages(t *testing.T) {
