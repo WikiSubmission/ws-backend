@@ -1,5 +1,27 @@
 # TODO
 
+## Deferred — Bible editorial module (Phase 3, unlikely but planned)
+
+Largest backend gap of the editorial port; deprioritized in favor of completing
+Quran parity. Mirror the Quran write path once/if picked up.
+
+- [ ] **Bible draft/history tables** — none exist today. Add version-keyed
+      `bible_*_drafts` + `*_history` for book/chapter/verse translations,
+      following the shape of the Quran editorial tables (additive, version-keyed,
+      partial-unique upsert keys).
+- [ ] **Write handlers** — book/chapter nav reads, chapter + verse translation
+      editors, reference-version display, per-version read/write permission
+      wiring (reuse the editorial permission model + `RequirePermission`).
+- [ ] **Publish workflow** — per-chapter publish requests + changelog + approver
+      grant, identical state machine to Quran (`019_quran_publish_workflow.sql`).
+- [ ] **Bible sync** — the existing Bible sync path is stubbed; implement it.
+- [ ] **Frontend** — version management, book/chapter nav, chapter + verse
+      translation editors, reference rail. Mirror `org/app/(editor)/editor/quran/`.
+
+Risk notes: no Bible word model; canonical-text gaps likely surface during build
+(flag them rather than backfilling blind). Full phase write-up:
+`.claude/plans/wikisubmission-editorial-app-port.md` §3 Phase 3.
+
 ## Deferred (do last)
 
 - [ ] **Version-key the live Quran corpus** — migrate `verse_text` /

@@ -25,13 +25,16 @@ var (
 
 // Changelog action labels.
 const (
-	ActionVerseDraftSaved   = "verse_draft_saved"
-	ActionChapterDraftSaved = "chapter_draft_saved"
-	ActionPublishRequested  = "publish_requested"
-	ActionPublishApproved   = "publish_approved"
-	ActionPublishRejected   = "publish_rejected"
-	ActionPublishCancelled  = "publish_cancelled"
-	ActionPublished         = "published"
+	ActionVerseDraftSaved       = "verse_draft_saved"
+	ActionChapterDraftSaved     = "chapter_draft_saved"
+	ActionWordDraftSaved        = "word_draft_saved"
+	ActionRootMeaningSaved      = "root_meaning_saved"
+	ActionRootMeaningsPublished = "root_meanings_published"
+	ActionPublishRequested      = "publish_requested"
+	ActionPublishApproved       = "publish_approved"
+	ActionPublishRejected       = "publish_rejected"
+	ActionPublishCancelled      = "publish_cancelled"
+	ActionPublished             = "published"
 )
 
 // PublishRequestRow mirrors a row of public.quran_publish_requests.
@@ -245,6 +248,10 @@ func (db *DB) ApprovePublishRequest(ctx context.Context, requestID, reviewerID i
 	if err := syncChapterPublished(ctx, tx, req.VersionID, chapterID, req.ID); err != nil {
 		return nil, err
 	}
+	words, err := syncWordPublished(ctx, tx, req.VersionID, chapterID, req.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	updated, err := scanPublishRequest(tx.QueryRow(ctx,
 		`UPDATE quran_publish_requests
@@ -264,7 +271,7 @@ func (db *DB) ApprovePublishRequest(ctx context.Context, requestID, reviewerID i
 	if err := insertChangelog(ctx, tx, ChangelogEntry{
 		VersionID: req.VersionID, ChapterNumber: &ch, Action: ActionPublished,
 		ActorID: reviewerID, PublishRequestID: &req.ID,
-		Detail: map[string]any{"verses_published": verses},
+		Detail: map[string]any{"verses_published": verses, "words_published": words},
 	}); err != nil {
 		return nil, err
 	}
@@ -368,6 +375,40 @@ func syncVersePublished(ctx context.Context, tx pgx.Tx, versionID, chapterID, re
 		FROM verses v
 		WHERE v.id = d.verse_id AND d.version_id = $1 AND v.chapter_id = $2 AND d.status = 'draft'`, versionID, chapterID); err != nil {
 		return 0, fmt.Errorf("sync_verse_published: mark drafts: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// syncWordPublished upserts every drafted word of the chapter into the editorial
+// published word table and returns the number of words published. Word drafts
+// publish together with their chapter (the Phase 2 word-by-word path).
+func syncWordPublished(ctx context.Context, tx pgx.Tx, versionID, chapterID, requestID int) (int, error) {
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO quran_word_text_published
+		    (version_id, word_id, lang_id, word, meaning, published_request_id, published_at)
+		SELECT d.version_id, d.word_id, d.lang_id, d.word, d.meaning, $3, now()
+		FROM word_text_drafts d
+		JOIN words w  ON w.id = d.word_id
+		JOIN verses v ON v.id = w.verse_id
+		WHERE d.version_id = $1 AND v.chapter_id = $2
+		ON CONFLICT (version_id, word_id) DO UPDATE
+		    SET word = EXCLUDED.word,
+		        meaning = EXCLUDED.meaning,
+		        lang_id = EXCLUDED.lang_id,
+		        published_request_id = EXCLUDED.published_request_id,
+		        published_at = now()`, versionID, chapterID, requestID)
+	if err != nil {
+		return 0, fmt.Errorf("sync_word_published: %w", err)
+	}
+	// Mark only rows still in 'draft' so an already-published word's audit
+	// timestamp is preserved (mirrors syncVersePublished).
+	if _, err := tx.Exec(ctx, `
+		UPDATE word_text_drafts d
+		SET status = 'published', updated_at = now()
+		FROM words w, verses v
+		WHERE w.id = d.word_id AND v.id = w.verse_id
+		  AND d.version_id = $1 AND v.chapter_id = $2 AND d.status = 'draft'`, versionID, chapterID); err != nil {
+		return 0, fmt.Errorf("sync_word_published: mark drafts: %w", err)
 	}
 	return int(tag.RowsAffected()), nil
 }

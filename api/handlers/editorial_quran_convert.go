@@ -50,6 +50,42 @@ func toPublishRequest(r *db.PublishRequestRow) QuranPublishRequest {
 	return out
 }
 
+func toQuranWordFields(f *db.QuranWordFields) *QuranWordFields {
+	if f == nil {
+		return nil
+	}
+	return &QuranWordFields{Word: f.Word, Meaning: f.Meaning}
+}
+
+func toQuranWord(r db.QuranWordEditorRow) QuranWord {
+	id := int64(r.WordID)
+	return QuranWord{
+		WordId:               &id,
+		WordIndex:            r.WordIndex,
+		GlobalIndex:          r.GlobalIndex,
+		Arabic:               r.Arabic,
+		Root:                 r.Root,
+		Draft:                toQuranWordFields(r.Draft),
+		DraftStatus:          r.DraftStatus,
+		Published:            toQuranWordFields(r.Published),
+		Reference:            toQuranWordFields(r.Reference),
+		RootMeaning:          r.RootMeaning,
+		RootMeaningPublished: r.RootMeaningPublished,
+	}
+}
+
+func toQuranRootSummary(r db.QuranRootRow) QuranRootSummary {
+	return QuranRootSummary{
+		RootId:           int64(r.RootID),
+		Letters:          r.Letters,
+		Occurrences:      r.Occurrences,
+		MeaningDraft:     r.MeaningDraft,
+		DraftStatus:      r.DraftStatus,
+		MeaningPublished: r.MeaningPublished,
+		ReferenceMeaning: r.ReferenceMeaning,
+	}
+}
+
 func toChangelogEntry(r db.ChangelogRow) QuranChangelogEntry {
 	e := QuranChangelogEntry{
 		Id:            int64(r.ID),
