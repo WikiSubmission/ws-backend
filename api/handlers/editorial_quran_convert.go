@@ -86,6 +86,20 @@ func toQuranRootSummary(r db.QuranRootRow) QuranRootSummary {
 	}
 }
 
+func toQuranRectifyReport(r *db.QuranIntegrityReport) QuranRectifyReport {
+	return QuranRectifyReport{
+		MissingRoots:          r.MissingRoots,
+		OrphanRoots:           r.OrphanRoots,
+		WordsMissingArabic:    r.WordsMissingArabic,
+		TotalWords:            r.TotalWords,
+		WordsWithDraft:        r.WordsWithDraft,
+		WordsPublished:        r.WordsPublished,
+		TotalRoots:            r.TotalRoots,
+		RootMeaningDrafts:     r.RootMeaningDrafts,
+		RootMeaningsPublished: r.RootMeaningsPublished,
+	}
+}
+
 func toChangelogEntry(r db.ChangelogRow) QuranChangelogEntry {
 	e := QuranChangelogEntry{
 		Id:            int64(r.ID),
