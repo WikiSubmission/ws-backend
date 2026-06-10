@@ -190,6 +190,85 @@ func TestEditorPermissions_BibleVersion(t *testing.T) {
 	}
 }
 
+func TestEditorPermissions_ApproveQuranVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		perms      *EditorPermissions
+		versionID  int
+		wantApprov bool
+	}{
+		{"nil perms deny", nil, 1, false},
+		{"admin approves any version", &EditorPermissions{IsAdmin: true}, 42, true},
+		{
+			name: "approver grant on the version (with module grant)",
+			perms: &EditorPermissions{
+				Modules:               map[EditorModule]bool{ModuleQuran: false},
+				QuranApproverVersions: map[int]bool{7: true},
+			},
+			versionID:  7,
+			wantApprov: true,
+		},
+		{
+			name: "approver grant but no quran module grant is denied",
+			perms: &EditorPermissions{
+				QuranApproverVersions: map[int]bool{7: true},
+			},
+			versionID:  7,
+			wantApprov: false,
+		},
+		{
+			name: "approver grant on a different version",
+			perms: &EditorPermissions{
+				Modules:               map[EditorModule]bool{ModuleQuran: false},
+				QuranApproverVersions: map[int]bool{7: true},
+			},
+			versionID:  8,
+			wantApprov: false,
+		},
+		{
+			name: "write but not approve",
+			perms: &EditorPermissions{
+				Modules:       map[EditorModule]bool{ModuleQuran: true},
+				QuranVersions: map[int]bool{7: true},
+			},
+			versionID:  7,
+			wantApprov: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.perms.CanApproveQuranVersion(tt.versionID); got != tt.wantApprov {
+				t.Errorf("CanApproveQuranVersion = %v, want %v", got, tt.wantApprov)
+			}
+		})
+	}
+}
+
+func TestEditorPermissions_ApprovableQuranVersionIDs(t *testing.T) {
+	var nilPerms *EditorPermissions
+	if got := nilPerms.ApprovableQuranVersionIDs(); got != nil {
+		t.Errorf("nil perms = %v, want nil", got)
+	}
+	perms := &EditorPermissions{
+		Modules:               map[EditorModule]bool{ModuleQuran: false},
+		QuranApproverVersions: map[int]bool{3: true, 5: true, 9: false},
+	}
+	got := perms.ApprovableQuranVersionIDs()
+	if noModule := (&EditorPermissions{QuranApproverVersions: map[int]bool{3: true}}).ApprovableQuranVersionIDs(); noModule != nil {
+		t.Errorf("without quran module grant, approvable ids must be nil, got %v", noModule)
+	}
+	set := map[int]bool{}
+	for _, id := range got {
+		set[id] = true
+	}
+	if !set[3] || !set[5] {
+		t.Errorf("expected 3 and 5 in %v", got)
+	}
+	if set[9] {
+		t.Errorf("version with can_approve=false must be excluded: %v", got)
+	}
+}
+
 func TestEditorPermissions_HasAnyEditorialAccess(t *testing.T) {
 	tests := []struct {
 		name  string

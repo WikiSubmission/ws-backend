@@ -41,6 +41,7 @@ type EditorPermissions struct {
 	IsAdmin                 bool
 	Modules                 map[EditorModule]bool
 	QuranVersions           map[int]bool
+	QuranApproverVersions   map[int]bool
 	BibleVersions           map[int]bool
 	QuranReferenceVersionID *int
 }
@@ -49,10 +50,11 @@ type EditorPermissions struct {
 // callers and methods never dereference nil maps.
 func newEditorPermissions(isAdmin bool) *EditorPermissions {
 	return &EditorPermissions{
-		IsAdmin:       isAdmin,
-		Modules:       make(map[EditorModule]bool),
-		QuranVersions: make(map[int]bool),
-		BibleVersions: make(map[int]bool),
+		IsAdmin:               isAdmin,
+		Modules:               make(map[EditorModule]bool),
+		QuranVersions:         make(map[int]bool),
+		QuranApproverVersions: make(map[int]bool),
+		BibleVersions:         make(map[int]bool),
 	}
 }
 
@@ -107,6 +109,43 @@ func (p *EditorPermissions) CanWriteQuranVersion(versionID int) bool {
 		return false
 	}
 	return p.QuranVersions[versionID]
+}
+
+// CanApproveQuranVersion reports whether the user may approve / reject publish
+// requests for the given Quran version. Approval is a dedicated grant (the
+// can_approve flag on the version grant), independent of write; admins approve
+// every version.
+func (p *EditorPermissions) CanApproveQuranVersion(versionID int) bool {
+	if p == nil {
+		return false
+	}
+	if p.IsAdmin {
+		return true
+	}
+	// Defense in depth: an approve grant only counts while the quran module
+	// grant is also present, so revoking module access immediately revokes the
+	// ability to approve even if a stale version grant row lingers.
+	if !p.CanReadModule(ModuleQuran) {
+		return false
+	}
+	return p.QuranApproverVersions[versionID]
+}
+
+// ApprovableQuranVersionIDs returns the version ids the user may approve. Empty
+// for admins (callers must treat admin as "all" via IsAdmin, since admins hold
+// no grant rows) and empty when the quran module grant is absent (mirrors
+// CanApproveQuranVersion).
+func (p *EditorPermissions) ApprovableQuranVersionIDs() []int {
+	if p == nil || !p.CanReadModule(ModuleQuran) {
+		return nil
+	}
+	ids := make([]int, 0, len(p.QuranApproverVersions))
+	for id, ok := range p.QuranApproverVersions {
+		if ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // CanReadBibleVersion reports whether the user may view the given Bible version.
@@ -174,10 +213,8 @@ func (db *DB) FetchEditorPermissions(ctx context.Context, userID int, isAdmin bo
 		return nil, fmt.Errorf("fetch_editor_permissions: iterate module grants: %w", err)
 	}
 
-	// Quran version grants.
-	if err := db.scanVersionGrants(ctx,
-		`SELECT version_id, can_write FROM editor_quran_version_grants WHERE user_id = $1`,
-		userID, perms.QuranVersions); err != nil {
+	// Quran version grants (write + the dedicated approve capability).
+	if err := db.scanQuranVersionGrants(ctx, userID, perms); err != nil {
 		return nil, fmt.Errorf("fetch_editor_permissions: quran version grants: %w", err)
 	}
 
@@ -199,6 +236,30 @@ func (db *DB) FetchEditorPermissions(ctx context.Context, userID int, isAdmin bo
 	perms.QuranReferenceVersionID = refVersionID
 
 	return perms, nil
+}
+
+// scanQuranVersionGrants fills the caller's Quran version write grants and the
+// dedicated approve grants in one pass.
+func (db *DB) scanQuranVersionGrants(ctx context.Context, userID int, perms *EditorPermissions) error {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT version_id, can_write, can_approve FROM editor_quran_version_grants WHERE user_id = $1`,
+		userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var versionID int
+		var canWrite, canApprove bool
+		if err := rows.Scan(&versionID, &canWrite, &canApprove); err != nil {
+			return err
+		}
+		perms.QuranVersions[versionID] = canWrite
+		if canApprove {
+			perms.QuranApproverVersions[versionID] = true
+		}
+	}
+	return rows.Err()
 }
 
 // scanVersionGrants runs a (version_id, can_write) query and fills dst.

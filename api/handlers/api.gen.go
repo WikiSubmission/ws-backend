@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -606,6 +608,30 @@ func (e PutReadingProgressRequestScripture) Valid() bool {
 	case PutReadingProgressRequestScriptureBible:
 		return true
 	case PutReadingProgressRequestScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuranPublishStatus.
+const (
+	Approved  QuranPublishStatus = "approved"
+	Cancelled QuranPublishStatus = "cancelled"
+	Pending   QuranPublishStatus = "pending"
+	Rejected  QuranPublishStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the QuranPublishStatus enum.
+func (e QuranPublishStatus) Valid() bool {
+	switch e {
+	case Approved:
+		return true
+	case Cancelled:
+		return true
+	case Pending:
+		return true
+	case Rejected:
 		return true
 	default:
 		return false
@@ -1838,6 +1864,44 @@ type EditorialBibleVersionListEnvelope struct {
 	Data []BibleVersion `json:"data"`
 }
 
+// EditorialQuranChangelogListEnvelope defines model for EditorialQuranChangelogListEnvelope.
+type EditorialQuranChangelogListEnvelope struct {
+	Data []QuranChangelogEntry `json:"data"`
+}
+
+// EditorialQuranChapterDraftEnvelope defines model for EditorialQuranChapterDraftEnvelope.
+type EditorialQuranChapterDraftEnvelope struct {
+	Data struct {
+		ChapterNumber int     `json:"chapter_number"`
+		Title         *string `json:"title,omitempty"`
+	} `json:"data"`
+}
+
+// EditorialQuranChapterEnvelope defines model for EditorialQuranChapterEnvelope.
+type EditorialQuranChapterEnvelope struct {
+	Data QuranChapterEditor `json:"data"`
+}
+
+// EditorialQuranChapterListEnvelope defines model for EditorialQuranChapterListEnvelope.
+type EditorialQuranChapterListEnvelope struct {
+	Data []QuranChapterSummary `json:"data"`
+}
+
+// EditorialQuranPublishRequestEnvelope defines model for EditorialQuranPublishRequestEnvelope.
+type EditorialQuranPublishRequestEnvelope struct {
+	Data QuranPublishRequest `json:"data"`
+}
+
+// EditorialQuranPublishRequestListEnvelope defines model for EditorialQuranPublishRequestListEnvelope.
+type EditorialQuranPublishRequestListEnvelope struct {
+	Data []QuranPublishRequest `json:"data"`
+}
+
+// EditorialQuranVerseDraftEnvelope defines model for EditorialQuranVerseDraftEnvelope.
+type EditorialQuranVerseDraftEnvelope struct {
+	Data QuranVerseDraft `json:"data"`
+}
+
 // EditorialQuranVersionListEnvelope defines model for EditorialQuranVersionListEnvelope.
 type EditorialQuranVersionListEnvelope struct {
 	Data []QuranVersion `json:"data"`
@@ -1850,7 +1914,10 @@ type EditorialSession struct {
 	IsAdmin       bool            `json:"is_admin"`
 
 	// Modules Module key (article, quran, ...) mapped to can_write. Presence of a key implies read access.
-	Modules                 map[string]bool `json:"modules"`
+	Modules map[string]bool `json:"modules"`
+
+	// QuranApproverVersions Quran version id (as string key) the caller may approve publish requests for. Presence implies approve authority on that version; admins approve every version regardless of this map.
+	QuranApproverVersions   map[string]bool `json:"quran_approver_versions"`
 	QuranReferenceVersionId *int64          `json:"quran_reference_version_id,omitempty"`
 
 	// QuranVersions Quran version id (as string key) mapped to can_write. Presence implies read access.
@@ -2281,6 +2348,84 @@ type PutReadingProgressRequest struct {
 // PutReadingProgressRequestScripture defines model for PutReadingProgressRequest.Scripture.
 type PutReadingProgressRequestScripture string
 
+// QuranChangelogEntry defines model for QuranChangelogEntry.
+type QuranChangelogEntry struct {
+	// Action One of verse_draft_saved, chapter_draft_saved, publish_requested, publish_approved, publish_rejected, publish_cancelled, published.
+	Action           string                  `json:"action"`
+	ActorId          int64                   `json:"actor_id"`
+	ChapterNumber    *int                    `json:"chapter_number,omitempty"`
+	CreatedAt        time.Time               `json:"created_at"`
+	Detail           *map[string]interface{} `json:"detail,omitempty"`
+	Id               int64                   `json:"id"`
+	PublishRequestId *int64                  `json:"publish_request_id,omitempty"`
+	VerseNumber      *int                    `json:"verse_number,omitempty"`
+	VersionId        int64                   `json:"version_id"`
+}
+
+// QuranChapterDraftInput Chapter-title draft to upsert.
+type QuranChapterDraftInput struct {
+	Title *string `json:"title,omitempty"`
+}
+
+// QuranChapterEditor defines model for QuranChapterEditor.
+type QuranChapterEditor struct {
+	// CanWrite Whether the caller may edit this version.
+	CanWrite           bool                 `json:"can_write"`
+	ChapterNumber      int                  `json:"chapter_number"`
+	PendingRequest     *QuranPublishRequest `json:"pending_request,omitempty"`
+	ReferenceVersionId *int64               `json:"reference_version_id,omitempty"`
+	TitleDraft         *string              `json:"title_draft,omitempty"`
+	TitlePublished     *string              `json:"title_published,omitempty"`
+	VerseCount         int                  `json:"verse_count"`
+	Verses             []QuranVerseDraft    `json:"verses"`
+}
+
+// QuranChapterSummary defines model for QuranChapterSummary.
+type QuranChapterSummary struct {
+	ChapterNumber int `json:"chapter_number"`
+
+	// DraftVerseCount Number of verses in this chapter that have a draft.
+	DraftVerseCount int                  `json:"draft_verse_count"`
+	HasTitleDraft   bool                 `json:"has_title_draft"`
+	PendingRequest  *QuranPublishRequest `json:"pending_request,omitempty"`
+
+	// Title Current chapter-title draft, or null if none.
+	Title *string `json:"title,omitempty"`
+
+	// VerseCount Canonical verse count for this chapter.
+	VerseCount int `json:"verse_count"`
+}
+
+// QuranPublishDecisionInput defines model for QuranPublishDecisionInput.
+type QuranPublishDecisionInput struct {
+	// Note Optional review note recorded with the decision.
+	Note *string `json:"note,omitempty"`
+}
+
+// QuranPublishRequest defines model for QuranPublishRequest.
+type QuranPublishRequest struct {
+	ChapterNumber int   `json:"chapter_number"`
+	Id            int64 `json:"id"`
+
+	// Note Optional note from the submitter.
+	Note        *string            `json:"note,omitempty"`
+	RequestedAt time.Time          `json:"requested_at"`
+	RequestedBy int64              `json:"requested_by"`
+	ReviewNote  *string            `json:"review_note,omitempty"`
+	ReviewedAt  *time.Time         `json:"reviewed_at,omitempty"`
+	ReviewedBy  *int64             `json:"reviewed_by,omitempty"`
+	Status      QuranPublishStatus `json:"status"`
+	VersionId   int64              `json:"version_id"`
+}
+
+// QuranPublishRequestInput defines model for QuranPublishRequestInput.
+type QuranPublishRequestInput struct {
+	Note *string `json:"note,omitempty"`
+}
+
+// QuranPublishStatus defines model for QuranPublishStatus.
+type QuranPublishStatus string
+
 // QuranResponse Top-level envelope for both `/quran` (reader) and `/search` (FTS) responses. The `info` object describes the query parameters that were resolved; `chapters` contains the matching verses grouped by chapter.
 type QuranResponse struct {
 	Chapters *[]ChapterData `json:"chapters,omitempty"`
@@ -2320,6 +2465,37 @@ type QuranResponseInfo struct {
 
 	// VerseStart Resolved first verse of the query range (reader only). Defaults to 1 when the param was omitted.
 	VerseStart *int `json:"verse_start,omitempty"`
+}
+
+// QuranTextFields The editable text fields of a Quran verse.
+type QuranTextFields struct {
+	Content  *string `json:"content,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+}
+
+// QuranVerseDraft defines model for QuranVerseDraft.
+type QuranVerseDraft struct {
+	// Draft Current draft text, or null if no draft saved yet.
+	Draft *QuranTextFields `json:"draft,omitempty"`
+
+	// DraftStatus Status of the draft row, if any.
+	DraftStatus    *QuranPublishStatus `json:"draft_status,omitempty"`
+	DraftUpdatedAt *time.Time          `json:"draft_updated_at,omitempty"`
+
+	// Published Currently published text for this verse, or null.
+	Published *QuranTextFields `json:"published,omitempty"`
+
+	// Reference Published text of the version's reference version for this verse, shown as the translation rail. Null if no reference version is set or it has no published text here.
+	Reference   *QuranTextFields `json:"reference,omitempty"`
+	VerseNumber int              `json:"verse_number"`
+}
+
+// QuranVerseDraftInput Verse draft fields to upsert. Omitted fields are treated as null (cleared); send the full intended state of all three fields.
+type QuranVerseDraftInput struct {
+	Content  *string `json:"content,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
 }
 
 // QuranVersion defines model for QuranVersion.
@@ -2744,6 +2920,18 @@ type WordData struct {
 	Wi *int `json:"wi,omitempty"`
 }
 
+// EditorialChapterNumberParam defines model for EditorialChapterNumberParam.
+type EditorialChapterNumberParam = int
+
+// EditorialRequestIdParam defines model for EditorialRequestIdParam.
+type EditorialRequestIdParam = int64
+
+// EditorialVerseNumberParam defines model for EditorialVerseNumberParam.
+type EditorialVerseNumberParam = int
+
+// EditorialVersionIdParam defines model for EditorialVersionIdParam.
+type EditorialVersionIdParam = int64
+
 // IncludeMeaningParam defines model for IncludeMeaningParam.
 type IncludeMeaningParam = bool
 
@@ -2857,6 +3045,21 @@ type GetCommunitiesParams struct {
 
 // GetCommunitiesParamsKind defines parameters for GetCommunities.
 type GetCommunitiesParamsKind string
+
+// ListEditorialQuranPublishRequestsParams defines parameters for ListEditorialQuranPublishRequests.
+type ListEditorialQuranPublishRequestsParams struct {
+	// Status Filter by request status.
+	Status *QuranPublishStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// VersionId Filter to a single Quran version.
+	VersionId *int64 `form:"version_id,omitempty" json:"version_id,omitempty"`
+}
+
+// ListEditorialQuranChapterChangelogParams defines parameters for ListEditorialQuranChapterChangelog.
+type ListEditorialQuranChapterChangelogParams struct {
+	// Limit Maximum entries to return (default 50, max 200).
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
 
 // GetGameFillBlankLeaderboardParams defines parameters for GetGameFillBlankLeaderboard.
 type GetGameFillBlankLeaderboardParams struct {
@@ -3115,6 +3318,21 @@ type ListUsersAdminParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ApproveEditorialQuranPublishRequestJSONRequestBody defines body for ApproveEditorialQuranPublishRequest for application/json ContentType.
+type ApproveEditorialQuranPublishRequestJSONRequestBody = QuranPublishDecisionInput
+
+// RejectEditorialQuranPublishRequestJSONRequestBody defines body for RejectEditorialQuranPublishRequest for application/json ContentType.
+type RejectEditorialQuranPublishRequestJSONRequestBody = QuranPublishDecisionInput
+
+// UpsertEditorialQuranChapterDraftJSONRequestBody defines body for UpsertEditorialQuranChapterDraft for application/json ContentType.
+type UpsertEditorialQuranChapterDraftJSONRequestBody = QuranChapterDraftInput
+
+// CreateEditorialQuranPublishRequestJSONRequestBody defines body for CreateEditorialQuranPublishRequest for application/json ContentType.
+type CreateEditorialQuranPublishRequestJSONRequestBody = QuranPublishRequestInput
+
+// UpsertEditorialQuranVerseDraftJSONRequestBody defines body for UpsertEditorialQuranVerseDraft for application/json ContentType.
+type UpsertEditorialQuranVerseDraftJSONRequestBody = QuranVerseDraftInput
+
 // SubmitGameFillBlankAttemptJSONRequestBody defines body for SubmitGameFillBlankAttempt for application/json ContentType.
 type SubmitGameFillBlankAttemptJSONRequestBody = SubmitGameAttemptRequest
 
@@ -3204,6 +3422,36 @@ type ServerInterface interface {
 	// List the Quran version registry (editorial)
 	// (GET /editorial/quran-versions)
 	ListEditorialQuranVersions(c *gin.Context)
+	// List Quran publish requests (pending-approvals queue)
+	// (GET /editorial/quran/publish-requests)
+	ListEditorialQuranPublishRequests(c *gin.Context, params ListEditorialQuranPublishRequestsParams)
+	// Approve a publish request and sync the chapter
+	// (POST /editorial/quran/publish-requests/{requestId}/approve)
+	ApproveEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Cancel an open publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/cancel)
+	CancelEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Reject a publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/reject)
+	RejectEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Chapter navigation and progress for a Quran version
+	// (GET /editorial/quran/versions/{versionId}/chapters)
+	ListEditorialQuranChapters(c *gin.Context, versionId EditorialVersionIdParam)
+	// Chapter editor payload (drafts, published, reference rail)
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	GetEditorialQuranChapter(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Save the chapter-title draft
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	UpsertEditorialQuranChapterDraft(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Recent editorial changelog for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/changelog)
+	ListEditorialQuranChapterChangelog(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, params ListEditorialQuranChapterChangelogParams)
+	// Submit a chapter for publishing
+	// (POST /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/publish-request)
+	CreateEditorialQuranPublishRequest(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Save a verse draft (subtitle / content / footer)
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/verses/{verseNumber})
+	UpsertEditorialQuranVerseDraft(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, verseNumber EditorialVerseNumberParam)
 	// Resolved editorial permissions for the current user
 	// (GET /editorial/session)
 	GetEditorialSession(c *gin.Context)
@@ -3704,6 +3952,341 @@ func (siw *ServerInterfaceWrapper) ListEditorialQuranVersions(c *gin.Context) {
 	}
 
 	siw.Handler.ListEditorialQuranVersions(c)
+}
+
+// ListEditorialQuranPublishRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranPublishRequests(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEditorialQuranPublishRequestsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", c.Request.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "version_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "version_id", c.Request.URL.Query(), &params.VersionId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter version_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranPublishRequests(c, params)
+}
+
+// ApproveEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) ApproveEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ApproveEditorialQuranPublishRequest(c, requestId)
+}
+
+// CancelEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) CancelEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CancelEditorialQuranPublishRequest(c, requestId)
+}
+
+// RejectEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) RejectEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RejectEditorialQuranPublishRequest(c, requestId)
+}
+
+// ListEditorialQuranChapters operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranChapters(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranChapters(c, versionId)
+}
+
+// GetEditorialQuranChapter operation middleware
+func (siw *ServerInterfaceWrapper) GetEditorialQuranChapter(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetEditorialQuranChapter(c, versionId, chapterNumber)
+}
+
+// UpsertEditorialQuranChapterDraft operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranChapterDraft(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranChapterDraft(c, versionId, chapterNumber)
+}
+
+// ListEditorialQuranChapterChangelog operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranChapterChangelog(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEditorialQuranChapterChangelogParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranChapterChangelog(c, versionId, chapterNumber, params)
+}
+
+// CreateEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) CreateEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateEditorialQuranPublishRequest(c, versionId, chapterNumber)
+}
+
+// UpsertEditorialQuranVerseDraft operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranVerseDraft(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "verseNumber" -------------
+	var verseNumber EditorialVerseNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "verseNumber", c.Param("verseNumber"), &verseNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verseNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranVerseDraft(c, versionId, chapterNumber, verseNumber)
 }
 
 // GetEditorialSession operation middleware
@@ -5416,6 +5999,16 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/communities", wrapper.GetCommunities)
 	router.GET(options.BaseURL+"/editorial/bible-versions", wrapper.ListEditorialBibleVersions)
 	router.GET(options.BaseURL+"/editorial/quran-versions", wrapper.ListEditorialQuranVersions)
+	router.GET(options.BaseURL+"/editorial/quran/publish-requests", wrapper.ListEditorialQuranPublishRequests)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/approve", wrapper.ApproveEditorialQuranPublishRequest)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/cancel", wrapper.CancelEditorialQuranPublishRequest)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/reject", wrapper.RejectEditorialQuranPublishRequest)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters", wrapper.ListEditorialQuranChapters)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber", wrapper.GetEditorialQuranChapter)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber", wrapper.UpsertEditorialQuranChapterDraft)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/changelog", wrapper.ListEditorialQuranChapterChangelog)
+	router.POST(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/publish-request", wrapper.CreateEditorialQuranPublishRequest)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/verses/:verseNumber", wrapper.UpsertEditorialQuranVerseDraft)
 	router.GET(options.BaseURL+"/editorial/session", wrapper.GetEditorialSession)
 	router.GET(options.BaseURL+"/games/fill-blank/leaderboard", wrapper.GetGameFillBlankLeaderboard)
 	router.GET(options.BaseURL+"/games/fill-blank/passages", wrapper.ListGameFillBlankPassages)
@@ -5891,6 +6484,532 @@ type ListEditorialQuranVersions500JSONResponse struct {
 }
 
 func (response ListEditorialQuranVersions500JSONResponse) VisitListEditorialQuranVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequestsRequestObject struct {
+	Params ListEditorialQuranPublishRequestsParams
+}
+
+type ListEditorialQuranPublishRequestsResponseObject interface {
+	VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranPublishRequests200JSONResponse EditorialQuranPublishRequestListEnvelope
+
+func (response ListEditorialQuranPublishRequests200JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequests403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranPublishRequests403JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequests500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranPublishRequests500JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+	Body      *ApproveEditorialQuranPublishRequestJSONRequestBody
+}
+
+type ApproveEditorialQuranPublishRequestResponseObject interface {
+	VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type ApproveEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response ApproveEditorialQuranPublishRequest200JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest403JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest404JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest409JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ApproveEditorialQuranPublishRequest500JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+}
+
+type CancelEditorialQuranPublishRequestResponseObject interface {
+	VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type CancelEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response CancelEditorialQuranPublishRequest200JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest403JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest404JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest409JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CancelEditorialQuranPublishRequest500JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+	Body      *RejectEditorialQuranPublishRequestJSONRequestBody
+}
+
+type RejectEditorialQuranPublishRequestResponseObject interface {
+	VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type RejectEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response RejectEditorialQuranPublishRequest200JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest403JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest404JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest409JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RejectEditorialQuranPublishRequest500JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChaptersRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+}
+
+type ListEditorialQuranChaptersResponseObject interface {
+	VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranChapters200JSONResponse EditorialQuranChapterListEnvelope
+
+func (response ListEditorialQuranChapters200JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranChapters403JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListEditorialQuranChapters404JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranChapters500JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+}
+
+type GetEditorialQuranChapterResponseObject interface {
+	VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error
+}
+
+type GetEditorialQuranChapter200JSONResponse EditorialQuranChapterEnvelope
+
+func (response GetEditorialQuranChapter200JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetEditorialQuranChapter403JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetEditorialQuranChapter404JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetEditorialQuranChapter500JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraftRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Body          *UpsertEditorialQuranChapterDraftJSONRequestBody
+}
+
+type UpsertEditorialQuranChapterDraftResponseObject interface {
+	VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranChapterDraft200JSONResponse EditorialQuranChapterDraftEnvelope
+
+func (response UpsertEditorialQuranChapterDraft200JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft400JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft403JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft404JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranChapterDraft500JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelogRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Params        ListEditorialQuranChapterChangelogParams
+}
+
+type ListEditorialQuranChapterChangelogResponseObject interface {
+	VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranChapterChangelog200JSONResponse EditorialQuranChangelogListEnvelope
+
+func (response ListEditorialQuranChapterChangelog200JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranChapterChangelog403JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListEditorialQuranChapterChangelog404JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranChapterChangelog500JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequestRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Body          *CreateEditorialQuranPublishRequestJSONRequestBody
+}
+
+type CreateEditorialQuranPublishRequestResponseObject interface {
+	VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type CreateEditorialQuranPublishRequest201JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response CreateEditorialQuranPublishRequest201JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest400JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest403JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest404JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest409JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateEditorialQuranPublishRequest500JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraftRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	VerseNumber   EditorialVerseNumberParam   `json:"verseNumber"`
+	Body          *UpsertEditorialQuranVerseDraftJSONRequestBody
+}
+
+type UpsertEditorialQuranVerseDraftResponseObject interface {
+	VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranVerseDraft200JSONResponse EditorialQuranVerseDraftEnvelope
+
+func (response UpsertEditorialQuranVerseDraft200JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft400JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft403JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft404JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranVerseDraft500JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -8296,6 +9415,36 @@ type StrictServerInterface interface {
 	// List the Quran version registry (editorial)
 	// (GET /editorial/quran-versions)
 	ListEditorialQuranVersions(ctx context.Context, request ListEditorialQuranVersionsRequestObject) (ListEditorialQuranVersionsResponseObject, error)
+	// List Quran publish requests (pending-approvals queue)
+	// (GET /editorial/quran/publish-requests)
+	ListEditorialQuranPublishRequests(ctx context.Context, request ListEditorialQuranPublishRequestsRequestObject) (ListEditorialQuranPublishRequestsResponseObject, error)
+	// Approve a publish request and sync the chapter
+	// (POST /editorial/quran/publish-requests/{requestId}/approve)
+	ApproveEditorialQuranPublishRequest(ctx context.Context, request ApproveEditorialQuranPublishRequestRequestObject) (ApproveEditorialQuranPublishRequestResponseObject, error)
+	// Cancel an open publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/cancel)
+	CancelEditorialQuranPublishRequest(ctx context.Context, request CancelEditorialQuranPublishRequestRequestObject) (CancelEditorialQuranPublishRequestResponseObject, error)
+	// Reject a publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/reject)
+	RejectEditorialQuranPublishRequest(ctx context.Context, request RejectEditorialQuranPublishRequestRequestObject) (RejectEditorialQuranPublishRequestResponseObject, error)
+	// Chapter navigation and progress for a Quran version
+	// (GET /editorial/quran/versions/{versionId}/chapters)
+	ListEditorialQuranChapters(ctx context.Context, request ListEditorialQuranChaptersRequestObject) (ListEditorialQuranChaptersResponseObject, error)
+	// Chapter editor payload (drafts, published, reference rail)
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	GetEditorialQuranChapter(ctx context.Context, request GetEditorialQuranChapterRequestObject) (GetEditorialQuranChapterResponseObject, error)
+	// Save the chapter-title draft
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	UpsertEditorialQuranChapterDraft(ctx context.Context, request UpsertEditorialQuranChapterDraftRequestObject) (UpsertEditorialQuranChapterDraftResponseObject, error)
+	// Recent editorial changelog for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/changelog)
+	ListEditorialQuranChapterChangelog(ctx context.Context, request ListEditorialQuranChapterChangelogRequestObject) (ListEditorialQuranChapterChangelogResponseObject, error)
+	// Submit a chapter for publishing
+	// (POST /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/publish-request)
+	CreateEditorialQuranPublishRequest(ctx context.Context, request CreateEditorialQuranPublishRequestRequestObject) (CreateEditorialQuranPublishRequestResponseObject, error)
+	// Save a verse draft (subtitle / content / footer)
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/verses/{verseNumber})
+	UpsertEditorialQuranVerseDraft(ctx context.Context, request UpsertEditorialQuranVerseDraftRequestObject) (UpsertEditorialQuranVerseDraftResponseObject, error)
 	// Resolved editorial permissions for the current user
 	// (GET /editorial/session)
 	GetEditorialSession(ctx context.Context, request GetEditorialSessionRequestObject) (GetEditorialSessionResponseObject, error)
@@ -8726,6 +9875,332 @@ func (sh *strictHandler) ListEditorialQuranVersions(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(ListEditorialQuranVersionsResponseObject); ok {
 		if err := validResponse.VisitListEditorialQuranVersionsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranPublishRequests operation middleware
+func (sh *strictHandler) ListEditorialQuranPublishRequests(ctx *gin.Context, params ListEditorialQuranPublishRequestsParams) {
+	var request ListEditorialQuranPublishRequestsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranPublishRequests(ctx, request.(ListEditorialQuranPublishRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranPublishRequests")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranPublishRequestsResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranPublishRequestsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) ApproveEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request ApproveEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body ApproveEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveEditorialQuranPublishRequest(ctx, request.(ApproveEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ApproveEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitApproveEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) CancelEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request CancelEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelEditorialQuranPublishRequest(ctx, request.(CancelEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CancelEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitCancelEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) RejectEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request RejectEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body RejectEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectEditorialQuranPublishRequest(ctx, request.(RejectEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RejectEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitRejectEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranChapters operation middleware
+func (sh *strictHandler) ListEditorialQuranChapters(ctx *gin.Context, versionId EditorialVersionIdParam) {
+	var request ListEditorialQuranChaptersRequestObject
+
+	request.VersionId = versionId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranChapters(ctx, request.(ListEditorialQuranChaptersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranChapters")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranChaptersResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranChaptersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEditorialQuranChapter operation middleware
+func (sh *strictHandler) GetEditorialQuranChapter(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request GetEditorialQuranChapterRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEditorialQuranChapter(ctx, request.(GetEditorialQuranChapterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEditorialQuranChapter")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetEditorialQuranChapterResponseObject); ok {
+		if err := validResponse.VisitGetEditorialQuranChapterResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranChapterDraft operation middleware
+func (sh *strictHandler) UpsertEditorialQuranChapterDraft(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request UpsertEditorialQuranChapterDraftRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	var body UpsertEditorialQuranChapterDraftJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranChapterDraft(ctx, request.(UpsertEditorialQuranChapterDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranChapterDraft")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranChapterDraftResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranChapterDraftResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranChapterChangelog operation middleware
+func (sh *strictHandler) ListEditorialQuranChapterChangelog(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, params ListEditorialQuranChapterChangelogParams) {
+	var request ListEditorialQuranChapterChangelogRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranChapterChangelog(ctx, request.(ListEditorialQuranChapterChangelogRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranChapterChangelog")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranChapterChangelogResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranChapterChangelogResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) CreateEditorialQuranPublishRequest(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request CreateEditorialQuranPublishRequestRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	var body CreateEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateEditorialQuranPublishRequest(ctx, request.(CreateEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitCreateEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranVerseDraft operation middleware
+func (sh *strictHandler) UpsertEditorialQuranVerseDraft(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, verseNumber EditorialVerseNumberParam) {
+	var request UpsertEditorialQuranVerseDraftRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+	request.VerseNumber = verseNumber
+
+	var body UpsertEditorialQuranVerseDraftJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranVerseDraft(ctx, request.(UpsertEditorialQuranVerseDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranVerseDraft")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranVerseDraftResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranVerseDraftResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -10512,381 +11987,421 @@ func (sh *strictHandler) UpdateUserAdmin(ctx *gin.Context, id int64) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

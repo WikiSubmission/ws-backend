@@ -35,6 +35,29 @@ func (s *Server) resolveEditorialPermissions(ctx context.Context) (*db.EditorPer
 	return s.DB.FetchEditorPermissions(ctx, user.ID, user.Role == "admin")
 }
 
+// resolveEditorialActor is like resolveEditorialPermissions but also returns the
+// acting user's id (for author_id / requested_by / reviewed_by attribution).
+// userID is 0 and perms nil when the caller is unauthenticated, unknown, or
+// deactivated, so callers deny by default.
+func (s *Server) resolveEditorialActor(ctx context.Context) (int, *db.EditorPermissions, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return 0, nil, nil
+	}
+	user, err := s.DB.FetchUserByAuthID(ctx, authID)
+	if err != nil {
+		return 0, nil, err
+	}
+	if user == nil || !user.IsActive {
+		return 0, nil, nil
+	}
+	perms, err := s.DB.FetchEditorPermissions(ctx, user.ID, user.Role == "admin")
+	if err != nil {
+		return 0, nil, err
+	}
+	return user.ID, perms, nil
+}
+
 // GetEditorialSession returns the resolved editorial permissions for the caller.
 func (s *Server) GetEditorialSession(ctx context.Context, _ GetEditorialSessionRequestObject) (GetEditorialSessionResponseObject, error) {
 	perms, err := s.resolveEditorialPermissions(ctx)
@@ -110,6 +133,10 @@ func editorialSessionFromPerms(p *db.EditorPermissions) EditorialSession {
 	for id, canWrite := range p.BibleVersions {
 		bible[strconv.Itoa(id)] = canWrite
 	}
+	approver := make(map[string]bool, len(p.QuranApproverVersions))
+	for id, canApprove := range p.QuranApproverVersions {
+		approver[strconv.Itoa(id)] = canApprove
+	}
 	var ref *int64
 	if p.QuranReferenceVersionID != nil {
 		v := int64(*p.QuranReferenceVersionID)
@@ -119,6 +146,7 @@ func editorialSessionFromPerms(p *db.EditorPermissions) EditorialSession {
 		IsAdmin:                 p.IsAdmin,
 		Modules:                 modules,
 		QuranVersions:           quran,
+		QuranApproverVersions:   approver,
 		BibleVersions:           bible,
 		QuranReferenceVersionId: ref,
 	}

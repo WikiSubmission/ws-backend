@@ -1,5 +1,14 @@
 # TODO
 
+## Deferred (do last)
+
+- [ ] **Version-key the live Quran corpus** — migrate `verse_text` /
+      `chapter_text` / `word_text` from lang-keyed to version-keyed, backfill,
+      and repoint the public reader. Staged local → staging → prod, zero data
+      loss. Full runbook: [docs/quran-version-keying-migration.md](docs/quran-version-keying-migration.md).
+      Phase 1 publish writes additive editorial tables so this can be switched on
+      later without contract/handler changes.
+
 ## Misc
 
 - ~~how to cache the response of /chapters and /appendices?~~ Done via `Cache-Control` headers.
