@@ -51,6 +51,14 @@ func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email s
 		observability.JWTValidationsTotal.WithLabelValues(classifyJWTError(err)).Inc()
 		return "", "", "", err
 	}
+	// A refresh token must never authenticate an access-path request. Web Auth.js
+	// tokens omit the typ claim entirely, so this guard is backward compatible.
+	if t, ok := token.Get(tokenTypeClaim); ok {
+		if s, _ := t.(string); s == TokenTypeRefresh {
+			observability.JWTValidationsTotal.WithLabelValues("wrong_type").Inc()
+			return "", "", "", errors.New("auth: refresh token not valid for access")
+		}
+	}
 	observability.JWTValidationsTotal.WithLabelValues("valid").Inc()
 	authID = token.Subject()
 	if e, ok := token.Get("email"); ok {
@@ -68,6 +76,35 @@ func (v *AuthJSVerifier) VerifyToken(tokenString string) (authID string, email s
 		)
 	}
 	return authID, email, name, nil
+}
+
+// VerifyRefreshToken validates a mobile refresh token and returns its identity.
+// It requires the typ=refresh claim, so an access token cannot be replayed here.
+func (v *AuthJSVerifier) VerifyRefreshToken(tokenString string) (Identity, error) {
+	if v.key == nil {
+		return Identity{}, errors.New("auth: verifier not configured")
+	}
+	token, err := jwt.Parse(
+		[]byte(tokenString),
+		jwt.WithKey(jwa.HS256, v.key),
+		jwt.WithValidate(true),
+		jwt.WithAcceptableSkew(30*time.Second),
+	)
+	if err != nil {
+		return Identity{}, err
+	}
+	t, ok := token.Get(tokenTypeClaim)
+	if s, _ := t.(string); !ok || s != TokenTypeRefresh {
+		return Identity{}, errors.New("auth: not a refresh token")
+	}
+	id := Identity{AuthID: token.Subject()}
+	if e, ok := token.Get("email"); ok {
+		id.Email, _ = e.(string)
+	}
+	if n, ok := token.Get("name"); ok {
+		id.Name, _ = n.(string)
+	}
+	return id, nil
 }
 
 // ProviderFromAuthID extracts the provider prefix from an Auth.js subject such

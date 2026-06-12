@@ -54,6 +54,11 @@ func StartServer(database *db.DB) {
 		for i := range allowedOrigins {
 			allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
 		}
+		// The Capacitor mobile app's webview serves from these origins. Append
+		// them to an explicit allowlist so native sign-in requests pass CORS;
+		// with the permissive '*' default they are already covered.
+		allowedOrigins = append(allowedOrigins,
+			"capacitor://localhost", "https://localhost", "ionic://localhost")
 		slog.Info("CORS configured with specific origins", "origins", allowedOrigins)
 	} else {
 		slog.Warn("CORS_ALLOWED_ORIGINS not set; defaulting to '*' (Permissive)")
@@ -313,6 +318,14 @@ func StartServer(database *db.DB) {
 	play.Use(auth.RequireAuth(verifier))
 	play.POST("/check", gamesPlay.CheckBlank)
 
+	// Native mobile auth (Capacitor app). These are the login endpoints, so they
+	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
+	// register before the validator like the sanity and games routes above.
+	nativeAuthHandler := buildNativeAuthHandler(database, verifier)
+	mobileAuth := r.Group("/api/v1/auth/mobile")
+	mobileAuth.POST("/exchange", nativeAuthHandler.Exchange)
+	mobileAuth.POST("/refresh", nativeAuthHandler.Refresh)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
@@ -435,4 +448,80 @@ func buildExportUploader() handlers.ExportUploader {
 		Secret:  []byte(secret),
 		Client:  &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// buildNativeAuthHandler wires the mobile native-auth handler from the
+// environment. The session minter reuses WS_BACKEND_JWT_SECRET (the same secret
+// the verifier trusts), so tokens it issues are interchangeable with web session
+// tokens. Each provider is enabled only when its audience allowlist is set and
+// its JWKS warms successfully; otherwise that provider's endpoint returns 503,
+// letting the server still boot without provider configuration (e.g. local dev).
+func buildNativeAuthHandler(database *db.DB, verifier *auth.AuthJSVerifier) *handlers.NativeAuthHandler {
+	minter, err := auth.NewMinter(os.Getenv("WS_BACKEND_JWT_SECRET"))
+	if err != nil {
+		slog.Error("native auth minter init failed; mobile auth disabled", slog.Any("error", err))
+		minter, _ = auth.NewMinter("")
+	}
+
+	h := &handlers.NativeAuthHandler{
+		Store:      database,
+		Minter:     minter,
+		Verifier:   verifier,
+		AccessTTL:  parseDurationEnv("MOBILE_ACCESS_TOKEN_TTL", auth.DefaultAccessTokenTTL),
+		RefreshTTL: parseDurationEnv("MOBILE_REFRESH_TOKEN_TTL", auth.DefaultRefreshTokenTTL),
+	}
+
+	if auds := splitCommaEnv("AUTH_GOOGLE_MOBILE_CLIENT_IDS"); len(auds) > 0 {
+		if set, err := auth.NewCachedKeySet(context.Background(), auth.GoogleJWKSURL); err != nil {
+			slog.Warn("Google JWKS fetch failed; native Google sign-in disabled", slog.Any("error", err))
+		} else {
+			h.Google = auth.NewGoogleVerifier(set, auds)
+			slog.Info("Native Google sign-in enabled", "audiences", len(auds))
+		}
+	} else {
+		slog.Warn("AUTH_GOOGLE_MOBILE_CLIENT_IDS not set; native Google sign-in disabled")
+	}
+
+	if auds := splitCommaEnv("AUTH_APPLE_BUNDLE_IDS"); len(auds) > 0 {
+		if set, err := auth.NewCachedKeySet(context.Background(), auth.AppleJWKSURL); err != nil {
+			slog.Warn("Apple JWKS fetch failed; native Apple sign-in disabled", slog.Any("error", err))
+		} else {
+			h.Apple = auth.NewAppleVerifier(set, auds)
+			slog.Info("Native Apple sign-in enabled", "audiences", len(auds))
+		}
+	} else {
+		slog.Warn("AUTH_APPLE_BUNDLE_IDS not set; native Apple sign-in disabled")
+	}
+
+	return h
+}
+
+// splitCommaEnv reads a comma-separated env var into a trimmed, non-empty slice.
+func splitCommaEnv(key string) []string {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// parseDurationEnv reads a Go duration (e.g. "1h", "1440h") from the environment,
+// falling back to def on absence or a parse error.
+func parseDurationEnv(key string, def time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return def
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		slog.Warn("invalid duration env var; using default", "key", key, "value", raw, "default", def.String())
+		return def
+	}
+	return d
 }
