@@ -34,14 +34,16 @@ type BibleBookCache struct {
 }
 
 type Server struct {
-	DB         *db.DB
-	Languages  map[string]LanguageCache
-	Chapters   map[int]ChapterCache
-	BibleBooks map[int]BibleBookCache
-	QuranLangs map[string]bool // lang codes with Quran verse_text content
-	BibleLangs map[string]bool // lang codes with Bible verse_text content
-	Embedder   Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
-	Sanity     *sanity.Client  // nil = Sanity proxy disabled (SANITY_PROJECT_ID not set)
+	DB             *db.DB
+	Languages      map[string]LanguageCache
+	Chapters       map[int]ChapterCache
+	BibleBooks     map[int]BibleBookCache
+	QuranLangs     map[string]bool // lang codes with Quran verse_text content
+	BibleLangs     map[string]bool // lang codes with Bible verse_text content
+	Embedder       Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
+	Sanity         *sanity.Client  // nil = Sanity proxy disabled (SANITY_PROJECT_ID not set)
+	ExportUploader ExportUploader  // nil = user data export upload disabled
+	PushSender     WebPushSender   // zero value = push sending disabled
 
 	// Games rate limiters. Lazily allocated by the games handlers if not set
 	// by the caller, so tests do not need to wire them explicitly.
@@ -116,7 +118,6 @@ func (s *Server) InitializeCaches(ctx context.Context) error {
 
 	return nil
 }
-
 
 // // 8. Fetch a range of verses
 // func (s *Server) GetQuran(ctx context.Context, request GetQuranRequestObject) (GetQuranResponseObject, error) {

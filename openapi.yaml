@@ -1730,6 +1730,293 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerErrror'
 
+
+  /me/activity:
+    get:
+      tags: [Me]
+      operationId: listMeActivity
+      summary: List current user's recent activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListEnvelope'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+    post:
+      tags: [Me]
+      operationId: recordMeActivity
+      summary: Record one activity event when consent is enabled
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordActivityRequest'
+      responses:
+        '200':
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityStoredResponse'
+        '202':
+          description: Accepted but not stored because activity consent is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityStoredResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+    delete:
+      tags: [Me]
+      operationId: clearMeActivity
+      summary: Clear current user's activity feed
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletedCountResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/consent:
+    get:
+      tags: [Me]
+      operationId: getMeActivityConsent
+      summary: Get activity recording consent
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityConsentResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+    put:
+      tags: [Me]
+      operationId: setMeActivityConsent
+      summary: Set activity recording consent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetActivityConsentRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityConsentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/export:
+    post:
+      tags: [Me]
+      operationId: requestMeExport
+      summary: Queue a user data export
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: Export queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDataExportQueuedResponse'
+        '429':
+          description: Existing export is still in progress or cooldown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAfterResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/export/status:
+    get:
+      tags: [Me]
+      operationId: getMeExportStatus
+      summary: Get latest user data export status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDataExportEnvelope'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/delete-content:
+    post:
+      tags: [Me]
+      operationId: requestMeContentDeletion
+      summary: Queue deletion of selected user content categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteContentRequest'
+      responses:
+        '202':
+          description: Deletion queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDataDeletionQueuedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: A fresh completed export is required before deletion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReasonResponse'
+        '429':
+          description: A deletion is already in progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReasonResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/delete-content/status:
+    get:
+      tags: [Me]
+      operationId: getMeContentDeletionStatus
+      summary: Get latest user data deletion status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDataDeletionEnvelope'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/push/subscribe:
+    post:
+      tags: [Me]
+      operationId: subscribeMePush
+      summary: Subscribe or refresh a browser push endpoint
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscribeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscribeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+    delete:
+      tags: [Me]
+      operationId: unsubscribeMePush
+      summary: Remove one browser push endpoint
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUnsubscribeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /me/push/test:
+    post:
+      tags: [Me]
+      operationId: sendMePushTest
+      summary: Send a test push notification to current user's endpoints
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushTestResponse'
+        '503':
+          description: Push sending is not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
   /collections/share/{token}:
     get:
       tags: [Me]
@@ -2051,6 +2338,710 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerErrror'
 
+  /editorial/session:
+    get:
+      tags: [Editorial]
+      operationId: getEditorialSession
+      summary: Resolved editorial permissions for the current user
+      description: >
+        Returns the caller's editorial permission snapshot (modules and
+        per-version read/write grants) so the editor UI can decide what to
+        render. Authoritative enforcement happens server-side on every mutation;
+        this only shapes the UI.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialSessionEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran-versions:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialQuranVersions
+      summary: List the Quran version registry (editorial)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranVersionListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/bible-versions:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialBibleVersions
+      summary: List the Bible version registry (editorial)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialBibleVersionListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  # ---------------------------------------------------------------------------
+  # Quran editorial write path (Phase 1 of the Sanity Studio port).
+  #
+  # Editors save per-verse and per-chapter DRAFTS against a specific Quran
+  # version, then submit a CHAPTER for publishing. A chapter publish request
+  # stays `pending` until an approver (admin, or a holder of the per-version
+  # approve grant) approves it, at which point that chapter's drafts are synced
+  # into the published tables and prior published rows are archived to history.
+  # Every save / request / decision is recorded in an append-only changelog.
+  #
+  # Word-by-word editing, root broadcast, and admin rectification are
+  # intentionally out of scope for Phase 1.
+  # ---------------------------------------------------------------------------
+
+  /editorial/quran/versions/{versionId}/chapters:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialQuranChapters
+      summary: Chapter navigation and progress for a Quran version
+      description: >
+        Returns one summary per canonical chapter (1–114) for the given
+        version: canonical verse count, whether a chapter-title draft exists,
+        how many verses have drafts, and the status of any open publish request.
+        Requires read access to the version.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranChapterListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/chapters/{chapterNumber}:
+    get:
+      tags: [Editorial]
+      operationId: getEditorialQuranChapter
+      summary: Chapter editor payload (drafts, published, reference rail)
+      description: >
+        Returns the full editing surface for one chapter of a version: the
+        chapter-title draft and published title, and for each canonical verse
+        its current draft, the published text, and the published text of the
+        version's reference version (the rail editors translate beside).
+        Requires read access to the version.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranChapterEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+    put:
+      tags: [Editorial]
+      operationId: upsertEditorialQuranChapterDraft
+      summary: Save the chapter-title draft
+      description: >
+        Creates or updates the chapter-title draft for this version+chapter.
+        Requires write access to the version. Records a changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranChapterDraftInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranChapterDraftEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/verses/{verseNumber}:
+    put:
+      tags: [Editorial]
+      operationId: upsertEditorialQuranVerseDraft
+      summary: Save a verse draft (subtitle / content / footer)
+      description: >
+        Creates or updates the draft for one verse of this version+chapter.
+        The verse number must be within the chapter's canonical verse count.
+        Requires write access to the version. Records a changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+        - $ref: '#/components/parameters/EditorialVerseNumberParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranVerseDraftInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranVerseDraftEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/publish-request:
+    post:
+      tags: [Editorial]
+      operationId: createEditorialQuranPublishRequest
+      summary: Submit a chapter for publishing
+      description: >
+        Opens a `pending` publish request for this version+chapter. At most one
+        request may be open per version+chapter; a second submission while one
+        is pending returns 409. Requires write access to the version. Records a
+        changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranPublishRequestInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranPublishRequestEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/publish-requests:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialQuranPublishRequests
+      summary: List Quran publish requests (pending-approvals queue)
+      description: >
+        Returns publish requests visible to the caller. Approvers and admins see
+        all requests for versions they can approve (or every version, for
+        admins); other editors see only requests they submitted. Filterable by
+        status and version. Backs the pending-approvals page.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by request status.
+          schema:
+            $ref: '#/components/schemas/QuranPublishStatus'
+        - name: version_id
+          in: query
+          required: false
+          description: Filter to a single Quran version.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranPublishRequestListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/publish-requests/{requestId}/approve:
+    post:
+      tags: [Editorial]
+      operationId: approveEditorialQuranPublishRequest
+      summary: Approve a publish request and sync the chapter
+      description: >
+        Transitions a `pending` request to `approved` and, in the same
+        transaction, syncs that chapter's drafts into the published tables
+        (archiving any prior published rows to history). Requires admin or the
+        per-version approve grant. Records changelog entries.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialRequestIdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranPublishDecisionInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranPublishRequestEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/publish-requests/{requestId}/reject:
+    post:
+      tags: [Editorial]
+      operationId: rejectEditorialQuranPublishRequest
+      summary: Reject a publish request
+      description: >
+        Transitions a `pending` request to `rejected` without publishing.
+        Requires admin or the per-version approve grant. Records a changelog
+        entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialRequestIdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranPublishDecisionInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranPublishRequestEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/publish-requests/{requestId}/cancel:
+    post:
+      tags: [Editorial]
+      operationId: cancelEditorialQuranPublishRequest
+      summary: Cancel an open publish request
+      description: >
+        Transitions a `pending` request to `cancelled`. Allowed for the original
+        requester, an approver of the version, or an admin. Records a changelog
+        entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialRequestIdParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranPublishRequestEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/changelog:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialQuranChapterChangelog
+      summary: Recent editorial changelog for a chapter
+      description: >
+        Returns the append-only changelog entries (draft saves, publish
+        requests, approvals, rejections, publishes) for this version+chapter,
+        most recent first. Requires read access to the version.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+        - name: limit
+          in: query
+          required: false
+          description: Maximum entries to return (default 50, max 200).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranChangelogListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  # ---------------------------------------------------------------------------
+  # Quran word-by-word + root meanings (Phase 2 of the Sanity Studio port).
+  #
+  # Editors edit per-word text (the version's rendering of each word and an
+  # optional per-word gloss) against the fixed canonical word list, plus a
+  # per-version meaning for each Arabic root. A root's meaning is stored once per
+  # (version, root) and rendered into the word table by JOIN, so editing it
+  # "broadcasts" to every word sharing that root atomically. Word drafts publish
+  # with their chapter (the migration 019 workflow); root meanings span chapters
+  # and publish via a dedicated approver action.
+  # ---------------------------------------------------------------------------
+
+  /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/words:
+    get:
+      tags: [Editorial]
+      operationId: getEditorialQuranChapterWords
+      summary: Word-by-word editing surface for a chapter
+      description: >
+        Returns the fixed canonical word list for every verse of the chapter,
+        each word carrying its canonical Arabic surface and root, this version's
+        draft and published per-word text, the reference version's per-word text
+        (the rail), and the per-version root meaning (draft + published) rendered
+        by JOIN. Requires read access to the version.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialChapterNumberParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranChapterWordsEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/words/{wordId}:
+    put:
+      tags: [Editorial]
+      operationId: upsertEditorialQuranWordDraft
+      summary: Save a per-word draft (text / gloss)
+      description: >
+        Creates or updates the draft for one canonical word of this version.
+        The word id must belong to the Quran corpus. Requires write access to
+        the version. Records a changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialWordIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranWordDraftInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranWordDraftEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/roots:
+    get:
+      tags: [Editorial]
+      operationId: listEditorialQuranRoots
+      summary: Root meanings for a version (Root Book)
+      description: >
+        Returns the paginated root list for a version: each root's letters,
+        corpus occurrence count, this version's draft and published meaning, the
+        draft status, and a reference gloss (the canonical English per-root
+        meaning) to translate from. Optional Arabic prefix filter. Requires read
+        access to the version.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - name: q
+          in: query
+          required: false
+          description: Arabic root prefix filter.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum roots to return (default 50, max 200).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRootListEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/roots/{rootId}:
+    put:
+      tags: [Editorial]
+      operationId: upsertEditorialQuranRootMeaning
+      summary: Save a root meaning draft (broadcasts by JOIN)
+      description: >
+        Creates or updates this version's draft meaning for one root. Because the
+        word table renders the meaning by JOIN, the change is reflected for every
+        word sharing the root immediately. Requires write access to the version.
+        Records a changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+        - $ref: '#/components/parameters/EditorialRootIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranRootMeaningInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRootMeaningEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/roots/publish:
+    post:
+      tags: [Editorial]
+      operationId: publishEditorialQuranRootMeanings
+      summary: Publish all pending root meaning drafts for a version
+      description: >
+        Syncs every draft-status root meaning for the version into the published
+        root meanings table, in one transaction, and records a changelog entry.
+        Requires admin or the per-version approve grant.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranPublishDecisionInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRootPublishEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/rectify:
+    get:
+      tags: [Editorial]
+      operationId: getEditorialQuranRectifyReport
+      summary: Quran integrity and coverage report for a version (admin)
+      description: >
+        Admin-only diagnostic scan for a version. Reports corpus-level integrity
+        (canonical roots missing from the roots master, orphan roots, words
+        lacking canonical Arabic) and this version's editorial coverage (words and
+        roots that have drafts or are published). Read-only; touches no data.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRectifyReportEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/rectify/roots:
+    post:
+      tags: [Editorial]
+      operationId: syncEditorialQuranRoots
+      summary: Sync the roots master from the canonical corpus (admin)
+      description: >
+        Admin-only. Inserts every canonical Arabic root present in the corpus but
+        missing from the quran_roots master, so root meanings can attach to every
+        word. Idempotent and version-agnostic; touches no version data.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRootsSyncEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
+  /editorial/quran/versions/{versionId}/rectify/seed:
+    post:
+      tags: [Editorial]
+      operationId: seedEditorialQuranDraftShells
+      summary: Pre-seed empty draft shells for a version (admin)
+      description: >
+        Admin-only. Creates empty word draft rows for every canonical word in the
+        version (optionally limited to one chapter) and, when requested, empty
+        root meaning draft rows for every root. Existing drafts are never
+        overwritten (insert-if-absent). Records a changelog entry.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EditorialVersionIdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuranRectifySeedInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditorialQuranRectifySeedEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerErrror'
+
 
 components:
   securitySchemes:
@@ -2121,6 +3112,57 @@ components:
         enum: [quran, bible]
         default: quran
       example: quran
+
+    # Editorial path parameters (Quran write path)
+    EditorialVersionIdParam:
+      name: versionId
+      in: path
+      required: true
+      description: Quran version id.
+      schema:
+        type: integer
+        format: int64
+    EditorialChapterNumberParam:
+      name: chapterNumber
+      in: path
+      required: true
+      description: Canonical Quran chapter number (1–114).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 114
+    EditorialVerseNumberParam:
+      name: verseNumber
+      in: path
+      required: true
+      description: 1-based verse number within the chapter.
+      schema:
+        type: integer
+        minimum: 1
+    EditorialRequestIdParam:
+      name: requestId
+      in: path
+      required: true
+      description: Quran publish request id.
+      schema:
+        type: integer
+        format: int64
+    EditorialWordIdParam:
+      name: wordId
+      in: path
+      required: true
+      description: Canonical Quran word id.
+      schema:
+        type: integer
+        format: int64
+    EditorialRootIdParam:
+      name: rootId
+      in: path
+      required: true
+      description: Quran root id (from the quran_roots registry).
+      schema:
+        type: integer
+        format: int64
 
   schemas:
     # -----------------------------------------------------------------------
@@ -3725,6 +4767,279 @@ components:
         data:
           $ref: '#/components/schemas/CollectionDetail'
 
+
+    ActivityKind:
+      type: string
+      enum: [search, browse_chapter, browse_verse, browse_verse_range]
+
+    ActivityEntry:
+      type: object
+      required: [id, kind, scripture, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        scripture:
+          type: string
+          enum: [quran, bible]
+        verse_key:
+          type: string
+        query:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    RecordActivityRequest:
+      type: object
+      required: [kind, scripture]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ActivityKind'
+        scripture:
+          type: string
+          enum: [quran, bible]
+        verse_key:
+          type: string
+        query:
+          type: string
+
+    ActivityListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityEntry'
+
+    ActivityStoredResponse:
+      type: object
+      required: [stored]
+      properties:
+        stored:
+          type: boolean
+
+    ActivityConsentResponse:
+      type: object
+      required: [consent]
+      properties:
+        consent:
+          type: boolean
+
+    SetActivityConsentRequest:
+      type: object
+      required: [consent]
+      properties:
+        consent:
+          type: boolean
+
+    DeletedCountResponse:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: integer
+          format: int64
+
+    UserDataExportStatus:
+      type: string
+      enum: [queued, running, sent, failed]
+
+    UserDataExport:
+      type: object
+      required: [id, user_id, status, requested_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/UserDataExportStatus'
+        object_key:
+          type: string
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UserDataExportEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/UserDataExport'
+          nullable: true
+
+    UserDataExportQueuedResponse:
+      type: object
+      required: [status, estimated_minutes]
+      properties:
+        status:
+          type: string
+          enum: [queued]
+        estimated_minutes:
+          type: integer
+
+    RetryAfterResponse:
+      type: object
+      required: [retry_after_seconds]
+      properties:
+        retry_after_seconds:
+          type: integer
+          format: int64
+
+    DeleteContentCategory:
+      type: string
+      enum: [bookmarks, notes, collections, activity, reading_progress, games]
+
+    DeleteContentRequest:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DeleteContentCategory'
+
+    UserDataDeletionStatus:
+      type: string
+      enum: [queued, running, done, failed]
+
+    UserDataDeletion:
+      type: object
+      required: [id, user_id, status, categories, requested_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/UserDataDeletionStatus'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeleteContentCategory'
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UserDataDeletionEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/UserDataDeletion'
+          nullable: true
+
+    UserDataDeletionQueuedResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [queued]
+
+    ReasonResponse:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    PushKeys:
+      type: object
+      required: [p256dh, auth]
+      properties:
+        p256dh:
+          type: string
+        auth:
+          type: string
+
+    PushSubscribeRequest:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          $ref: '#/components/schemas/PushKeys'
+        categories:
+          type: array
+          items:
+            type: string
+        locale:
+          type: string
+        timezone:
+          type: string
+
+    PushSubscribeResponse:
+      type: object
+      required: [id, categories]
+      properties:
+        id:
+          type: integer
+          format: int64
+        categories:
+          type: array
+          items:
+            type: string
+
+    PushUnsubscribeRequest:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+
+    PushTestResponse:
+      type: object
+      required: [sent]
+      properties:
+        sent:
+          type: integer
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+
     User:
       type: object
       required: [id, auth_id, email, role, permissions, is_active, created_at, updated_at]
@@ -3783,6 +5098,701 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/User'
+
+    EditorialSession:
+      type: object
+      required: [is_admin, modules, quran_versions, bible_versions, quran_approver_versions]
+      properties:
+        is_admin:
+          type: boolean
+        modules:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Module key (article, quran, ...) mapped to can_write. Presence of a key implies read access.
+        quran_versions:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Quran version id (as string key) mapped to can_write. Presence implies read access.
+        bible_versions:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Bible version id (as string key) mapped to can_write.
+        quran_approver_versions:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: >
+            Quran version id (as string key) the caller may approve publish
+            requests for. Presence implies approve authority on that version;
+            admins approve every version regardless of this map.
+        quran_reference_version_id:
+          type: integer
+          format: int64
+          nullable: true
+
+    EditorialSessionEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/EditorialSession'
+
+    VersionAuthor:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+          nullable: true
+
+    QuranVersion:
+      type: object
+      required: [id, slug, name, lang_id, direction, is_canonical_english, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        name:
+          type: string
+        lang_id:
+          type: integer
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersionAuthor'
+        direction:
+          type: string
+        is_canonical_english:
+          type: boolean
+        reference_version_id:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BibleVersion:
+      type: object
+      required: [id, slug, name, lang_id, direction, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        name:
+          type: string
+        lang_id:
+          type: integer
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersionAuthor'
+        direction:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    EditorialQuranVersionListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranVersion'
+
+    EditorialBibleVersionListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BibleVersion'
+
+    # -----------------------------------------------------------------------
+    # Quran editorial write path (Phase 1)
+    # -----------------------------------------------------------------------
+
+    QuranPublishStatus:
+      type: string
+      enum: [pending, approved, rejected, cancelled]
+
+    QuranChapterSummary:
+      type: object
+      required: [chapter_number, verse_count, has_title_draft, draft_verse_count]
+      properties:
+        chapter_number:
+          type: integer
+        verse_count:
+          type: integer
+          description: Canonical verse count for this chapter.
+        title:
+          type: string
+          nullable: true
+          description: Current chapter-title draft, or null if none.
+        has_title_draft:
+          type: boolean
+        draft_verse_count:
+          type: integer
+          description: Number of verses in this chapter that have a draft.
+        pending_request:
+          $ref: '#/components/schemas/QuranPublishRequest'
+
+    EditorialQuranChapterListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranChapterSummary'
+
+    QuranTextFields:
+      type: object
+      description: The editable text fields of a Quran verse.
+      properties:
+        subtitle:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        footer:
+          type: string
+          nullable: true
+
+    QuranVerseDraft:
+      type: object
+      required: [verse_number]
+      properties:
+        verse_number:
+          type: integer
+        draft:
+          allOf:
+            - $ref: '#/components/schemas/QuranTextFields'
+          nullable: true
+          description: Current draft text, or null if no draft saved yet.
+        draft_status:
+          allOf:
+            - $ref: '#/components/schemas/QuranPublishStatus'
+          nullable: true
+          description: Status of the draft row, if any.
+        draft_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        published:
+          allOf:
+            - $ref: '#/components/schemas/QuranTextFields'
+          nullable: true
+          description: Currently published text for this verse, or null.
+        reference:
+          allOf:
+            - $ref: '#/components/schemas/QuranTextFields'
+          nullable: true
+          description: >
+            Published text of the version's reference version for this verse,
+            shown as the translation rail. Null if no reference version is set
+            or it has no published text here.
+
+    QuranChapterEditor:
+      type: object
+      required: [chapter_number, verse_count, can_write, verses]
+      properties:
+        chapter_number:
+          type: integer
+        verse_count:
+          type: integer
+        title_draft:
+          type: string
+          nullable: true
+        title_published:
+          type: string
+          nullable: true
+        reference_version_id:
+          type: integer
+          format: int64
+          nullable: true
+        can_write:
+          type: boolean
+          description: Whether the caller may edit this version.
+        pending_request:
+          $ref: '#/components/schemas/QuranPublishRequest'
+        verses:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranVerseDraft'
+
+    EditorialQuranChapterEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranChapterEditor'
+
+    QuranVerseDraftInput:
+      type: object
+      description: >
+        Verse draft fields to upsert. Omitted fields are treated as null
+        (cleared); send the full intended state of all three fields.
+      properties:
+        subtitle:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        footer:
+          type: string
+          nullable: true
+
+    EditorialQuranVerseDraftEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranVerseDraft'
+
+    QuranChapterDraftInput:
+      type: object
+      description: Chapter-title draft to upsert.
+      properties:
+        title:
+          type: string
+          nullable: true
+
+    EditorialQuranChapterDraftEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [chapter_number]
+          properties:
+            chapter_number:
+              type: integer
+            title:
+              type: string
+              nullable: true
+
+    QuranPublishRequest:
+      type: object
+      required: [id, version_id, chapter_number, status, requested_by, requested_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        version_id:
+          type: integer
+          format: int64
+        chapter_number:
+          type: integer
+        status:
+          $ref: '#/components/schemas/QuranPublishStatus'
+        note:
+          type: string
+          nullable: true
+          description: Optional note from the submitter.
+        requested_by:
+          type: integer
+          format: int64
+        requested_at:
+          type: string
+          format: date-time
+        reviewed_by:
+          type: integer
+          format: int64
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        review_note:
+          type: string
+          nullable: true
+
+    EditorialQuranPublishRequestEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranPublishRequest'
+
+    EditorialQuranPublishRequestListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranPublishRequest'
+
+    QuranPublishRequestInput:
+      type: object
+      properties:
+        note:
+          type: string
+          nullable: true
+
+    QuranPublishDecisionInput:
+      type: object
+      properties:
+        note:
+          type: string
+          nullable: true
+
+    # -----------------------------------------------------------------------
+    # Quran word-by-word + root meanings (Phase 2)
+    # -----------------------------------------------------------------------
+
+    QuranWordFields:
+      type: object
+      description: The editable per-word fields for a version.
+      properties:
+        word:
+          type: string
+          nullable: true
+          description: This version's rendering of the word (surface / transliteration).
+        meaning:
+          type: string
+          nullable: true
+          description: Optional per-word gloss.
+
+    QuranWord:
+      type: object
+      required: [word_index]
+      properties:
+        word_id:
+          type: integer
+          format: int64
+        word_index:
+          type: integer
+          description: 1-based position of the word within its verse.
+        global_index:
+          type: integer
+          nullable: true
+          description: Position across the whole Quran.
+        arabic:
+          type: string
+          nullable: true
+          description: Canonical Arabic surface form (read-only).
+        root:
+          type: string
+          nullable: true
+          description: Canonical Arabic root letters (read-only).
+        draft:
+          allOf:
+            - $ref: '#/components/schemas/QuranWordFields'
+          nullable: true
+          description: This version's draft text for the word, or null.
+        draft_status:
+          type: string
+          nullable: true
+          description: Status of the draft row (draft / published / archived).
+        published:
+          allOf:
+            - $ref: '#/components/schemas/QuranWordFields'
+          nullable: true
+          description: This version's published text for the word, or null.
+        reference:
+          allOf:
+            - $ref: '#/components/schemas/QuranWordFields'
+          nullable: true
+          description: The reference version's per-word text (the rail), or null.
+        root_meaning:
+          type: string
+          nullable: true
+          description: This version's draft meaning for the word's root (broadcast by JOIN).
+        root_meaning_published:
+          type: string
+          nullable: true
+          description: This version's published meaning for the word's root.
+
+    QuranVerseWords:
+      type: object
+      required: [verse_number, words]
+      properties:
+        verse_number:
+          type: integer
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranWord'
+
+    QuranChapterWords:
+      type: object
+      required: [chapter_number, can_write, verses]
+      properties:
+        chapter_number:
+          type: integer
+        can_write:
+          type: boolean
+        reference_version_id:
+          type: integer
+          format: int64
+          nullable: true
+        verses:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranVerseWords'
+
+    EditorialQuranChapterWordsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranChapterWords'
+
+    QuranWordDraftInput:
+      type: object
+      description: >
+        Per-word draft fields to upsert. Omitted fields are treated as null
+        (cleared); send the full intended state.
+      properties:
+        word:
+          type: string
+          nullable: true
+        meaning:
+          type: string
+          nullable: true
+
+    EditorialQuranWordDraftEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranWord'
+
+    QuranRootSummary:
+      type: object
+      required: [root_id, letters, occurrences]
+      properties:
+        root_id:
+          type: integer
+          format: int64
+        letters:
+          type: string
+          description: The Arabic root.
+        occurrences:
+          type: integer
+          description: Corpus-wide occurrence count for this root.
+        meaning_draft:
+          type: string
+          nullable: true
+          description: This version's draft meaning, or null.
+        draft_status:
+          type: string
+          nullable: true
+          description: Status of the draft row (draft / published / archived).
+        meaning_published:
+          type: string
+          nullable: true
+          description: This version's published meaning, or null.
+        reference_meaning:
+          type: string
+          nullable: true
+          description: Canonical English gloss for the root, to translate from.
+
+    EditorialQuranRootListEnvelope:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranRootSummary'
+        total:
+          type: integer
+          description: Total roots matching the filter (for pagination).
+
+    QuranRootMeaningInput:
+      type: object
+      properties:
+        meaning:
+          type: string
+          nullable: true
+
+    EditorialQuranRootMeaningEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranRootSummary'
+
+    QuranRootPublishResult:
+      type: object
+      required: [published]
+      properties:
+        published:
+          type: integer
+          description: Number of root meanings synced to the published table.
+
+    EditorialQuranRootPublishEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranRootPublishResult'
+          description: Optional review note recorded with the decision.
+
+    QuranRectifyReport:
+      type: object
+      description: >
+        Admin diagnostic snapshot. Corpus fields are version-agnostic (whole-corpus
+        health); coverage fields are scoped to the requested version.
+      required:
+        - missing_roots
+        - orphan_roots
+        - words_missing_arabic
+        - total_words
+        - words_with_draft
+        - words_published
+        - total_roots
+        - root_meaning_drafts
+        - root_meanings_published
+      properties:
+        missing_roots:
+          type: integer
+          description: Canonical roots in the corpus but absent from the roots master (repairable via roots sync).
+        orphan_roots:
+          type: integer
+          description: Roots in the master no longer present in the corpus (informational).
+        words_missing_arabic:
+          type: integer
+          description: Canonical words with no Arabic word_text (corpus gap, not editor-fixable).
+        total_words:
+          type: integer
+          description: Total canonical words in the corpus.
+        words_with_draft:
+          type: integer
+          description: Words with a draft for this version.
+        words_published:
+          type: integer
+          description: Words published for this version.
+        total_roots:
+          type: integer
+          description: Total roots in the master.
+        root_meaning_drafts:
+          type: integer
+          description: Root meanings drafted for this version.
+        root_meanings_published:
+          type: integer
+          description: Root meanings published for this version.
+
+    EditorialQuranRectifyReportEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranRectifyReport'
+
+    QuranRootsSyncResult:
+      type: object
+      required: [inserted]
+      properties:
+        inserted:
+          type: integer
+          description: Number of new roots inserted into the master.
+
+    EditorialQuranRootsSyncEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranRootsSyncResult'
+
+    QuranRectifySeedInput:
+      type: object
+      properties:
+        chapter_number:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 114
+          description: Limit word-shell seeding to one chapter. Omit to seed the whole version.
+        seed_roots:
+          type: boolean
+          default: false
+          description: Also create empty root meaning draft shells for every root.
+
+    QuranRectifySeedResult:
+      type: object
+      required: [word_shells_created, root_shells_created]
+      properties:
+        word_shells_created:
+          type: integer
+          description: Empty word draft rows created (existing drafts untouched).
+        root_shells_created:
+          type: integer
+          description: Empty root meaning draft rows created (existing drafts untouched).
+
+    EditorialQuranRectifySeedEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/QuranRectifySeedResult'
+
+    QuranChangelogEntry:
+      type: object
+      required: [id, version_id, action, actor_id, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        version_id:
+          type: integer
+          format: int64
+        chapter_number:
+          type: integer
+          nullable: true
+        verse_number:
+          type: integer
+          nullable: true
+        action:
+          type: string
+          description: >
+            One of verse_draft_saved, chapter_draft_saved, publish_requested,
+            publish_approved, publish_rejected, publish_cancelled, published.
+        actor_id:
+          type: integer
+          format: int64
+        publish_request_id:
+          type: integer
+          format: int64
+          nullable: true
+        detail:
+          type: object
+          additionalProperties: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    EditorialQuranChangelogListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuranChangelogEntry'
 
 
     # -----------------------------------------------------------------------
@@ -4225,6 +6235,18 @@ components:
         The server encountered an unexpected condition that prevented it from
         fulfilling the request. Report the issue to the support team if it
         persists.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message]
+            properties:
+              message:
+                type: string
+    Forbidden:
+      description: >
+        The caller is authenticated but lacks the required editorial
+        permission for this resource.
       content:
         application/json:
           schema:

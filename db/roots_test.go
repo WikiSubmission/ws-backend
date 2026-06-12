@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -148,14 +149,26 @@ func TestRootOccurrences_Pagination(t *testing.T) {
 		t.Errorf("total mismatch between pages: %d vs %d", total1, total2)
 	}
 
-	// page1 and page2 should not overlap (different verse keys)
+	// Occurrences are per-WORD: a root can appear several times in one verse, so
+	// the same verse key legitimately spans pages. Pagination correctness means
+	// no single occurrence (verse + word index) repeats across pages.
 	seen := make(map[string]bool)
 	for _, o := range page1 {
-		seen[o.VerseKey()] = true
+		seen[occurrenceKey(o)] = true
 	}
 	for _, o := range page2 {
-		if seen[o.VerseKey()] {
-			t.Errorf("page2 overlaps with page1 at vk=%s", o.VerseKey())
+		if seen[occurrenceKey(o)] {
+			t.Errorf("page2 overlaps with page1 at occurrence %s", occurrenceKey(o))
 		}
 	}
+}
+
+// occurrenceKey is the unique identity of a single root occurrence: the verse
+// key plus the word index within that verse.
+func occurrenceKey(o OccurrenceRow) string {
+	wi := -1
+	if o.Wi != nil {
+		wi = *o.Wi
+	}
+	return fmt.Sprintf("%s#w%d", o.VerseKey(), wi)
 }

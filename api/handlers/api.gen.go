@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -26,6 +28,48 @@ import (
 const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
+
+// Defines values for ActivityEntryScripture.
+const (
+	ActivityEntryScriptureBible ActivityEntryScripture = "bible"
+	ActivityEntryScriptureQuran ActivityEntryScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the ActivityEntryScripture enum.
+func (e ActivityEntryScripture) Valid() bool {
+	switch e {
+	case ActivityEntryScriptureBible:
+		return true
+	case ActivityEntryScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ActivityKind.
+const (
+	BrowseChapter    ActivityKind = "browse_chapter"
+	BrowseVerse      ActivityKind = "browse_verse"
+	BrowseVerseRange ActivityKind = "browse_verse_range"
+	Search           ActivityKind = "search"
+)
+
+// Valid indicates whether the value is a known member of the ActivityKind enum.
+func (e ActivityKind) Valid() bool {
+	switch e {
+	case BrowseChapter:
+		return true
+	case BrowseVerse:
+		return true
+	case BrowseVerseRange:
+		return true
+	case Search:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for AddCollectionVerseRequestScripture.
 const (
@@ -291,6 +335,36 @@ func (e CreateBookmarkEntryRequestScripture) Valid() bool {
 	}
 }
 
+// Defines values for DeleteContentCategory.
+const (
+	DeleteContentCategoryActivity        DeleteContentCategory = "activity"
+	DeleteContentCategoryBookmarks       DeleteContentCategory = "bookmarks"
+	DeleteContentCategoryCollections     DeleteContentCategory = "collections"
+	DeleteContentCategoryGames           DeleteContentCategory = "games"
+	DeleteContentCategoryNotes           DeleteContentCategory = "notes"
+	DeleteContentCategoryReadingProgress DeleteContentCategory = "reading_progress"
+)
+
+// Valid indicates whether the value is a known member of the DeleteContentCategory enum.
+func (e DeleteContentCategory) Valid() bool {
+	switch e {
+	case DeleteContentCategoryActivity:
+		return true
+	case DeleteContentCategoryBookmarks:
+		return true
+	case DeleteContentCategoryCollections:
+		return true
+	case DeleteContentCategoryGames:
+		return true
+	case DeleteContentCategoryNotes:
+		return true
+	case DeleteContentCategoryReadingProgress:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DerivativeP.
 const (
 	ADJ  DerivativeP = "ADJ"
@@ -540,6 +614,30 @@ func (e PutReadingProgressRequestScripture) Valid() bool {
 	}
 }
 
+// Defines values for QuranPublishStatus.
+const (
+	Approved  QuranPublishStatus = "approved"
+	Cancelled QuranPublishStatus = "cancelled"
+	Pending   QuranPublishStatus = "pending"
+	Rejected  QuranPublishStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the QuranPublishStatus enum.
+func (e QuranPublishStatus) Valid() bool {
+	switch e {
+	case Approved:
+		return true
+	case Cancelled:
+		return true
+	case Pending:
+		return true
+	case Rejected:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReadingProgressScripture.
 const (
 	ReadingProgressScriptureBible ReadingProgressScripture = "bible"
@@ -552,6 +650,24 @@ func (e ReadingProgressScripture) Valid() bool {
 	case ReadingProgressScriptureBible:
 		return true
 	case ReadingProgressScriptureQuran:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RecordActivityRequestScripture.
+const (
+	RecordActivityRequestScriptureBible RecordActivityRequestScripture = "bible"
+	RecordActivityRequestScriptureQuran RecordActivityRequestScripture = "quran"
+)
+
+// Valid indicates whether the value is a known member of the RecordActivityRequestScripture enum.
+func (e RecordActivityRequestScripture) Valid() bool {
+	switch e {
+	case RecordActivityRequestScriptureBible:
+		return true
+	case RecordActivityRequestScriptureQuran:
 		return true
 	default:
 		return false
@@ -789,6 +905,84 @@ func (e UserRole) Valid() bool {
 	case UserRoleEditor:
 		return true
 	case UserRoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserDataDeletionQueuedResponseStatus.
+const (
+	UserDataDeletionQueuedResponseStatusQueued UserDataDeletionQueuedResponseStatus = "queued"
+)
+
+// Valid indicates whether the value is a known member of the UserDataDeletionQueuedResponseStatus enum.
+func (e UserDataDeletionQueuedResponseStatus) Valid() bool {
+	switch e {
+	case UserDataDeletionQueuedResponseStatusQueued:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserDataDeletionStatus.
+const (
+	UserDataDeletionStatusDone    UserDataDeletionStatus = "done"
+	UserDataDeletionStatusFailed  UserDataDeletionStatus = "failed"
+	UserDataDeletionStatusQueued  UserDataDeletionStatus = "queued"
+	UserDataDeletionStatusRunning UserDataDeletionStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the UserDataDeletionStatus enum.
+func (e UserDataDeletionStatus) Valid() bool {
+	switch e {
+	case UserDataDeletionStatusDone:
+		return true
+	case UserDataDeletionStatusFailed:
+		return true
+	case UserDataDeletionStatusQueued:
+		return true
+	case UserDataDeletionStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserDataExportQueuedResponseStatus.
+const (
+	UserDataExportQueuedResponseStatusQueued UserDataExportQueuedResponseStatus = "queued"
+)
+
+// Valid indicates whether the value is a known member of the UserDataExportQueuedResponseStatus enum.
+func (e UserDataExportQueuedResponseStatus) Valid() bool {
+	switch e {
+	case UserDataExportQueuedResponseStatusQueued:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserDataExportStatus.
+const (
+	UserDataExportStatusFailed  UserDataExportStatus = "failed"
+	UserDataExportStatusQueued  UserDataExportStatus = "queued"
+	UserDataExportStatusRunning UserDataExportStatus = "running"
+	UserDataExportStatusSent    UserDataExportStatus = "sent"
+)
+
+// Valid indicates whether the value is a known member of the UserDataExportStatus enum.
+func (e UserDataExportStatus) Valid() bool {
+	switch e {
+	case UserDataExportStatusFailed:
+		return true
+	case UserDataExportStatusQueued:
+		return true
+	case UserDataExportStatusRunning:
+		return true
+	case UserDataExportStatusSent:
 		return true
 	default:
 		return false
@@ -1164,6 +1358,37 @@ func (e SearchParamsScope) Valid() bool {
 	}
 }
 
+// ActivityConsentResponse defines model for ActivityConsentResponse.
+type ActivityConsentResponse struct {
+	Consent bool `json:"consent"`
+}
+
+// ActivityEntry defines model for ActivityEntry.
+type ActivityEntry struct {
+	CreatedAt time.Time              `json:"created_at"`
+	Id        int64                  `json:"id"`
+	Kind      ActivityKind           `json:"kind"`
+	Query     *string                `json:"query,omitempty"`
+	Scripture ActivityEntryScripture `json:"scripture"`
+	VerseKey  *string                `json:"verse_key,omitempty"`
+}
+
+// ActivityEntryScripture defines model for ActivityEntry.Scripture.
+type ActivityEntryScripture string
+
+// ActivityKind defines model for ActivityKind.
+type ActivityKind string
+
+// ActivityListEnvelope defines model for ActivityListEnvelope.
+type ActivityListEnvelope struct {
+	Data []ActivityEntry `json:"data"`
+}
+
+// ActivityStoredResponse defines model for ActivityStoredResponse.
+type ActivityStoredResponse struct {
+	Stored bool `json:"stored"`
+}
+
 // AddCollectionVerseRequest defines model for AddCollectionVerseRequest.
 type AddCollectionVerseRequest struct {
 	Note      *string                            `json:"note,omitempty"`
@@ -1311,6 +1536,18 @@ type BibleVerseData struct {
 
 	// Vn verse_number — 1-based verse number within its chapter.
 	Vn *int `json:"vn,omitempty"`
+}
+
+// BibleVersion defines model for BibleVersion.
+type BibleVersion struct {
+	Authors   *[]VersionAuthor `json:"authors,omitempty"`
+	CreatedAt time.Time        `json:"created_at"`
+	Direction string           `json:"direction"`
+	Id        int64            `json:"id"`
+	LangId    int              `json:"lang_id"`
+	Name      string           `json:"name"`
+	Slug      string           `json:"slug"`
+	UpdatedAt time.Time        `json:"updated_at"`
 }
 
 // Bookmark defines model for Bookmark.
@@ -1588,6 +1825,19 @@ type CreateCollectionRequest struct {
 	Name        string  `json:"name"`
 }
 
+// DeleteContentCategory defines model for DeleteContentCategory.
+type DeleteContentCategory string
+
+// DeleteContentRequest defines model for DeleteContentRequest.
+type DeleteContentRequest struct {
+	Categories []DeleteContentCategory `json:"categories"`
+}
+
+// DeletedCountResponse defines model for DeletedCountResponse.
+type DeletedCountResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
 // Derivative A distinct surface form (token spelling) of a root, with its occurrence count. `tr` is the Latin transliteration of the surface form, sourced from `word_text` rows tagged with the `tl` language (most-common value when multiple readings exist). `en` and `p` (POS) is sourced from `word_text` rows tagged with the `en` language (most-common value when multiple readings exist). `p` (POS) remains reserved for morphology data and is still `null`.
 type Derivative struct {
 	// Ar Surface form (Arabic word as it appears in the corpus).
@@ -1608,6 +1858,120 @@ type Derivative struct {
 
 // DerivativeP Part-of-speech tag (Phase 2; always `null`).
 type DerivativeP string
+
+// EditorialBibleVersionListEnvelope defines model for EditorialBibleVersionListEnvelope.
+type EditorialBibleVersionListEnvelope struct {
+	Data []BibleVersion `json:"data"`
+}
+
+// EditorialQuranChangelogListEnvelope defines model for EditorialQuranChangelogListEnvelope.
+type EditorialQuranChangelogListEnvelope struct {
+	Data []QuranChangelogEntry `json:"data"`
+}
+
+// EditorialQuranChapterDraftEnvelope defines model for EditorialQuranChapterDraftEnvelope.
+type EditorialQuranChapterDraftEnvelope struct {
+	Data struct {
+		ChapterNumber int     `json:"chapter_number"`
+		Title         *string `json:"title,omitempty"`
+	} `json:"data"`
+}
+
+// EditorialQuranChapterEnvelope defines model for EditorialQuranChapterEnvelope.
+type EditorialQuranChapterEnvelope struct {
+	Data QuranChapterEditor `json:"data"`
+}
+
+// EditorialQuranChapterListEnvelope defines model for EditorialQuranChapterListEnvelope.
+type EditorialQuranChapterListEnvelope struct {
+	Data []QuranChapterSummary `json:"data"`
+}
+
+// EditorialQuranChapterWordsEnvelope defines model for EditorialQuranChapterWordsEnvelope.
+type EditorialQuranChapterWordsEnvelope struct {
+	Data QuranChapterWords `json:"data"`
+}
+
+// EditorialQuranPublishRequestEnvelope defines model for EditorialQuranPublishRequestEnvelope.
+type EditorialQuranPublishRequestEnvelope struct {
+	Data QuranPublishRequest `json:"data"`
+}
+
+// EditorialQuranPublishRequestListEnvelope defines model for EditorialQuranPublishRequestListEnvelope.
+type EditorialQuranPublishRequestListEnvelope struct {
+	Data []QuranPublishRequest `json:"data"`
+}
+
+// EditorialQuranRectifyReportEnvelope defines model for EditorialQuranRectifyReportEnvelope.
+type EditorialQuranRectifyReportEnvelope struct {
+	// Data Admin diagnostic snapshot. Corpus fields are version-agnostic (whole-corpus health); coverage fields are scoped to the requested version.
+	Data QuranRectifyReport `json:"data"`
+}
+
+// EditorialQuranRectifySeedEnvelope defines model for EditorialQuranRectifySeedEnvelope.
+type EditorialQuranRectifySeedEnvelope struct {
+	Data QuranRectifySeedResult `json:"data"`
+}
+
+// EditorialQuranRootListEnvelope defines model for EditorialQuranRootListEnvelope.
+type EditorialQuranRootListEnvelope struct {
+	Data []QuranRootSummary `json:"data"`
+
+	// Total Total roots matching the filter (for pagination).
+	Total int `json:"total"`
+}
+
+// EditorialQuranRootMeaningEnvelope defines model for EditorialQuranRootMeaningEnvelope.
+type EditorialQuranRootMeaningEnvelope struct {
+	Data QuranRootSummary `json:"data"`
+}
+
+// EditorialQuranRootPublishEnvelope defines model for EditorialQuranRootPublishEnvelope.
+type EditorialQuranRootPublishEnvelope struct {
+	Data QuranRootPublishResult `json:"data"`
+}
+
+// EditorialQuranRootsSyncEnvelope defines model for EditorialQuranRootsSyncEnvelope.
+type EditorialQuranRootsSyncEnvelope struct {
+	Data QuranRootsSyncResult `json:"data"`
+}
+
+// EditorialQuranVerseDraftEnvelope defines model for EditorialQuranVerseDraftEnvelope.
+type EditorialQuranVerseDraftEnvelope struct {
+	Data QuranVerseDraft `json:"data"`
+}
+
+// EditorialQuranVersionListEnvelope defines model for EditorialQuranVersionListEnvelope.
+type EditorialQuranVersionListEnvelope struct {
+	Data []QuranVersion `json:"data"`
+}
+
+// EditorialQuranWordDraftEnvelope defines model for EditorialQuranWordDraftEnvelope.
+type EditorialQuranWordDraftEnvelope struct {
+	Data QuranWord `json:"data"`
+}
+
+// EditorialSession defines model for EditorialSession.
+type EditorialSession struct {
+	// BibleVersions Bible version id (as string key) mapped to can_write.
+	BibleVersions map[string]bool `json:"bible_versions"`
+	IsAdmin       bool            `json:"is_admin"`
+
+	// Modules Module key (article, quran, ...) mapped to can_write. Presence of a key implies read access.
+	Modules map[string]bool `json:"modules"`
+
+	// QuranApproverVersions Quran version id (as string key) the caller may approve publish requests for. Presence implies approve authority on that version; admins approve every version regardless of this map.
+	QuranApproverVersions   map[string]bool `json:"quran_approver_versions"`
+	QuranReferenceVersionId *int64          `json:"quran_reference_version_id,omitempty"`
+
+	// QuranVersions Quran version id (as string key) mapped to can_write. Presence implies read access.
+	QuranVersions map[string]bool `json:"quran_versions"`
+}
+
+// EditorialSessionEnvelope defines model for EditorialSessionEnvelope.
+type EditorialSessionEnvelope struct {
+	Data EditorialSession `json:"data"`
+}
 
 // GameBlank defines model for GameBlank.
 type GameBlank struct {
@@ -1959,6 +2323,11 @@ type OccurrencesResponse struct {
 	Total int `json:"total"`
 }
 
+// OkResponse defines model for OkResponse.
+type OkResponse struct {
+	Ok bool `json:"ok"`
+}
+
 // PostReadingLogRequest defines model for PostReadingLogRequest.
 type PostReadingLogRequest struct {
 	Day        *openapi_types.Date            `json:"day,omitempty"`
@@ -1972,6 +2341,37 @@ type PostReadingLogRequestScripture string
 // PreferencesEnvelope defines model for PreferencesEnvelope.
 type PreferencesEnvelope struct {
 	Data *map[string]interface{} `json:"data"`
+}
+
+// PushKeys defines model for PushKeys.
+type PushKeys struct {
+	Auth   string `json:"auth"`
+	P256dh string `json:"p256dh"`
+}
+
+// PushSubscribeRequest defines model for PushSubscribeRequest.
+type PushSubscribeRequest struct {
+	Categories *[]string `json:"categories,omitempty"`
+	Endpoint   string    `json:"endpoint"`
+	Keys       PushKeys  `json:"keys"`
+	Locale     *string   `json:"locale,omitempty"`
+	Timezone   *string   `json:"timezone,omitempty"`
+}
+
+// PushSubscribeResponse defines model for PushSubscribeResponse.
+type PushSubscribeResponse struct {
+	Categories []string `json:"categories"`
+	Id         int64    `json:"id"`
+}
+
+// PushTestResponse defines model for PushTestResponse.
+type PushTestResponse struct {
+	Sent int `json:"sent"`
+}
+
+// PushUnsubscribeRequest defines model for PushUnsubscribeRequest.
+type PushUnsubscribeRequest struct {
+	Endpoint string `json:"endpoint"`
 }
 
 // PutPreferencesRequest defines model for PutPreferencesRequest.
@@ -1991,6 +2391,139 @@ type PutReadingProgressRequest struct {
 
 // PutReadingProgressRequestScripture defines model for PutReadingProgressRequest.Scripture.
 type PutReadingProgressRequestScripture string
+
+// QuranChangelogEntry defines model for QuranChangelogEntry.
+type QuranChangelogEntry struct {
+	// Action One of verse_draft_saved, chapter_draft_saved, publish_requested, publish_approved, publish_rejected, publish_cancelled, published.
+	Action           string                  `json:"action"`
+	ActorId          int64                   `json:"actor_id"`
+	ChapterNumber    *int                    `json:"chapter_number,omitempty"`
+	CreatedAt        time.Time               `json:"created_at"`
+	Detail           *map[string]interface{} `json:"detail,omitempty"`
+	Id               int64                   `json:"id"`
+	PublishRequestId *int64                  `json:"publish_request_id,omitempty"`
+	VerseNumber      *int                    `json:"verse_number,omitempty"`
+	VersionId        int64                   `json:"version_id"`
+}
+
+// QuranChapterDraftInput Chapter-title draft to upsert.
+type QuranChapterDraftInput struct {
+	Title *string `json:"title,omitempty"`
+}
+
+// QuranChapterEditor defines model for QuranChapterEditor.
+type QuranChapterEditor struct {
+	// CanWrite Whether the caller may edit this version.
+	CanWrite           bool                 `json:"can_write"`
+	ChapterNumber      int                  `json:"chapter_number"`
+	PendingRequest     *QuranPublishRequest `json:"pending_request,omitempty"`
+	ReferenceVersionId *int64               `json:"reference_version_id,omitempty"`
+	TitleDraft         *string              `json:"title_draft,omitempty"`
+	TitlePublished     *string              `json:"title_published,omitempty"`
+	VerseCount         int                  `json:"verse_count"`
+	Verses             []QuranVerseDraft    `json:"verses"`
+}
+
+// QuranChapterSummary defines model for QuranChapterSummary.
+type QuranChapterSummary struct {
+	ChapterNumber int `json:"chapter_number"`
+
+	// DraftVerseCount Number of verses in this chapter that have a draft.
+	DraftVerseCount int                  `json:"draft_verse_count"`
+	HasTitleDraft   bool                 `json:"has_title_draft"`
+	PendingRequest  *QuranPublishRequest `json:"pending_request,omitempty"`
+
+	// Title Current chapter-title draft, or null if none.
+	Title *string `json:"title,omitempty"`
+
+	// VerseCount Canonical verse count for this chapter.
+	VerseCount int `json:"verse_count"`
+}
+
+// QuranChapterWords defines model for QuranChapterWords.
+type QuranChapterWords struct {
+	CanWrite           bool              `json:"can_write"`
+	ChapterNumber      int               `json:"chapter_number"`
+	ReferenceVersionId *int64            `json:"reference_version_id,omitempty"`
+	Verses             []QuranVerseWords `json:"verses"`
+}
+
+// QuranPublishDecisionInput defines model for QuranPublishDecisionInput.
+type QuranPublishDecisionInput struct {
+	Note *string `json:"note,omitempty"`
+}
+
+// QuranPublishRequest defines model for QuranPublishRequest.
+type QuranPublishRequest struct {
+	ChapterNumber int   `json:"chapter_number"`
+	Id            int64 `json:"id"`
+
+	// Note Optional note from the submitter.
+	Note        *string            `json:"note,omitempty"`
+	RequestedAt time.Time          `json:"requested_at"`
+	RequestedBy int64              `json:"requested_by"`
+	ReviewNote  *string            `json:"review_note,omitempty"`
+	ReviewedAt  *time.Time         `json:"reviewed_at,omitempty"`
+	ReviewedBy  *int64             `json:"reviewed_by,omitempty"`
+	Status      QuranPublishStatus `json:"status"`
+	VersionId   int64              `json:"version_id"`
+}
+
+// QuranPublishRequestInput defines model for QuranPublishRequestInput.
+type QuranPublishRequestInput struct {
+	Note *string `json:"note,omitempty"`
+}
+
+// QuranPublishStatus defines model for QuranPublishStatus.
+type QuranPublishStatus string
+
+// QuranRectifyReport Admin diagnostic snapshot. Corpus fields are version-agnostic (whole-corpus health); coverage fields are scoped to the requested version.
+type QuranRectifyReport struct {
+	// MissingRoots Canonical roots in the corpus but absent from the roots master (repairable via roots sync).
+	MissingRoots int `json:"missing_roots"`
+
+	// OrphanRoots Roots in the master no longer present in the corpus (informational).
+	OrphanRoots int `json:"orphan_roots"`
+
+	// RootMeaningDrafts Root meanings drafted for this version.
+	RootMeaningDrafts int `json:"root_meaning_drafts"`
+
+	// RootMeaningsPublished Root meanings published for this version.
+	RootMeaningsPublished int `json:"root_meanings_published"`
+
+	// TotalRoots Total roots in the master.
+	TotalRoots int `json:"total_roots"`
+
+	// TotalWords Total canonical words in the corpus.
+	TotalWords int `json:"total_words"`
+
+	// WordsMissingArabic Canonical words with no Arabic word_text (corpus gap, not editor-fixable).
+	WordsMissingArabic int `json:"words_missing_arabic"`
+
+	// WordsPublished Words published for this version.
+	WordsPublished int `json:"words_published"`
+
+	// WordsWithDraft Words with a draft for this version.
+	WordsWithDraft int `json:"words_with_draft"`
+}
+
+// QuranRectifySeedInput defines model for QuranRectifySeedInput.
+type QuranRectifySeedInput struct {
+	// ChapterNumber Limit word-shell seeding to one chapter. Omit to seed the whole version.
+	ChapterNumber *int `json:"chapter_number,omitempty"`
+
+	// SeedRoots Also create empty root meaning draft shells for every root.
+	SeedRoots *bool `json:"seed_roots,omitempty"`
+}
+
+// QuranRectifySeedResult defines model for QuranRectifySeedResult.
+type QuranRectifySeedResult struct {
+	// RootShellsCreated Empty root meaning draft rows created (existing drafts untouched).
+	RootShellsCreated int `json:"root_shells_created"`
+
+	// WordShellsCreated Empty word draft rows created (existing drafts untouched).
+	WordShellsCreated int `json:"word_shells_created"`
+}
 
 // QuranResponse Top-level envelope for both `/quran` (reader) and `/search` (FTS) responses. The `info` object describes the query parameters that were resolved; `chapters` contains the matching verses grouped by chapter.
 type QuranResponse struct {
@@ -2031,6 +2564,145 @@ type QuranResponseInfo struct {
 
 	// VerseStart Resolved first verse of the query range (reader only). Defaults to 1 when the param was omitted.
 	VerseStart *int `json:"verse_start,omitempty"`
+}
+
+// QuranRootMeaningInput defines model for QuranRootMeaningInput.
+type QuranRootMeaningInput struct {
+	Meaning *string `json:"meaning,omitempty"`
+}
+
+// QuranRootPublishResult defines model for QuranRootPublishResult.
+type QuranRootPublishResult struct {
+	// Published Number of root meanings synced to the published table.
+	Published int `json:"published"`
+}
+
+// QuranRootSummary defines model for QuranRootSummary.
+type QuranRootSummary struct {
+	// DraftStatus Status of the draft row (draft / published / archived).
+	DraftStatus *string `json:"draft_status,omitempty"`
+
+	// Letters The Arabic root.
+	Letters string `json:"letters"`
+
+	// MeaningDraft This version's draft meaning, or null.
+	MeaningDraft *string `json:"meaning_draft,omitempty"`
+
+	// MeaningPublished This version's published meaning, or null.
+	MeaningPublished *string `json:"meaning_published,omitempty"`
+
+	// Occurrences Corpus-wide occurrence count for this root.
+	Occurrences int `json:"occurrences"`
+
+	// ReferenceMeaning Canonical English gloss for the root, to translate from.
+	ReferenceMeaning *string `json:"reference_meaning,omitempty"`
+	RootId           int64   `json:"root_id"`
+}
+
+// QuranRootsSyncResult defines model for QuranRootsSyncResult.
+type QuranRootsSyncResult struct {
+	// Inserted Number of new roots inserted into the master.
+	Inserted int `json:"inserted"`
+}
+
+// QuranTextFields The editable text fields of a Quran verse.
+type QuranTextFields struct {
+	Content  *string `json:"content,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+}
+
+// QuranVerseDraft defines model for QuranVerseDraft.
+type QuranVerseDraft struct {
+	// Draft Current draft text, or null if no draft saved yet.
+	Draft *QuranTextFields `json:"draft,omitempty"`
+
+	// DraftStatus Status of the draft row, if any.
+	DraftStatus    *QuranPublishStatus `json:"draft_status,omitempty"`
+	DraftUpdatedAt *time.Time          `json:"draft_updated_at,omitempty"`
+
+	// Published Currently published text for this verse, or null.
+	Published *QuranTextFields `json:"published,omitempty"`
+
+	// Reference Published text of the version's reference version for this verse, shown as the translation rail. Null if no reference version is set or it has no published text here.
+	Reference   *QuranTextFields `json:"reference,omitempty"`
+	VerseNumber int              `json:"verse_number"`
+}
+
+// QuranVerseDraftInput Verse draft fields to upsert. Omitted fields are treated as null (cleared); send the full intended state of all three fields.
+type QuranVerseDraftInput struct {
+	Content  *string `json:"content,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+}
+
+// QuranVerseWords defines model for QuranVerseWords.
+type QuranVerseWords struct {
+	VerseNumber int         `json:"verse_number"`
+	Words       []QuranWord `json:"words"`
+}
+
+// QuranVersion defines model for QuranVersion.
+type QuranVersion struct {
+	Authors            *[]VersionAuthor `json:"authors,omitempty"`
+	CreatedAt          time.Time        `json:"created_at"`
+	Direction          string           `json:"direction"`
+	Id                 int64            `json:"id"`
+	IsCanonicalEnglish bool             `json:"is_canonical_english"`
+	LangId             int              `json:"lang_id"`
+	Name               string           `json:"name"`
+	ReferenceVersionId *int64           `json:"reference_version_id,omitempty"`
+	Slug               string           `json:"slug"`
+	UpdatedAt          time.Time        `json:"updated_at"`
+}
+
+// QuranWord defines model for QuranWord.
+type QuranWord struct {
+	// Arabic Canonical Arabic surface form (read-only).
+	Arabic *string `json:"arabic,omitempty"`
+
+	// Draft This version's draft text for the word, or null.
+	Draft *QuranWordFields `json:"draft,omitempty"`
+
+	// DraftStatus Status of the draft row (draft / published / archived).
+	DraftStatus *string `json:"draft_status,omitempty"`
+
+	// GlobalIndex Position across the whole Quran.
+	GlobalIndex *int `json:"global_index,omitempty"`
+
+	// Published This version's published text for the word, or null.
+	Published *QuranWordFields `json:"published,omitempty"`
+
+	// Reference The reference version's per-word text (the rail), or null.
+	Reference *QuranWordFields `json:"reference,omitempty"`
+
+	// Root Canonical Arabic root letters (read-only).
+	Root *string `json:"root,omitempty"`
+
+	// RootMeaning This version's draft meaning for the word's root (broadcast by JOIN).
+	RootMeaning *string `json:"root_meaning,omitempty"`
+
+	// RootMeaningPublished This version's published meaning for the word's root.
+	RootMeaningPublished *string `json:"root_meaning_published,omitempty"`
+	WordId               *int64  `json:"word_id,omitempty"`
+
+	// WordIndex 1-based position of the word within its verse.
+	WordIndex int `json:"word_index"`
+}
+
+// QuranWordDraftInput Per-word draft fields to upsert. Omitted fields are treated as null (cleared); send the full intended state.
+type QuranWordDraftInput struct {
+	Meaning *string `json:"meaning,omitempty"`
+	Word    *string `json:"word,omitempty"`
+}
+
+// QuranWordFields The editable per-word fields for a version.
+type QuranWordFields struct {
+	// Meaning Optional per-word gloss.
+	Meaning *string `json:"meaning,omitempty"`
+
+	// Word This version's rendering of the word (surface / transliteration).
+	Word *string `json:"word,omitempty"`
 }
 
 // ReadingProgress defines model for ReadingProgress.
@@ -2087,6 +2759,27 @@ type ReadingStatsWeekday struct {
 
 	// Weekday ISO weekday (1=Mon … 7=Sun).
 	Weekday int `json:"weekday"`
+}
+
+// ReasonResponse defines model for ReasonResponse.
+type ReasonResponse struct {
+	Reason string `json:"reason"`
+}
+
+// RecordActivityRequest defines model for RecordActivityRequest.
+type RecordActivityRequest struct {
+	Kind      ActivityKind                   `json:"kind"`
+	Query     *string                        `json:"query,omitempty"`
+	Scripture RecordActivityRequestScripture `json:"scripture"`
+	VerseKey  *string                        `json:"verse_key,omitempty"`
+}
+
+// RecordActivityRequestScripture defines model for RecordActivityRequest.Scripture.
+type RecordActivityRequestScripture string
+
+// RetryAfterResponse defines model for RetryAfterResponse.
+type RetryAfterResponse struct {
+	RetryAfterSeconds int64 `json:"retry_after_seconds"`
 }
 
 // RootRecord defines model for RootRecord.
@@ -2164,6 +2857,11 @@ type SearchResultScripture string
 
 // SearchResultSource Origin of this result. Only 'note' is returned here; verse results come from the existing /search endpoints.
 type SearchResultSource string
+
+// SetActivityConsentRequest defines model for SetActivityConsentRequest.
+type SetActivityConsentRequest struct {
+	Consent bool `json:"consent"`
+}
 
 // StartGameVariantRequest defines model for StartGameVariantRequest.
 type StartGameVariantRequest struct {
@@ -2300,6 +2998,63 @@ type User struct {
 // UserRole defines model for User.Role.
 type UserRole string
 
+// UserDataDeletion defines model for UserDataDeletion.
+type UserDataDeletion struct {
+	Categories  []DeleteContentCategory `json:"categories"`
+	CompletedAt *time.Time              `json:"completed_at,omitempty"`
+	Counts      *map[string]int64       `json:"counts,omitempty"`
+	Error       *string                 `json:"error,omitempty"`
+	Id          int64                   `json:"id"`
+	RequestedAt time.Time               `json:"requested_at"`
+	Status      UserDataDeletionStatus  `json:"status"`
+	UserId      int64                   `json:"user_id"`
+}
+
+// UserDataDeletionEnvelope defines model for UserDataDeletionEnvelope.
+type UserDataDeletionEnvelope struct {
+	Data *UserDataDeletion `json:"data"`
+}
+
+// UserDataDeletionQueuedResponse defines model for UserDataDeletionQueuedResponse.
+type UserDataDeletionQueuedResponse struct {
+	Status UserDataDeletionQueuedResponseStatus `json:"status"`
+}
+
+// UserDataDeletionQueuedResponseStatus defines model for UserDataDeletionQueuedResponse.Status.
+type UserDataDeletionQueuedResponseStatus string
+
+// UserDataDeletionStatus defines model for UserDataDeletionStatus.
+type UserDataDeletionStatus string
+
+// UserDataExport defines model for UserDataExport.
+type UserDataExport struct {
+	DownloadUrl *string              `json:"download_url,omitempty"`
+	Error       *string              `json:"error,omitempty"`
+	Id          int64                `json:"id"`
+	ObjectKey   *string              `json:"object_key,omitempty"`
+	RequestedAt time.Time            `json:"requested_at"`
+	SentAt      *time.Time           `json:"sent_at,omitempty"`
+	Status      UserDataExportStatus `json:"status"`
+	UserId      int64                `json:"user_id"`
+}
+
+// UserDataExportEnvelope defines model for UserDataExportEnvelope.
+type UserDataExportEnvelope struct {
+	Data *UserDataExport `json:"data"`
+}
+
+// UserDataExportQueuedResponse defines model for UserDataExportQueuedResponse.
+type UserDataExportQueuedResponse struct {
+	EstimatedMinutes int                                `json:"estimated_minutes"`
+	Status           UserDataExportQueuedResponseStatus `json:"status"`
+}
+
+// UserDataExportQueuedResponseStatus defines model for UserDataExportQueuedResponse.Status.
+type UserDataExportQueuedResponseStatus string
+
+// UserDataExportStatus defines model for UserDataExportStatus.
+type UserDataExportStatus string
+
 // UserEnvelope defines model for UserEnvelope.
 type UserEnvelope struct {
 	Data User `json:"data"`
@@ -2328,6 +3083,12 @@ type VerseData struct {
 	W *[]WordData `json:"w,omitempty"`
 }
 
+// VersionAuthor defines model for VersionAuthor.
+type VersionAuthor struct {
+	Bio  *string `json:"bio,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 // WordData Data for a single Arabic word within a verse. Returned only when `include_words=true`. Fields `r` and `m` require their respective `include_root` / `include_meaning` params to be `true`.
 type WordData struct {
 	// Gi global_index — unique 1-based index of this word across the entire Quran (all chapters, all verses, in reading order).
@@ -2351,6 +3112,24 @@ type WordData struct {
 	// Wi word_index — 0-based position of this word within its verse. The first word of the verse is `wi: 0`.
 	Wi *int `json:"wi,omitempty"`
 }
+
+// EditorialChapterNumberParam defines model for EditorialChapterNumberParam.
+type EditorialChapterNumberParam = int
+
+// EditorialRequestIdParam defines model for EditorialRequestIdParam.
+type EditorialRequestIdParam = int64
+
+// EditorialRootIdParam defines model for EditorialRootIdParam.
+type EditorialRootIdParam = int64
+
+// EditorialVerseNumberParam defines model for EditorialVerseNumberParam.
+type EditorialVerseNumberParam = int
+
+// EditorialVersionIdParam defines model for EditorialVersionIdParam.
+type EditorialVersionIdParam = int64
+
+// EditorialWordIdParam defines model for EditorialWordIdParam.
+type EditorialWordIdParam = int64
 
 // IncludeMeaningParam defines model for IncludeMeaningParam.
 type IncludeMeaningParam = bool
@@ -2379,6 +3158,11 @@ type BadRequest struct {
 
 // Conflict defines model for Conflict.
 type Conflict struct {
+	Message string `json:"message"`
+}
+
+// Forbidden defines model for Forbidden.
+type Forbidden struct {
 	Message string `json:"message"`
 }
 
@@ -2461,6 +3245,31 @@ type GetCommunitiesParams struct {
 // GetCommunitiesParamsKind defines parameters for GetCommunities.
 type GetCommunitiesParamsKind string
 
+// ListEditorialQuranPublishRequestsParams defines parameters for ListEditorialQuranPublishRequests.
+type ListEditorialQuranPublishRequestsParams struct {
+	// Status Filter by request status.
+	Status *QuranPublishStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// VersionId Filter to a single Quran version.
+	VersionId *int64 `form:"version_id,omitempty" json:"version_id,omitempty"`
+}
+
+// ListEditorialQuranChapterChangelogParams defines parameters for ListEditorialQuranChapterChangelog.
+type ListEditorialQuranChapterChangelogParams struct {
+	// Limit Maximum entries to return (default 50, max 200).
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListEditorialQuranRootsParams defines parameters for ListEditorialQuranRoots.
+type ListEditorialQuranRootsParams struct {
+	// Q Arabic root prefix filter.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Limit Maximum roots to return (default 50, max 200).
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetGameFillBlankLeaderboardParams defines parameters for GetGameFillBlankLeaderboard.
 type GetGameFillBlankLeaderboardParams struct {
 	Scope      GetGameFillBlankLeaderboardParamsScope       `form:"scope" json:"scope"`
@@ -2488,6 +3297,12 @@ type ListGameFillBlankPassagesParams struct {
 
 // ListGameFillBlankPassagesParamsLanguage defines parameters for ListGameFillBlankPassages.
 type ListGameFillBlankPassagesParamsLanguage string
+
+// ListMeActivityParams defines parameters for ListMeActivity.
+type ListMeActivityParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
 
 // GetMeCoverToCoverParams defines parameters for GetMeCoverToCover.
 type GetMeCoverToCoverParams struct {
@@ -2712,11 +3527,41 @@ type ListUsersAdminParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ApproveEditorialQuranPublishRequestJSONRequestBody defines body for ApproveEditorialQuranPublishRequest for application/json ContentType.
+type ApproveEditorialQuranPublishRequestJSONRequestBody = QuranPublishDecisionInput
+
+// RejectEditorialQuranPublishRequestJSONRequestBody defines body for RejectEditorialQuranPublishRequest for application/json ContentType.
+type RejectEditorialQuranPublishRequestJSONRequestBody = QuranPublishDecisionInput
+
+// UpsertEditorialQuranChapterDraftJSONRequestBody defines body for UpsertEditorialQuranChapterDraft for application/json ContentType.
+type UpsertEditorialQuranChapterDraftJSONRequestBody = QuranChapterDraftInput
+
+// CreateEditorialQuranPublishRequestJSONRequestBody defines body for CreateEditorialQuranPublishRequest for application/json ContentType.
+type CreateEditorialQuranPublishRequestJSONRequestBody = QuranPublishRequestInput
+
+// UpsertEditorialQuranVerseDraftJSONRequestBody defines body for UpsertEditorialQuranVerseDraft for application/json ContentType.
+type UpsertEditorialQuranVerseDraftJSONRequestBody = QuranVerseDraftInput
+
+// SeedEditorialQuranDraftShellsJSONRequestBody defines body for SeedEditorialQuranDraftShells for application/json ContentType.
+type SeedEditorialQuranDraftShellsJSONRequestBody = QuranRectifySeedInput
+
+// PublishEditorialQuranRootMeaningsJSONRequestBody defines body for PublishEditorialQuranRootMeanings for application/json ContentType.
+type PublishEditorialQuranRootMeaningsJSONRequestBody = QuranPublishDecisionInput
+
+// UpsertEditorialQuranRootMeaningJSONRequestBody defines body for UpsertEditorialQuranRootMeaning for application/json ContentType.
+type UpsertEditorialQuranRootMeaningJSONRequestBody = QuranRootMeaningInput
+
+// UpsertEditorialQuranWordDraftJSONRequestBody defines body for UpsertEditorialQuranWordDraft for application/json ContentType.
+type UpsertEditorialQuranWordDraftJSONRequestBody = QuranWordDraftInput
+
 // SubmitGameFillBlankAttemptJSONRequestBody defines body for SubmitGameFillBlankAttempt for application/json ContentType.
 type SubmitGameFillBlankAttemptJSONRequestBody = SubmitGameAttemptRequest
 
 // StartGameFillBlankVariantJSONRequestBody defines body for StartGameFillBlankVariant for application/json ContentType.
 type StartGameFillBlankVariantJSONRequestBody = StartGameVariantRequest
+
+// RecordMeActivityJSONRequestBody defines body for RecordMeActivity for application/json ContentType.
+type RecordMeActivityJSONRequestBody = RecordActivityRequest
 
 // CreateMeBookmarkCategoryJSONRequestBody defines body for CreateMeBookmarkCategory for application/json ContentType.
 type CreateMeBookmarkCategoryJSONRequestBody = CreateBookmarkCategoryRequest
@@ -2739,14 +3584,26 @@ type UpdateMeCollectionJSONRequestBody = UpdateCollectionRequest
 // AddVerseToMeCollectionJSONRequestBody defines body for AddVerseToMeCollection for application/json ContentType.
 type AddVerseToMeCollectionJSONRequestBody = AddCollectionVerseRequest
 
+// SetMeActivityConsentJSONRequestBody defines body for SetMeActivityConsent for application/json ContentType.
+type SetMeActivityConsentJSONRequestBody = SetActivityConsentRequest
+
 // PutMeCoverToCoverJSONRequestBody defines body for PutMeCoverToCover for application/json ContentType.
 type PutMeCoverToCoverJSONRequestBody = CoverToCoverRequest
+
+// RequestMeContentDeletionJSONRequestBody defines body for RequestMeContentDeletion for application/json ContentType.
+type RequestMeContentDeletionJSONRequestBody = DeleteContentRequest
 
 // UpsertMeNoteJSONRequestBody defines body for UpsertMeNote for application/json ContentType.
 type UpsertMeNoteJSONRequestBody = UpsertNoteRequest
 
 // PutMePreferencesJSONRequestBody defines body for PutMePreferences for application/json ContentType.
 type PutMePreferencesJSONRequestBody = PutPreferencesRequest
+
+// UnsubscribeMePushJSONRequestBody defines body for UnsubscribeMePush for application/json ContentType.
+type UnsubscribeMePushJSONRequestBody = PushUnsubscribeRequest
+
+// SubscribeMePushJSONRequestBody defines body for SubscribeMePush for application/json ContentType.
+type SubscribeMePushJSONRequestBody = PushSubscribeRequest
 
 // PostMeReadingLogJSONRequestBody defines body for PostMeReadingLog for application/json ContentType.
 type PostMeReadingLogJSONRequestBody = PostReadingLogRequest
@@ -2780,6 +3637,69 @@ type ServerInterface interface {
 	// List communities (online and physical)
 	// (GET /communities)
 	GetCommunities(c *gin.Context, params GetCommunitiesParams)
+	// List the Bible version registry (editorial)
+	// (GET /editorial/bible-versions)
+	ListEditorialBibleVersions(c *gin.Context)
+	// List the Quran version registry (editorial)
+	// (GET /editorial/quran-versions)
+	ListEditorialQuranVersions(c *gin.Context)
+	// List Quran publish requests (pending-approvals queue)
+	// (GET /editorial/quran/publish-requests)
+	ListEditorialQuranPublishRequests(c *gin.Context, params ListEditorialQuranPublishRequestsParams)
+	// Approve a publish request and sync the chapter
+	// (POST /editorial/quran/publish-requests/{requestId}/approve)
+	ApproveEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Cancel an open publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/cancel)
+	CancelEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Reject a publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/reject)
+	RejectEditorialQuranPublishRequest(c *gin.Context, requestId EditorialRequestIdParam)
+	// Sync the roots master from the canonical corpus (admin)
+	// (POST /editorial/quran/rectify/roots)
+	SyncEditorialQuranRoots(c *gin.Context)
+	// Chapter navigation and progress for a Quran version
+	// (GET /editorial/quran/versions/{versionId}/chapters)
+	ListEditorialQuranChapters(c *gin.Context, versionId EditorialVersionIdParam)
+	// Chapter editor payload (drafts, published, reference rail)
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	GetEditorialQuranChapter(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Save the chapter-title draft
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	UpsertEditorialQuranChapterDraft(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Recent editorial changelog for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/changelog)
+	ListEditorialQuranChapterChangelog(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, params ListEditorialQuranChapterChangelogParams)
+	// Submit a chapter for publishing
+	// (POST /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/publish-request)
+	CreateEditorialQuranPublishRequest(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Save a verse draft (subtitle / content / footer)
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/verses/{verseNumber})
+	UpsertEditorialQuranVerseDraft(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, verseNumber EditorialVerseNumberParam)
+	// Word-by-word editing surface for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/words)
+	GetEditorialQuranChapterWords(c *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam)
+	// Quran integrity and coverage report for a version (admin)
+	// (GET /editorial/quran/versions/{versionId}/rectify)
+	GetEditorialQuranRectifyReport(c *gin.Context, versionId EditorialVersionIdParam)
+	// Pre-seed empty draft shells for a version (admin)
+	// (POST /editorial/quran/versions/{versionId}/rectify/seed)
+	SeedEditorialQuranDraftShells(c *gin.Context, versionId EditorialVersionIdParam)
+	// Root meanings for a version (Root Book)
+	// (GET /editorial/quran/versions/{versionId}/roots)
+	ListEditorialQuranRoots(c *gin.Context, versionId EditorialVersionIdParam, params ListEditorialQuranRootsParams)
+	// Publish all pending root meaning drafts for a version
+	// (POST /editorial/quran/versions/{versionId}/roots/publish)
+	PublishEditorialQuranRootMeanings(c *gin.Context, versionId EditorialVersionIdParam)
+	// Save a root meaning draft (broadcasts by JOIN)
+	// (PUT /editorial/quran/versions/{versionId}/roots/{rootId})
+	UpsertEditorialQuranRootMeaning(c *gin.Context, versionId EditorialVersionIdParam, rootId EditorialRootIdParam)
+	// Save a per-word draft (text / gloss)
+	// (PUT /editorial/quran/versions/{versionId}/words/{wordId})
+	UpsertEditorialQuranWordDraft(c *gin.Context, versionId EditorialVersionIdParam, wordId EditorialWordIdParam)
+	// Resolved editorial permissions for the current user
+	// (GET /editorial/session)
+	GetEditorialSession(c *gin.Context)
 	// Get global, weekly, or per-variant leaderboard
 	// (GET /games/fill-blank/leaderboard)
 	GetGameFillBlankLeaderboard(c *gin.Context, params GetGameFillBlankLeaderboardParams)
@@ -2795,6 +3715,15 @@ type ServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(c *gin.Context)
+	// Clear current user's activity feed
+	// (DELETE /me/activity)
+	ClearMeActivity(c *gin.Context)
+	// List current user's recent activity
+	// (GET /me/activity)
+	ListMeActivity(c *gin.Context, params ListMeActivityParams)
+	// Record one activity event when consent is enabled
+	// (POST /me/activity)
+	RecordMeActivity(c *gin.Context)
 	// List current user's bookmark categories
 	// (GET /me/bookmark-categories)
 	ListMeBookmarkCategories(c *gin.Context)
@@ -2843,12 +3772,30 @@ type ServerInterface interface {
 	// Remove a verse from a collection
 	// (DELETE /me/collections/{id}/verses/{verseId})
 	RemoveVerseFromMeCollection(c *gin.Context, id int64, verseId int64)
+	// Get activity recording consent
+	// (GET /me/consent)
+	GetMeActivityConsent(c *gin.Context)
+	// Set activity recording consent
+	// (PUT /me/consent)
+	SetMeActivityConsent(c *gin.Context)
 	// Get cover-to-cover bookmark for a scripture
 	// (GET /me/cover-to-cover)
 	GetMeCoverToCover(c *gin.Context, params GetMeCoverToCoverParams)
 	// Upsert cover-to-cover bookmark
 	// (PUT /me/cover-to-cover)
 	PutMeCoverToCover(c *gin.Context)
+	// Queue deletion of selected user content categories
+	// (POST /me/delete-content)
+	RequestMeContentDeletion(c *gin.Context)
+	// Get latest user data deletion status
+	// (GET /me/delete-content/status)
+	GetMeContentDeletionStatus(c *gin.Context)
+	// Queue a user data export
+	// (POST /me/export)
+	RequestMeExport(c *gin.Context)
+	// Get latest user data export status
+	// (GET /me/export/status)
+	GetMeExportStatus(c *gin.Context)
 	// List current user's game attempts (newest first)
 	// (GET /me/games/history)
 	ListMeGameHistory(c *gin.Context, params ListMeGameHistoryParams)
@@ -2870,6 +3817,15 @@ type ServerInterface interface {
 	// Upsert per-scripture preferences
 	// (PUT /me/preferences)
 	PutMePreferences(c *gin.Context)
+	// Remove one browser push endpoint
+	// (DELETE /me/push/subscribe)
+	UnsubscribeMePush(c *gin.Context)
+	// Subscribe or refresh a browser push endpoint
+	// (POST /me/push/subscribe)
+	SubscribeMePush(c *gin.Context)
+	// Send a test push notification to current user's endpoints
+	// (POST /me/push/test)
+	SendMePushTest(c *gin.Context)
 	// Increment daily reading log
 	// (POST /me/reading-log)
 	PostMeReadingLog(c *gin.Context)
@@ -3213,6 +4169,637 @@ func (siw *ServerInterfaceWrapper) GetCommunities(c *gin.Context) {
 	siw.Handler.GetCommunities(c, params)
 }
 
+// ListEditorialBibleVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialBibleVersions(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialBibleVersions(c)
+}
+
+// ListEditorialQuranVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranVersions(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranVersions(c)
+}
+
+// ListEditorialQuranPublishRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranPublishRequests(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEditorialQuranPublishRequestsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", c.Request.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "version_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "version_id", c.Request.URL.Query(), &params.VersionId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter version_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranPublishRequests(c, params)
+}
+
+// ApproveEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) ApproveEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ApproveEditorialQuranPublishRequest(c, requestId)
+}
+
+// CancelEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) CancelEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CancelEditorialQuranPublishRequest(c, requestId)
+}
+
+// RejectEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) RejectEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId EditorialRequestIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", c.Param("requestId"), &requestId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter requestId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RejectEditorialQuranPublishRequest(c, requestId)
+}
+
+// SyncEditorialQuranRoots operation middleware
+func (siw *ServerInterfaceWrapper) SyncEditorialQuranRoots(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SyncEditorialQuranRoots(c)
+}
+
+// ListEditorialQuranChapters operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranChapters(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranChapters(c, versionId)
+}
+
+// GetEditorialQuranChapter operation middleware
+func (siw *ServerInterfaceWrapper) GetEditorialQuranChapter(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetEditorialQuranChapter(c, versionId, chapterNumber)
+}
+
+// UpsertEditorialQuranChapterDraft operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranChapterDraft(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranChapterDraft(c, versionId, chapterNumber)
+}
+
+// ListEditorialQuranChapterChangelog operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranChapterChangelog(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEditorialQuranChapterChangelogParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranChapterChangelog(c, versionId, chapterNumber, params)
+}
+
+// CreateEditorialQuranPublishRequest operation middleware
+func (siw *ServerInterfaceWrapper) CreateEditorialQuranPublishRequest(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateEditorialQuranPublishRequest(c, versionId, chapterNumber)
+}
+
+// UpsertEditorialQuranVerseDraft operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranVerseDraft(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "verseNumber" -------------
+	var verseNumber EditorialVerseNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "verseNumber", c.Param("verseNumber"), &verseNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter verseNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranVerseDraft(c, versionId, chapterNumber, verseNumber)
+}
+
+// GetEditorialQuranChapterWords operation middleware
+func (siw *ServerInterfaceWrapper) GetEditorialQuranChapterWords(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "chapterNumber" -------------
+	var chapterNumber EditorialChapterNumberParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "chapterNumber", c.Param("chapterNumber"), &chapterNumber, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter chapterNumber: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetEditorialQuranChapterWords(c, versionId, chapterNumber)
+}
+
+// GetEditorialQuranRectifyReport operation middleware
+func (siw *ServerInterfaceWrapper) GetEditorialQuranRectifyReport(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetEditorialQuranRectifyReport(c, versionId)
+}
+
+// SeedEditorialQuranDraftShells operation middleware
+func (siw *ServerInterfaceWrapper) SeedEditorialQuranDraftShells(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SeedEditorialQuranDraftShells(c, versionId)
+}
+
+// ListEditorialQuranRoots operation middleware
+func (siw *ServerInterfaceWrapper) ListEditorialQuranRoots(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEditorialQuranRootsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListEditorialQuranRoots(c, versionId, params)
+}
+
+// PublishEditorialQuranRootMeanings operation middleware
+func (siw *ServerInterfaceWrapper) PublishEditorialQuranRootMeanings(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PublishEditorialQuranRootMeanings(c, versionId)
+}
+
+// UpsertEditorialQuranRootMeaning operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranRootMeaning(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "rootId" -------------
+	var rootId EditorialRootIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rootId", c.Param("rootId"), &rootId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter rootId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranRootMeaning(c, versionId, rootId)
+}
+
+// UpsertEditorialQuranWordDraft operation middleware
+func (siw *ServerInterfaceWrapper) UpsertEditorialQuranWordDraft(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId EditorialVersionIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", c.Param("versionId"), &versionId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter versionId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "wordId" -------------
+	var wordId EditorialWordIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "wordId", c.Param("wordId"), &wordId, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter wordId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpsertEditorialQuranWordDraft(c, versionId, wordId)
+}
+
+// GetEditorialSession operation middleware
+func (siw *ServerInterfaceWrapper) GetEditorialSession(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetEditorialSession(c)
+}
+
 // GetGameFillBlankLeaderboard operation middleware
 func (siw *ServerInterfaceWrapper) GetGameFillBlankLeaderboard(c *gin.Context) {
 
@@ -3365,6 +4952,72 @@ func (siw *ServerInterfaceWrapper) GetLanguages(c *gin.Context) {
 	}
 
 	siw.Handler.GetLanguages(c)
+}
+
+// ClearMeActivity operation middleware
+func (siw *ServerInterfaceWrapper) ClearMeActivity(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ClearMeActivity(c)
+}
+
+// ListMeActivity operation middleware
+func (siw *ServerInterfaceWrapper) ListMeActivity(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMeActivityParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListMeActivity(c, params)
+}
+
+// RecordMeActivity operation middleware
+func (siw *ServerInterfaceWrapper) RecordMeActivity(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RecordMeActivity(c)
 }
 
 // ListMeBookmarkCategories operation middleware
@@ -3726,6 +5379,36 @@ func (siw *ServerInterfaceWrapper) RemoveVerseFromMeCollection(c *gin.Context) {
 	siw.Handler.RemoveVerseFromMeCollection(c, id, verseId)
 }
 
+// GetMeActivityConsent operation middleware
+func (siw *ServerInterfaceWrapper) GetMeActivityConsent(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeActivityConsent(c)
+}
+
+// SetMeActivityConsent operation middleware
+func (siw *ServerInterfaceWrapper) SetMeActivityConsent(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SetMeActivityConsent(c)
+}
+
 // GetMeCoverToCover operation middleware
 func (siw *ServerInterfaceWrapper) GetMeCoverToCover(c *gin.Context) {
 
@@ -3767,6 +5450,66 @@ func (siw *ServerInterfaceWrapper) PutMeCoverToCover(c *gin.Context) {
 	}
 
 	siw.Handler.PutMeCoverToCover(c)
+}
+
+// RequestMeContentDeletion operation middleware
+func (siw *ServerInterfaceWrapper) RequestMeContentDeletion(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RequestMeContentDeletion(c)
+}
+
+// GetMeContentDeletionStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetMeContentDeletionStatus(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeContentDeletionStatus(c)
+}
+
+// RequestMeExport operation middleware
+func (siw *ServerInterfaceWrapper) RequestMeExport(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RequestMeExport(c)
+}
+
+// GetMeExportStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetMeExportStatus(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeExportStatus(c)
 }
 
 // ListMeGameHistory operation middleware
@@ -3938,6 +5681,51 @@ func (siw *ServerInterfaceWrapper) PutMePreferences(c *gin.Context) {
 	}
 
 	siw.Handler.PutMePreferences(c)
+}
+
+// UnsubscribeMePush operation middleware
+func (siw *ServerInterfaceWrapper) UnsubscribeMePush(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UnsubscribeMePush(c)
+}
+
+// SubscribeMePush operation middleware
+func (siw *ServerInterfaceWrapper) SubscribeMePush(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SubscribeMePush(c)
+}
+
+// SendMePushTest operation middleware
+func (siw *ServerInterfaceWrapper) SendMePushTest(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.SendMePushTest(c)
 }
 
 // PostMeReadingLog operation middleware
@@ -4705,11 +6493,35 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/chapters", wrapper.GetChapters)
 	router.GET(options.BaseURL+"/collections/share/:token", wrapper.GetSharedCollection)
 	router.GET(options.BaseURL+"/communities", wrapper.GetCommunities)
+	router.GET(options.BaseURL+"/editorial/bible-versions", wrapper.ListEditorialBibleVersions)
+	router.GET(options.BaseURL+"/editorial/quran-versions", wrapper.ListEditorialQuranVersions)
+	router.GET(options.BaseURL+"/editorial/quran/publish-requests", wrapper.ListEditorialQuranPublishRequests)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/approve", wrapper.ApproveEditorialQuranPublishRequest)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/cancel", wrapper.CancelEditorialQuranPublishRequest)
+	router.POST(options.BaseURL+"/editorial/quran/publish-requests/:requestId/reject", wrapper.RejectEditorialQuranPublishRequest)
+	router.POST(options.BaseURL+"/editorial/quran/rectify/roots", wrapper.SyncEditorialQuranRoots)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters", wrapper.ListEditorialQuranChapters)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber", wrapper.GetEditorialQuranChapter)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber", wrapper.UpsertEditorialQuranChapterDraft)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/changelog", wrapper.ListEditorialQuranChapterChangelog)
+	router.POST(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/publish-request", wrapper.CreateEditorialQuranPublishRequest)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/verses/:verseNumber", wrapper.UpsertEditorialQuranVerseDraft)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/chapters/:chapterNumber/words", wrapper.GetEditorialQuranChapterWords)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/rectify", wrapper.GetEditorialQuranRectifyReport)
+	router.POST(options.BaseURL+"/editorial/quran/versions/:versionId/rectify/seed", wrapper.SeedEditorialQuranDraftShells)
+	router.GET(options.BaseURL+"/editorial/quran/versions/:versionId/roots", wrapper.ListEditorialQuranRoots)
+	router.POST(options.BaseURL+"/editorial/quran/versions/:versionId/roots/publish", wrapper.PublishEditorialQuranRootMeanings)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/roots/:rootId", wrapper.UpsertEditorialQuranRootMeaning)
+	router.PUT(options.BaseURL+"/editorial/quran/versions/:versionId/words/:wordId", wrapper.UpsertEditorialQuranWordDraft)
+	router.GET(options.BaseURL+"/editorial/session", wrapper.GetEditorialSession)
 	router.GET(options.BaseURL+"/games/fill-blank/leaderboard", wrapper.GetGameFillBlankLeaderboard)
 	router.GET(options.BaseURL+"/games/fill-blank/passages", wrapper.ListGameFillBlankPassages)
 	router.POST(options.BaseURL+"/games/fill-blank/submit", wrapper.SubmitGameFillBlankAttempt)
 	router.POST(options.BaseURL+"/games/fill-blank/variants", wrapper.StartGameFillBlankVariant)
 	router.GET(options.BaseURL+"/languages", wrapper.GetLanguages)
+	router.DELETE(options.BaseURL+"/me/activity", wrapper.ClearMeActivity)
+	router.GET(options.BaseURL+"/me/activity", wrapper.ListMeActivity)
+	router.POST(options.BaseURL+"/me/activity", wrapper.RecordMeActivity)
 	router.GET(options.BaseURL+"/me/bookmark-categories", wrapper.ListMeBookmarkCategories)
 	router.POST(options.BaseURL+"/me/bookmark-categories", wrapper.CreateMeBookmarkCategory)
 	router.DELETE(options.BaseURL+"/me/bookmark-categories/:id", wrapper.DeleteMeBookmarkCategory)
@@ -4726,8 +6538,14 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PATCH(options.BaseURL+"/me/collections/:id", wrapper.UpdateMeCollection)
 	router.POST(options.BaseURL+"/me/collections/:id/verses", wrapper.AddVerseToMeCollection)
 	router.DELETE(options.BaseURL+"/me/collections/:id/verses/:verseId", wrapper.RemoveVerseFromMeCollection)
+	router.GET(options.BaseURL+"/me/consent", wrapper.GetMeActivityConsent)
+	router.PUT(options.BaseURL+"/me/consent", wrapper.SetMeActivityConsent)
 	router.GET(options.BaseURL+"/me/cover-to-cover", wrapper.GetMeCoverToCover)
 	router.PUT(options.BaseURL+"/me/cover-to-cover", wrapper.PutMeCoverToCover)
+	router.POST(options.BaseURL+"/me/delete-content", wrapper.RequestMeContentDeletion)
+	router.GET(options.BaseURL+"/me/delete-content/status", wrapper.GetMeContentDeletionStatus)
+	router.POST(options.BaseURL+"/me/export", wrapper.RequestMeExport)
+	router.GET(options.BaseURL+"/me/export/status", wrapper.GetMeExportStatus)
 	router.GET(options.BaseURL+"/me/games/history", wrapper.ListMeGameHistory)
 	router.GET(options.BaseURL+"/me/games/stats", wrapper.GetMeGameStats)
 	router.GET(options.BaseURL+"/me/notes", wrapper.GetMeNotes)
@@ -4735,6 +6553,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/me/notes/:id", wrapper.DeleteMeNote)
 	router.GET(options.BaseURL+"/me/preferences", wrapper.GetMePreferences)
 	router.PUT(options.BaseURL+"/me/preferences", wrapper.PutMePreferences)
+	router.DELETE(options.BaseURL+"/me/push/subscribe", wrapper.UnsubscribeMePush)
+	router.POST(options.BaseURL+"/me/push/subscribe", wrapper.SubscribeMePush)
+	router.POST(options.BaseURL+"/me/push/test", wrapper.SendMePushTest)
 	router.POST(options.BaseURL+"/me/reading-log", wrapper.PostMeReadingLog)
 	router.GET(options.BaseURL+"/me/reading-progress", wrapper.GetMeReadingProgress)
 	router.PUT(options.BaseURL+"/me/reading-progress", wrapper.PutMeReadingProgress)
@@ -4765,6 +6586,10 @@ type BadRequestJSONResponse struct {
 }
 
 type ConflictJSONResponse struct {
+	Message string `json:"message"`
+}
+
+type ForbiddenJSONResponse struct {
 	Message string `json:"message"`
 }
 
@@ -5097,6 +6922,1033 @@ func (response GetCommunities502JSONResponse) VisitGetCommunitiesResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListEditorialBibleVersionsRequestObject struct {
+}
+
+type ListEditorialBibleVersionsResponseObject interface {
+	VisitListEditorialBibleVersionsResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialBibleVersions200JSONResponse EditorialBibleVersionListEnvelope
+
+func (response ListEditorialBibleVersions200JSONResponse) VisitListEditorialBibleVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialBibleVersions403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialBibleVersions403JSONResponse) VisitListEditorialBibleVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialBibleVersions500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialBibleVersions500JSONResponse) VisitListEditorialBibleVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranVersionsRequestObject struct {
+}
+
+type ListEditorialQuranVersionsResponseObject interface {
+	VisitListEditorialQuranVersionsResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranVersions200JSONResponse EditorialQuranVersionListEnvelope
+
+func (response ListEditorialQuranVersions200JSONResponse) VisitListEditorialQuranVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranVersions403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranVersions403JSONResponse) VisitListEditorialQuranVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranVersions500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranVersions500JSONResponse) VisitListEditorialQuranVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequestsRequestObject struct {
+	Params ListEditorialQuranPublishRequestsParams
+}
+
+type ListEditorialQuranPublishRequestsResponseObject interface {
+	VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranPublishRequests200JSONResponse EditorialQuranPublishRequestListEnvelope
+
+func (response ListEditorialQuranPublishRequests200JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequests403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranPublishRequests403JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranPublishRequests500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranPublishRequests500JSONResponse) VisitListEditorialQuranPublishRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+	Body      *ApproveEditorialQuranPublishRequestJSONRequestBody
+}
+
+type ApproveEditorialQuranPublishRequestResponseObject interface {
+	VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type ApproveEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response ApproveEditorialQuranPublishRequest200JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest403JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest404JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response ApproveEditorialQuranPublishRequest409JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApproveEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ApproveEditorialQuranPublishRequest500JSONResponse) VisitApproveEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+}
+
+type CancelEditorialQuranPublishRequestResponseObject interface {
+	VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type CancelEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response CancelEditorialQuranPublishRequest200JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest403JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest404JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CancelEditorialQuranPublishRequest409JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CancelEditorialQuranPublishRequest500JSONResponse) VisitCancelEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequestRequestObject struct {
+	RequestId EditorialRequestIdParam `json:"requestId"`
+	Body      *RejectEditorialQuranPublishRequestJSONRequestBody
+}
+
+type RejectEditorialQuranPublishRequestResponseObject interface {
+	VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type RejectEditorialQuranPublishRequest200JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response RejectEditorialQuranPublishRequest200JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest403JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest404JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response RejectEditorialQuranPublishRequest409JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RejectEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RejectEditorialQuranPublishRequest500JSONResponse) VisitRejectEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SyncEditorialQuranRootsRequestObject struct {
+}
+
+type SyncEditorialQuranRootsResponseObject interface {
+	VisitSyncEditorialQuranRootsResponse(w http.ResponseWriter) error
+}
+
+type SyncEditorialQuranRoots200JSONResponse EditorialQuranRootsSyncEnvelope
+
+func (response SyncEditorialQuranRoots200JSONResponse) VisitSyncEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SyncEditorialQuranRoots403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SyncEditorialQuranRoots403JSONResponse) VisitSyncEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SyncEditorialQuranRoots500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SyncEditorialQuranRoots500JSONResponse) VisitSyncEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChaptersRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+}
+
+type ListEditorialQuranChaptersResponseObject interface {
+	VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranChapters200JSONResponse EditorialQuranChapterListEnvelope
+
+func (response ListEditorialQuranChapters200JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranChapters403JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListEditorialQuranChapters404JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapters500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranChapters500JSONResponse) VisitListEditorialQuranChaptersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+}
+
+type GetEditorialQuranChapterResponseObject interface {
+	VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error
+}
+
+type GetEditorialQuranChapter200JSONResponse EditorialQuranChapterEnvelope
+
+func (response GetEditorialQuranChapter200JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetEditorialQuranChapter403JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetEditorialQuranChapter404JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapter500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetEditorialQuranChapter500JSONResponse) VisitGetEditorialQuranChapterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraftRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Body          *UpsertEditorialQuranChapterDraftJSONRequestBody
+}
+
+type UpsertEditorialQuranChapterDraftResponseObject interface {
+	VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranChapterDraft200JSONResponse EditorialQuranChapterDraftEnvelope
+
+func (response UpsertEditorialQuranChapterDraft200JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft400JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft403JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranChapterDraft404JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranChapterDraft500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranChapterDraft500JSONResponse) VisitUpsertEditorialQuranChapterDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelogRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Params        ListEditorialQuranChapterChangelogParams
+}
+
+type ListEditorialQuranChapterChangelogResponseObject interface {
+	VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranChapterChangelog200JSONResponse EditorialQuranChangelogListEnvelope
+
+func (response ListEditorialQuranChapterChangelog200JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranChapterChangelog403JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListEditorialQuranChapterChangelog404JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranChapterChangelog500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranChapterChangelog500JSONResponse) VisitListEditorialQuranChapterChangelogResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequestRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	Body          *CreateEditorialQuranPublishRequestJSONRequestBody
+}
+
+type CreateEditorialQuranPublishRequestResponseObject interface {
+	VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error
+}
+
+type CreateEditorialQuranPublishRequest201JSONResponse EditorialQuranPublishRequestEnvelope
+
+func (response CreateEditorialQuranPublishRequest201JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest400JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest403JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest404JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CreateEditorialQuranPublishRequest409JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateEditorialQuranPublishRequest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response CreateEditorialQuranPublishRequest500JSONResponse) VisitCreateEditorialQuranPublishRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraftRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+	VerseNumber   EditorialVerseNumberParam   `json:"verseNumber"`
+	Body          *UpsertEditorialQuranVerseDraftJSONRequestBody
+}
+
+type UpsertEditorialQuranVerseDraftResponseObject interface {
+	VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranVerseDraft200JSONResponse EditorialQuranVerseDraftEnvelope
+
+func (response UpsertEditorialQuranVerseDraft200JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft400JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft403JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranVerseDraft404JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranVerseDraft500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranVerseDraft500JSONResponse) VisitUpsertEditorialQuranVerseDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterWordsRequestObject struct {
+	VersionId     EditorialVersionIdParam     `json:"versionId"`
+	ChapterNumber EditorialChapterNumberParam `json:"chapterNumber"`
+}
+
+type GetEditorialQuranChapterWordsResponseObject interface {
+	VisitGetEditorialQuranChapterWordsResponse(w http.ResponseWriter) error
+}
+
+type GetEditorialQuranChapterWords200JSONResponse EditorialQuranChapterWordsEnvelope
+
+func (response GetEditorialQuranChapterWords200JSONResponse) VisitGetEditorialQuranChapterWordsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterWords403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetEditorialQuranChapterWords403JSONResponse) VisitGetEditorialQuranChapterWordsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterWords404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetEditorialQuranChapterWords404JSONResponse) VisitGetEditorialQuranChapterWordsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranChapterWords500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetEditorialQuranChapterWords500JSONResponse) VisitGetEditorialQuranChapterWordsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranRectifyReportRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+}
+
+type GetEditorialQuranRectifyReportResponseObject interface {
+	VisitGetEditorialQuranRectifyReportResponse(w http.ResponseWriter) error
+}
+
+type GetEditorialQuranRectifyReport200JSONResponse EditorialQuranRectifyReportEnvelope
+
+func (response GetEditorialQuranRectifyReport200JSONResponse) VisitGetEditorialQuranRectifyReportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranRectifyReport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetEditorialQuranRectifyReport403JSONResponse) VisitGetEditorialQuranRectifyReportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranRectifyReport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetEditorialQuranRectifyReport404JSONResponse) VisitGetEditorialQuranRectifyReportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialQuranRectifyReport500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetEditorialQuranRectifyReport500JSONResponse) VisitGetEditorialQuranRectifyReportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SeedEditorialQuranDraftShellsRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+	Body      *SeedEditorialQuranDraftShellsJSONRequestBody
+}
+
+type SeedEditorialQuranDraftShellsResponseObject interface {
+	VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error
+}
+
+type SeedEditorialQuranDraftShells200JSONResponse EditorialQuranRectifySeedEnvelope
+
+func (response SeedEditorialQuranDraftShells200JSONResponse) VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SeedEditorialQuranDraftShells400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SeedEditorialQuranDraftShells400JSONResponse) VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SeedEditorialQuranDraftShells403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SeedEditorialQuranDraftShells403JSONResponse) VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SeedEditorialQuranDraftShells404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SeedEditorialQuranDraftShells404JSONResponse) VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SeedEditorialQuranDraftShells500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SeedEditorialQuranDraftShells500JSONResponse) VisitSeedEditorialQuranDraftShellsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranRootsRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+	Params    ListEditorialQuranRootsParams
+}
+
+type ListEditorialQuranRootsResponseObject interface {
+	VisitListEditorialQuranRootsResponse(w http.ResponseWriter) error
+}
+
+type ListEditorialQuranRoots200JSONResponse EditorialQuranRootListEnvelope
+
+func (response ListEditorialQuranRoots200JSONResponse) VisitListEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranRoots403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListEditorialQuranRoots403JSONResponse) VisitListEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranRoots404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListEditorialQuranRoots404JSONResponse) VisitListEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEditorialQuranRoots500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListEditorialQuranRoots500JSONResponse) VisitListEditorialQuranRootsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishEditorialQuranRootMeaningsRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+	Body      *PublishEditorialQuranRootMeaningsJSONRequestBody
+}
+
+type PublishEditorialQuranRootMeaningsResponseObject interface {
+	VisitPublishEditorialQuranRootMeaningsResponse(w http.ResponseWriter) error
+}
+
+type PublishEditorialQuranRootMeanings200JSONResponse EditorialQuranRootPublishEnvelope
+
+func (response PublishEditorialQuranRootMeanings200JSONResponse) VisitPublishEditorialQuranRootMeaningsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishEditorialQuranRootMeanings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PublishEditorialQuranRootMeanings403JSONResponse) VisitPublishEditorialQuranRootMeaningsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishEditorialQuranRootMeanings404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PublishEditorialQuranRootMeanings404JSONResponse) VisitPublishEditorialQuranRootMeaningsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishEditorialQuranRootMeanings500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response PublishEditorialQuranRootMeanings500JSONResponse) VisitPublishEditorialQuranRootMeaningsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranRootMeaningRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+	RootId    EditorialRootIdParam    `json:"rootId"`
+	Body      *UpsertEditorialQuranRootMeaningJSONRequestBody
+}
+
+type UpsertEditorialQuranRootMeaningResponseObject interface {
+	VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranRootMeaning200JSONResponse EditorialQuranRootMeaningEnvelope
+
+func (response UpsertEditorialQuranRootMeaning200JSONResponse) VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranRootMeaning400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranRootMeaning400JSONResponse) VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranRootMeaning403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranRootMeaning403JSONResponse) VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranRootMeaning404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranRootMeaning404JSONResponse) VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranRootMeaning500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranRootMeaning500JSONResponse) VisitUpsertEditorialQuranRootMeaningResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranWordDraftRequestObject struct {
+	VersionId EditorialVersionIdParam `json:"versionId"`
+	WordId    EditorialWordIdParam    `json:"wordId"`
+	Body      *UpsertEditorialQuranWordDraftJSONRequestBody
+}
+
+type UpsertEditorialQuranWordDraftResponseObject interface {
+	VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error
+}
+
+type UpsertEditorialQuranWordDraft200JSONResponse EditorialQuranWordDraftEnvelope
+
+func (response UpsertEditorialQuranWordDraft200JSONResponse) VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranWordDraft400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpsertEditorialQuranWordDraft400JSONResponse) VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranWordDraft403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpsertEditorialQuranWordDraft403JSONResponse) VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranWordDraft404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpsertEditorialQuranWordDraft404JSONResponse) VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpsertEditorialQuranWordDraft500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UpsertEditorialQuranWordDraft500JSONResponse) VisitUpsertEditorialQuranWordDraftResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialSessionRequestObject struct {
+}
+
+type GetEditorialSessionResponseObject interface {
+	VisitGetEditorialSessionResponse(w http.ResponseWriter) error
+}
+
+type GetEditorialSession200JSONResponse EditorialSessionEnvelope
+
+func (response GetEditorialSession200JSONResponse) VisitGetEditorialSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialSession403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetEditorialSession403JSONResponse) VisitGetEditorialSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEditorialSession500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetEditorialSession500JSONResponse) VisitGetEditorialSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetGameFillBlankLeaderboardRequestObject struct {
 	Params GetGameFillBlankLeaderboardParams
 }
@@ -5317,6 +8169,107 @@ type GetLanguages500JSONResponse struct {
 }
 
 func (response GetLanguages500JSONResponse) VisitGetLanguagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ClearMeActivityRequestObject struct {
+}
+
+type ClearMeActivityResponseObject interface {
+	VisitClearMeActivityResponse(w http.ResponseWriter) error
+}
+
+type ClearMeActivity200JSONResponse DeletedCountResponse
+
+func (response ClearMeActivity200JSONResponse) VisitClearMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ClearMeActivity500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ClearMeActivity500JSONResponse) VisitClearMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeActivityRequestObject struct {
+	Params ListMeActivityParams
+}
+
+type ListMeActivityResponseObject interface {
+	VisitListMeActivityResponse(w http.ResponseWriter) error
+}
+
+type ListMeActivity200JSONResponse ActivityListEnvelope
+
+func (response ListMeActivity200JSONResponse) VisitListMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListMeActivity500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response ListMeActivity500JSONResponse) VisitListMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordMeActivityRequestObject struct {
+	Body *RecordMeActivityJSONRequestBody
+}
+
+type RecordMeActivityResponseObject interface {
+	VisitRecordMeActivityResponse(w http.ResponseWriter) error
+}
+
+type RecordMeActivity200JSONResponse ActivityStoredResponse
+
+func (response RecordMeActivity200JSONResponse) VisitRecordMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordMeActivity202JSONResponse ActivityStoredResponse
+
+func (response RecordMeActivity202JSONResponse) VisitRecordMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordMeActivity400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RecordMeActivity400JSONResponse) VisitRecordMeActivityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RecordMeActivity500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RecordMeActivity500JSONResponse) VisitRecordMeActivityResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -5953,6 +8906,70 @@ func (response RemoveVerseFromMeCollection500JSONResponse) VisitRemoveVerseFromM
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetMeActivityConsentRequestObject struct {
+}
+
+type GetMeActivityConsentResponseObject interface {
+	VisitGetMeActivityConsentResponse(w http.ResponseWriter) error
+}
+
+type GetMeActivityConsent200JSONResponse ActivityConsentResponse
+
+func (response GetMeActivityConsent200JSONResponse) VisitGetMeActivityConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeActivityConsent500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeActivityConsent500JSONResponse) VisitGetMeActivityConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetMeActivityConsentRequestObject struct {
+	Body *SetMeActivityConsentJSONRequestBody
+}
+
+type SetMeActivityConsentResponseObject interface {
+	VisitSetMeActivityConsentResponse(w http.ResponseWriter) error
+}
+
+type SetMeActivityConsent200JSONResponse ActivityConsentResponse
+
+func (response SetMeActivityConsent200JSONResponse) VisitSetMeActivityConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetMeActivityConsent400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SetMeActivityConsent400JSONResponse) VisitSetMeActivityConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetMeActivityConsent500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SetMeActivityConsent500JSONResponse) VisitSetMeActivityConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetMeCoverToCoverRequestObject struct {
 	Params GetMeCoverToCoverParams
 }
@@ -6021,6 +9038,151 @@ type PutMeCoverToCover500JSONResponse struct {
 }
 
 func (response PutMeCoverToCover500JSONResponse) VisitPutMeCoverToCoverResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeContentDeletionRequestObject struct {
+	Body *RequestMeContentDeletionJSONRequestBody
+}
+
+type RequestMeContentDeletionResponseObject interface {
+	VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error
+}
+
+type RequestMeContentDeletion202JSONResponse UserDataDeletionQueuedResponse
+
+func (response RequestMeContentDeletion202JSONResponse) VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeContentDeletion400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RequestMeContentDeletion400JSONResponse) VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeContentDeletion409JSONResponse ReasonResponse
+
+func (response RequestMeContentDeletion409JSONResponse) VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeContentDeletion429JSONResponse ReasonResponse
+
+func (response RequestMeContentDeletion429JSONResponse) VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeContentDeletion500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RequestMeContentDeletion500JSONResponse) VisitRequestMeContentDeletionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeContentDeletionStatusRequestObject struct {
+}
+
+type GetMeContentDeletionStatusResponseObject interface {
+	VisitGetMeContentDeletionStatusResponse(w http.ResponseWriter) error
+}
+
+type GetMeContentDeletionStatus200JSONResponse UserDataDeletionEnvelope
+
+func (response GetMeContentDeletionStatus200JSONResponse) VisitGetMeContentDeletionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeContentDeletionStatus500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeContentDeletionStatus500JSONResponse) VisitGetMeContentDeletionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeExportRequestObject struct {
+}
+
+type RequestMeExportResponseObject interface {
+	VisitRequestMeExportResponse(w http.ResponseWriter) error
+}
+
+type RequestMeExport202JSONResponse UserDataExportQueuedResponse
+
+func (response RequestMeExport202JSONResponse) VisitRequestMeExportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeExport429JSONResponse RetryAfterResponse
+
+func (response RequestMeExport429JSONResponse) VisitRequestMeExportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestMeExport500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response RequestMeExport500JSONResponse) VisitRequestMeExportResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeExportStatusRequestObject struct {
+}
+
+type GetMeExportStatusResponseObject interface {
+	VisitGetMeExportStatusResponse(w http.ResponseWriter) error
+}
+
+type GetMeExportStatus200JSONResponse UserDataExportEnvelope
+
+func (response GetMeExportStatus200JSONResponse) VisitGetMeExportStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMeExportStatus500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response GetMeExportStatus500JSONResponse) VisitGetMeExportStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -6272,6 +9434,118 @@ type PutMePreferences500JSONResponse struct {
 func (response PutMePreferences500JSONResponse) VisitPutMePreferencesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnsubscribeMePushRequestObject struct {
+	Body *UnsubscribeMePushJSONRequestBody
+}
+
+type UnsubscribeMePushResponseObject interface {
+	VisitUnsubscribeMePushResponse(w http.ResponseWriter) error
+}
+
+type UnsubscribeMePush200JSONResponse OkResponse
+
+func (response UnsubscribeMePush200JSONResponse) VisitUnsubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnsubscribeMePush400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UnsubscribeMePush400JSONResponse) VisitUnsubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnsubscribeMePush500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response UnsubscribeMePush500JSONResponse) VisitUnsubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SubscribeMePushRequestObject struct {
+	Body *SubscribeMePushJSONRequestBody
+}
+
+type SubscribeMePushResponseObject interface {
+	VisitSubscribeMePushResponse(w http.ResponseWriter) error
+}
+
+type SubscribeMePush200JSONResponse PushSubscribeResponse
+
+func (response SubscribeMePush200JSONResponse) VisitSubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SubscribeMePush400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SubscribeMePush400JSONResponse) VisitSubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SubscribeMePush500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SubscribeMePush500JSONResponse) VisitSubscribeMePushResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendMePushTestRequestObject struct {
+}
+
+type SendMePushTestResponseObject interface {
+	VisitSendMePushTestResponse(w http.ResponseWriter) error
+}
+
+type SendMePushTest200JSONResponse PushTestResponse
+
+func (response SendMePushTest200JSONResponse) VisitSendMePushTestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendMePushTest500JSONResponse struct {
+	InternalServerErrrorJSONResponse
+}
+
+func (response SendMePushTest500JSONResponse) VisitSendMePushTestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SendMePushTest503JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response SendMePushTest503JSONResponse) VisitSendMePushTestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -7032,6 +10306,69 @@ type StrictServerInterface interface {
 	// List communities (online and physical)
 	// (GET /communities)
 	GetCommunities(ctx context.Context, request GetCommunitiesRequestObject) (GetCommunitiesResponseObject, error)
+	// List the Bible version registry (editorial)
+	// (GET /editorial/bible-versions)
+	ListEditorialBibleVersions(ctx context.Context, request ListEditorialBibleVersionsRequestObject) (ListEditorialBibleVersionsResponseObject, error)
+	// List the Quran version registry (editorial)
+	// (GET /editorial/quran-versions)
+	ListEditorialQuranVersions(ctx context.Context, request ListEditorialQuranVersionsRequestObject) (ListEditorialQuranVersionsResponseObject, error)
+	// List Quran publish requests (pending-approvals queue)
+	// (GET /editorial/quran/publish-requests)
+	ListEditorialQuranPublishRequests(ctx context.Context, request ListEditorialQuranPublishRequestsRequestObject) (ListEditorialQuranPublishRequestsResponseObject, error)
+	// Approve a publish request and sync the chapter
+	// (POST /editorial/quran/publish-requests/{requestId}/approve)
+	ApproveEditorialQuranPublishRequest(ctx context.Context, request ApproveEditorialQuranPublishRequestRequestObject) (ApproveEditorialQuranPublishRequestResponseObject, error)
+	// Cancel an open publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/cancel)
+	CancelEditorialQuranPublishRequest(ctx context.Context, request CancelEditorialQuranPublishRequestRequestObject) (CancelEditorialQuranPublishRequestResponseObject, error)
+	// Reject a publish request
+	// (POST /editorial/quran/publish-requests/{requestId}/reject)
+	RejectEditorialQuranPublishRequest(ctx context.Context, request RejectEditorialQuranPublishRequestRequestObject) (RejectEditorialQuranPublishRequestResponseObject, error)
+	// Sync the roots master from the canonical corpus (admin)
+	// (POST /editorial/quran/rectify/roots)
+	SyncEditorialQuranRoots(ctx context.Context, request SyncEditorialQuranRootsRequestObject) (SyncEditorialQuranRootsResponseObject, error)
+	// Chapter navigation and progress for a Quran version
+	// (GET /editorial/quran/versions/{versionId}/chapters)
+	ListEditorialQuranChapters(ctx context.Context, request ListEditorialQuranChaptersRequestObject) (ListEditorialQuranChaptersResponseObject, error)
+	// Chapter editor payload (drafts, published, reference rail)
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	GetEditorialQuranChapter(ctx context.Context, request GetEditorialQuranChapterRequestObject) (GetEditorialQuranChapterResponseObject, error)
+	// Save the chapter-title draft
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber})
+	UpsertEditorialQuranChapterDraft(ctx context.Context, request UpsertEditorialQuranChapterDraftRequestObject) (UpsertEditorialQuranChapterDraftResponseObject, error)
+	// Recent editorial changelog for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/changelog)
+	ListEditorialQuranChapterChangelog(ctx context.Context, request ListEditorialQuranChapterChangelogRequestObject) (ListEditorialQuranChapterChangelogResponseObject, error)
+	// Submit a chapter for publishing
+	// (POST /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/publish-request)
+	CreateEditorialQuranPublishRequest(ctx context.Context, request CreateEditorialQuranPublishRequestRequestObject) (CreateEditorialQuranPublishRequestResponseObject, error)
+	// Save a verse draft (subtitle / content / footer)
+	// (PUT /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/verses/{verseNumber})
+	UpsertEditorialQuranVerseDraft(ctx context.Context, request UpsertEditorialQuranVerseDraftRequestObject) (UpsertEditorialQuranVerseDraftResponseObject, error)
+	// Word-by-word editing surface for a chapter
+	// (GET /editorial/quran/versions/{versionId}/chapters/{chapterNumber}/words)
+	GetEditorialQuranChapterWords(ctx context.Context, request GetEditorialQuranChapterWordsRequestObject) (GetEditorialQuranChapterWordsResponseObject, error)
+	// Quran integrity and coverage report for a version (admin)
+	// (GET /editorial/quran/versions/{versionId}/rectify)
+	GetEditorialQuranRectifyReport(ctx context.Context, request GetEditorialQuranRectifyReportRequestObject) (GetEditorialQuranRectifyReportResponseObject, error)
+	// Pre-seed empty draft shells for a version (admin)
+	// (POST /editorial/quran/versions/{versionId}/rectify/seed)
+	SeedEditorialQuranDraftShells(ctx context.Context, request SeedEditorialQuranDraftShellsRequestObject) (SeedEditorialQuranDraftShellsResponseObject, error)
+	// Root meanings for a version (Root Book)
+	// (GET /editorial/quran/versions/{versionId}/roots)
+	ListEditorialQuranRoots(ctx context.Context, request ListEditorialQuranRootsRequestObject) (ListEditorialQuranRootsResponseObject, error)
+	// Publish all pending root meaning drafts for a version
+	// (POST /editorial/quran/versions/{versionId}/roots/publish)
+	PublishEditorialQuranRootMeanings(ctx context.Context, request PublishEditorialQuranRootMeaningsRequestObject) (PublishEditorialQuranRootMeaningsResponseObject, error)
+	// Save a root meaning draft (broadcasts by JOIN)
+	// (PUT /editorial/quran/versions/{versionId}/roots/{rootId})
+	UpsertEditorialQuranRootMeaning(ctx context.Context, request UpsertEditorialQuranRootMeaningRequestObject) (UpsertEditorialQuranRootMeaningResponseObject, error)
+	// Save a per-word draft (text / gloss)
+	// (PUT /editorial/quran/versions/{versionId}/words/{wordId})
+	UpsertEditorialQuranWordDraft(ctx context.Context, request UpsertEditorialQuranWordDraftRequestObject) (UpsertEditorialQuranWordDraftResponseObject, error)
+	// Resolved editorial permissions for the current user
+	// (GET /editorial/session)
+	GetEditorialSession(ctx context.Context, request GetEditorialSessionRequestObject) (GetEditorialSessionResponseObject, error)
 	// Get global, weekly, or per-variant leaderboard
 	// (GET /games/fill-blank/leaderboard)
 	GetGameFillBlankLeaderboard(ctx context.Context, request GetGameFillBlankLeaderboardRequestObject) (GetGameFillBlankLeaderboardResponseObject, error)
@@ -7047,6 +10384,15 @@ type StrictServerInterface interface {
 	// List supported languages
 	// (GET /languages)
 	GetLanguages(ctx context.Context, request GetLanguagesRequestObject) (GetLanguagesResponseObject, error)
+	// Clear current user's activity feed
+	// (DELETE /me/activity)
+	ClearMeActivity(ctx context.Context, request ClearMeActivityRequestObject) (ClearMeActivityResponseObject, error)
+	// List current user's recent activity
+	// (GET /me/activity)
+	ListMeActivity(ctx context.Context, request ListMeActivityRequestObject) (ListMeActivityResponseObject, error)
+	// Record one activity event when consent is enabled
+	// (POST /me/activity)
+	RecordMeActivity(ctx context.Context, request RecordMeActivityRequestObject) (RecordMeActivityResponseObject, error)
 	// List current user's bookmark categories
 	// (GET /me/bookmark-categories)
 	ListMeBookmarkCategories(ctx context.Context, request ListMeBookmarkCategoriesRequestObject) (ListMeBookmarkCategoriesResponseObject, error)
@@ -7095,12 +10441,30 @@ type StrictServerInterface interface {
 	// Remove a verse from a collection
 	// (DELETE /me/collections/{id}/verses/{verseId})
 	RemoveVerseFromMeCollection(ctx context.Context, request RemoveVerseFromMeCollectionRequestObject) (RemoveVerseFromMeCollectionResponseObject, error)
+	// Get activity recording consent
+	// (GET /me/consent)
+	GetMeActivityConsent(ctx context.Context, request GetMeActivityConsentRequestObject) (GetMeActivityConsentResponseObject, error)
+	// Set activity recording consent
+	// (PUT /me/consent)
+	SetMeActivityConsent(ctx context.Context, request SetMeActivityConsentRequestObject) (SetMeActivityConsentResponseObject, error)
 	// Get cover-to-cover bookmark for a scripture
 	// (GET /me/cover-to-cover)
 	GetMeCoverToCover(ctx context.Context, request GetMeCoverToCoverRequestObject) (GetMeCoverToCoverResponseObject, error)
 	// Upsert cover-to-cover bookmark
 	// (PUT /me/cover-to-cover)
 	PutMeCoverToCover(ctx context.Context, request PutMeCoverToCoverRequestObject) (PutMeCoverToCoverResponseObject, error)
+	// Queue deletion of selected user content categories
+	// (POST /me/delete-content)
+	RequestMeContentDeletion(ctx context.Context, request RequestMeContentDeletionRequestObject) (RequestMeContentDeletionResponseObject, error)
+	// Get latest user data deletion status
+	// (GET /me/delete-content/status)
+	GetMeContentDeletionStatus(ctx context.Context, request GetMeContentDeletionStatusRequestObject) (GetMeContentDeletionStatusResponseObject, error)
+	// Queue a user data export
+	// (POST /me/export)
+	RequestMeExport(ctx context.Context, request RequestMeExportRequestObject) (RequestMeExportResponseObject, error)
+	// Get latest user data export status
+	// (GET /me/export/status)
+	GetMeExportStatus(ctx context.Context, request GetMeExportStatusRequestObject) (GetMeExportStatusResponseObject, error)
 	// List current user's game attempts (newest first)
 	// (GET /me/games/history)
 	ListMeGameHistory(ctx context.Context, request ListMeGameHistoryRequestObject) (ListMeGameHistoryResponseObject, error)
@@ -7122,6 +10486,15 @@ type StrictServerInterface interface {
 	// Upsert per-scripture preferences
 	// (PUT /me/preferences)
 	PutMePreferences(ctx context.Context, request PutMePreferencesRequestObject) (PutMePreferencesResponseObject, error)
+	// Remove one browser push endpoint
+	// (DELETE /me/push/subscribe)
+	UnsubscribeMePush(ctx context.Context, request UnsubscribeMePushRequestObject) (UnsubscribeMePushResponseObject, error)
+	// Subscribe or refresh a browser push endpoint
+	// (POST /me/push/subscribe)
+	SubscribeMePush(ctx context.Context, request SubscribeMePushRequestObject) (SubscribeMePushResponseObject, error)
+	// Send a test push notification to current user's endpoints
+	// (POST /me/push/test)
+	SendMePushTest(ctx context.Context, request SendMePushTestRequestObject) (SendMePushTestResponseObject, error)
 	// Increment daily reading log
 	// (POST /me/reading-log)
 	PostMeReadingLog(ctx context.Context, request PostMeReadingLogRequestObject) (PostMeReadingLogResponseObject, error)
@@ -7380,6 +10753,663 @@ func (sh *strictHandler) GetCommunities(ctx *gin.Context, params GetCommunitiesP
 	}
 }
 
+// ListEditorialBibleVersions operation middleware
+func (sh *strictHandler) ListEditorialBibleVersions(ctx *gin.Context) {
+	var request ListEditorialBibleVersionsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialBibleVersions(ctx, request.(ListEditorialBibleVersionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialBibleVersions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialBibleVersionsResponseObject); ok {
+		if err := validResponse.VisitListEditorialBibleVersionsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranVersions operation middleware
+func (sh *strictHandler) ListEditorialQuranVersions(ctx *gin.Context) {
+	var request ListEditorialQuranVersionsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranVersions(ctx, request.(ListEditorialQuranVersionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranVersions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranVersionsResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranVersionsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranPublishRequests operation middleware
+func (sh *strictHandler) ListEditorialQuranPublishRequests(ctx *gin.Context, params ListEditorialQuranPublishRequestsParams) {
+	var request ListEditorialQuranPublishRequestsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranPublishRequests(ctx, request.(ListEditorialQuranPublishRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranPublishRequests")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranPublishRequestsResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranPublishRequestsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) ApproveEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request ApproveEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body ApproveEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveEditorialQuranPublishRequest(ctx, request.(ApproveEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ApproveEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitApproveEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) CancelEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request CancelEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelEditorialQuranPublishRequest(ctx, request.(CancelEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CancelEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitCancelEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) RejectEditorialQuranPublishRequest(ctx *gin.Context, requestId EditorialRequestIdParam) {
+	var request RejectEditorialQuranPublishRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body RejectEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectEditorialQuranPublishRequest(ctx, request.(RejectEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RejectEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitRejectEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SyncEditorialQuranRoots operation middleware
+func (sh *strictHandler) SyncEditorialQuranRoots(ctx *gin.Context) {
+	var request SyncEditorialQuranRootsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncEditorialQuranRoots(ctx, request.(SyncEditorialQuranRootsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncEditorialQuranRoots")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SyncEditorialQuranRootsResponseObject); ok {
+		if err := validResponse.VisitSyncEditorialQuranRootsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranChapters operation middleware
+func (sh *strictHandler) ListEditorialQuranChapters(ctx *gin.Context, versionId EditorialVersionIdParam) {
+	var request ListEditorialQuranChaptersRequestObject
+
+	request.VersionId = versionId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranChapters(ctx, request.(ListEditorialQuranChaptersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranChapters")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranChaptersResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranChaptersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEditorialQuranChapter operation middleware
+func (sh *strictHandler) GetEditorialQuranChapter(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request GetEditorialQuranChapterRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEditorialQuranChapter(ctx, request.(GetEditorialQuranChapterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEditorialQuranChapter")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetEditorialQuranChapterResponseObject); ok {
+		if err := validResponse.VisitGetEditorialQuranChapterResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranChapterDraft operation middleware
+func (sh *strictHandler) UpsertEditorialQuranChapterDraft(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request UpsertEditorialQuranChapterDraftRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	var body UpsertEditorialQuranChapterDraftJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranChapterDraft(ctx, request.(UpsertEditorialQuranChapterDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranChapterDraft")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranChapterDraftResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranChapterDraftResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranChapterChangelog operation middleware
+func (sh *strictHandler) ListEditorialQuranChapterChangelog(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, params ListEditorialQuranChapterChangelogParams) {
+	var request ListEditorialQuranChapterChangelogRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranChapterChangelog(ctx, request.(ListEditorialQuranChapterChangelogRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranChapterChangelog")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranChapterChangelogResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranChapterChangelogResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateEditorialQuranPublishRequest operation middleware
+func (sh *strictHandler) CreateEditorialQuranPublishRequest(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request CreateEditorialQuranPublishRequestRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	var body CreateEditorialQuranPublishRequestJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateEditorialQuranPublishRequest(ctx, request.(CreateEditorialQuranPublishRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateEditorialQuranPublishRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateEditorialQuranPublishRequestResponseObject); ok {
+		if err := validResponse.VisitCreateEditorialQuranPublishRequestResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranVerseDraft operation middleware
+func (sh *strictHandler) UpsertEditorialQuranVerseDraft(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam, verseNumber EditorialVerseNumberParam) {
+	var request UpsertEditorialQuranVerseDraftRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+	request.VerseNumber = verseNumber
+
+	var body UpsertEditorialQuranVerseDraftJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranVerseDraft(ctx, request.(UpsertEditorialQuranVerseDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranVerseDraft")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranVerseDraftResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranVerseDraftResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEditorialQuranChapterWords operation middleware
+func (sh *strictHandler) GetEditorialQuranChapterWords(ctx *gin.Context, versionId EditorialVersionIdParam, chapterNumber EditorialChapterNumberParam) {
+	var request GetEditorialQuranChapterWordsRequestObject
+
+	request.VersionId = versionId
+	request.ChapterNumber = chapterNumber
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEditorialQuranChapterWords(ctx, request.(GetEditorialQuranChapterWordsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEditorialQuranChapterWords")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetEditorialQuranChapterWordsResponseObject); ok {
+		if err := validResponse.VisitGetEditorialQuranChapterWordsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEditorialQuranRectifyReport operation middleware
+func (sh *strictHandler) GetEditorialQuranRectifyReport(ctx *gin.Context, versionId EditorialVersionIdParam) {
+	var request GetEditorialQuranRectifyReportRequestObject
+
+	request.VersionId = versionId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEditorialQuranRectifyReport(ctx, request.(GetEditorialQuranRectifyReportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEditorialQuranRectifyReport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetEditorialQuranRectifyReportResponseObject); ok {
+		if err := validResponse.VisitGetEditorialQuranRectifyReportResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SeedEditorialQuranDraftShells operation middleware
+func (sh *strictHandler) SeedEditorialQuranDraftShells(ctx *gin.Context, versionId EditorialVersionIdParam) {
+	var request SeedEditorialQuranDraftShellsRequestObject
+
+	request.VersionId = versionId
+
+	var body SeedEditorialQuranDraftShellsJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SeedEditorialQuranDraftShells(ctx, request.(SeedEditorialQuranDraftShellsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SeedEditorialQuranDraftShells")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SeedEditorialQuranDraftShellsResponseObject); ok {
+		if err := validResponse.VisitSeedEditorialQuranDraftShellsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEditorialQuranRoots operation middleware
+func (sh *strictHandler) ListEditorialQuranRoots(ctx *gin.Context, versionId EditorialVersionIdParam, params ListEditorialQuranRootsParams) {
+	var request ListEditorialQuranRootsRequestObject
+
+	request.VersionId = versionId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEditorialQuranRoots(ctx, request.(ListEditorialQuranRootsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEditorialQuranRoots")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListEditorialQuranRootsResponseObject); ok {
+		if err := validResponse.VisitListEditorialQuranRootsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PublishEditorialQuranRootMeanings operation middleware
+func (sh *strictHandler) PublishEditorialQuranRootMeanings(ctx *gin.Context, versionId EditorialVersionIdParam) {
+	var request PublishEditorialQuranRootMeaningsRequestObject
+
+	request.VersionId = versionId
+
+	var body PublishEditorialQuranRootMeaningsJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			ctx.Status(http.StatusBadRequest)
+			ctx.Error(err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PublishEditorialQuranRootMeanings(ctx, request.(PublishEditorialQuranRootMeaningsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PublishEditorialQuranRootMeanings")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PublishEditorialQuranRootMeaningsResponseObject); ok {
+		if err := validResponse.VisitPublishEditorialQuranRootMeaningsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranRootMeaning operation middleware
+func (sh *strictHandler) UpsertEditorialQuranRootMeaning(ctx *gin.Context, versionId EditorialVersionIdParam, rootId EditorialRootIdParam) {
+	var request UpsertEditorialQuranRootMeaningRequestObject
+
+	request.VersionId = versionId
+	request.RootId = rootId
+
+	var body UpsertEditorialQuranRootMeaningJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranRootMeaning(ctx, request.(UpsertEditorialQuranRootMeaningRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranRootMeaning")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranRootMeaningResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranRootMeaningResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertEditorialQuranWordDraft operation middleware
+func (sh *strictHandler) UpsertEditorialQuranWordDraft(ctx *gin.Context, versionId EditorialVersionIdParam, wordId EditorialWordIdParam) {
+	var request UpsertEditorialQuranWordDraftRequestObject
+
+	request.VersionId = versionId
+	request.WordId = wordId
+
+	var body UpsertEditorialQuranWordDraftJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertEditorialQuranWordDraft(ctx, request.(UpsertEditorialQuranWordDraftRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertEditorialQuranWordDraft")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpsertEditorialQuranWordDraftResponseObject); ok {
+		if err := validResponse.VisitUpsertEditorialQuranWordDraftResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEditorialSession operation middleware
+func (sh *strictHandler) GetEditorialSession(ctx *gin.Context) {
+	var request GetEditorialSessionRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEditorialSession(ctx, request.(GetEditorialSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEditorialSession")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetEditorialSessionResponseObject); ok {
+		if err := validResponse.VisitGetEditorialSessionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetGameFillBlankLeaderboard operation middleware
 func (sh *strictHandler) GetGameFillBlankLeaderboard(ctx *gin.Context, params GetGameFillBlankLeaderboardParams) {
 	var request GetGameFillBlankLeaderboardRequestObject
@@ -7518,6 +11548,91 @@ func (sh *strictHandler) GetLanguages(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetLanguagesResponseObject); ok {
 		if err := validResponse.VisitGetLanguagesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClearMeActivity operation middleware
+func (sh *strictHandler) ClearMeActivity(ctx *gin.Context) {
+	var request ClearMeActivityRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ClearMeActivity(ctx, request.(ClearMeActivityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClearMeActivity")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ClearMeActivityResponseObject); ok {
+		if err := validResponse.VisitClearMeActivityResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMeActivity operation middleware
+func (sh *strictHandler) ListMeActivity(ctx *gin.Context, params ListMeActivityParams) {
+	var request ListMeActivityRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMeActivity(ctx, request.(ListMeActivityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMeActivity")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ListMeActivityResponseObject); ok {
+		if err := validResponse.VisitListMeActivityResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecordMeActivity operation middleware
+func (sh *strictHandler) RecordMeActivity(ctx *gin.Context) {
+	var request RecordMeActivityRequestObject
+
+	var body RecordMeActivityJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RecordMeActivity(ctx, request.(RecordMeActivityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecordMeActivity")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RecordMeActivityResponseObject); ok {
+		if err := validResponse.VisitRecordMeActivityResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -8002,6 +12117,64 @@ func (sh *strictHandler) RemoveVerseFromMeCollection(ctx *gin.Context, id int64,
 	}
 }
 
+// GetMeActivityConsent operation middleware
+func (sh *strictHandler) GetMeActivityConsent(ctx *gin.Context) {
+	var request GetMeActivityConsentRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeActivityConsent(ctx, request.(GetMeActivityConsentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeActivityConsent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeActivityConsentResponseObject); ok {
+		if err := validResponse.VisitGetMeActivityConsentResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetMeActivityConsent operation middleware
+func (sh *strictHandler) SetMeActivityConsent(ctx *gin.Context) {
+	var request SetMeActivityConsentRequestObject
+
+	var body SetMeActivityConsentJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SetMeActivityConsent(ctx, request.(SetMeActivityConsentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetMeActivityConsent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SetMeActivityConsentResponseObject); ok {
+		if err := validResponse.VisitSetMeActivityConsentResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMeCoverToCover operation middleware
 func (sh *strictHandler) GetMeCoverToCover(ctx *gin.Context, params GetMeCoverToCoverParams) {
 	var request GetMeCoverToCoverRequestObject
@@ -8055,6 +12228,114 @@ func (sh *strictHandler) PutMeCoverToCover(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(PutMeCoverToCoverResponseObject); ok {
 		if err := validResponse.VisitPutMeCoverToCoverResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RequestMeContentDeletion operation middleware
+func (sh *strictHandler) RequestMeContentDeletion(ctx *gin.Context) {
+	var request RequestMeContentDeletionRequestObject
+
+	var body RequestMeContentDeletionJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestMeContentDeletion(ctx, request.(RequestMeContentDeletionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestMeContentDeletion")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RequestMeContentDeletionResponseObject); ok {
+		if err := validResponse.VisitRequestMeContentDeletionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeContentDeletionStatus operation middleware
+func (sh *strictHandler) GetMeContentDeletionStatus(ctx *gin.Context) {
+	var request GetMeContentDeletionStatusRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeContentDeletionStatus(ctx, request.(GetMeContentDeletionStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeContentDeletionStatus")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeContentDeletionStatusResponseObject); ok {
+		if err := validResponse.VisitGetMeContentDeletionStatusResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RequestMeExport operation middleware
+func (sh *strictHandler) RequestMeExport(ctx *gin.Context) {
+	var request RequestMeExportRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestMeExport(ctx, request.(RequestMeExportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestMeExport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(RequestMeExportResponseObject); ok {
+		if err := validResponse.VisitRequestMeExportResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMeExportStatus operation middleware
+func (sh *strictHandler) GetMeExportStatus(ctx *gin.Context) {
+	var request GetMeExportStatusRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMeExportStatus(ctx, request.(GetMeExportStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMeExportStatus")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMeExportStatusResponseObject); ok {
+		if err := validResponse.VisitGetMeExportStatusResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -8254,6 +12535,97 @@ func (sh *strictHandler) PutMePreferences(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(PutMePreferencesResponseObject); ok {
 		if err := validResponse.VisitPutMePreferencesResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnsubscribeMePush operation middleware
+func (sh *strictHandler) UnsubscribeMePush(ctx *gin.Context) {
+	var request UnsubscribeMePushRequestObject
+
+	var body UnsubscribeMePushJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UnsubscribeMePush(ctx, request.(UnsubscribeMePushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnsubscribeMePush")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UnsubscribeMePushResponseObject); ok {
+		if err := validResponse.VisitUnsubscribeMePushResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SubscribeMePush operation middleware
+func (sh *strictHandler) SubscribeMePush(ctx *gin.Context) {
+	var request SubscribeMePushRequestObject
+
+	var body SubscribeMePushJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SubscribeMePush(ctx, request.(SubscribeMePushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SubscribeMePush")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SubscribeMePushResponseObject); ok {
+		if err := validResponse.VisitSubscribeMePushResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SendMePushTest operation middleware
+func (sh *strictHandler) SendMePushTest(ctx *gin.Context) {
+	var request SendMePushTestRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SendMePushTest(ctx, request.(SendMePushTestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SendMePushTest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(SendMePushTestResponseObject); ok {
+		if err := validResponse.VisitSendMePushTestResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -8792,341 +13164,459 @@ func (sh *strictHandler) UpdateUserAdmin(ctx *gin.Context, id int64) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"ape6jQEA",
+	"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",
+	"vv9fAAAA//8cu++sZ0YCAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
