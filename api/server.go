@@ -313,6 +313,13 @@ func StartServer(database *db.DB) {
 	play.Use(auth.RequireAuth(verifier))
 	play.POST("/check", gamesPlay.CheckBlank)
 
+	// Offline user-data sync: replays a batch of mutations made offline. Outside
+	// the OpenAPI surface, so registered before the validator like the routes above.
+	meSync := handlers.MeSyncHandler{DB: database}
+	meSyncGroup := r.Group("/api/v1/me")
+	meSyncGroup.Use(auth.RequireAuth(verifier))
+	meSyncGroup.POST("/sync", meSync.Sync)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
