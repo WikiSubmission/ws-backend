@@ -281,6 +281,19 @@ embed-quran:
     go run ./api/cmd/seed_embeddings/
 
 # ---------------------------------------------------------------------------
+# Offline content bundles (SQLite + FTS5) for the PWA / Capacitor app
+# ---------------------------------------------------------------------------
+
+# Build offline Quran bundles + manifest from a target DB (local|railway|...).
+# Outputs to ./offline-bundles. S3/CloudFront upload is deferred (local fixtures).
+offline-bundles TARGET="local" LANGS="ar,en" DATA_VERSION="1":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$(just url "$1")"
+    DATABASE_URL="$url" go run ./cmd/build-offline-bundles \
+      -out offline-bundles -langs "$2" -data-version "$3"
+
+# ---------------------------------------------------------------------------
 # Seeding (legacy source data → normalized schema)
 # ---------------------------------------------------------------------------
 

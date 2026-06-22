@@ -1,0 +1,191 @@
+package bundle
+
+import (
+	"database/sql"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	_ "modernc.org/sqlite"
+
+	"github.com/wikiSubmission/ws-backend/offline/textnorm"
+)
+
+// search mimics the client query path: normalize the user's query identically
+// to the indexed `norm` column, then run it as a quoted FTS MATCH.
+func search(t *testing.T, path, query string) []string {
+	t.Helper()
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer db.Close()
+
+	norm := textnorm.ForSearch(query)
+	match := `"` + strings.ReplaceAll(norm, `"`, `""`) + `"`
+	rows, err := db.Query(
+		`SELECT v.vk FROM verses_fts f JOIN verses v ON v.rowid = f.rowid
+		 WHERE verses_fts MATCH ? ORDER BY rank`, match)
+	if err != nil {
+		t.Fatalf("search %q (norm %q): %v", query, norm, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var vk string
+		if err := rows.Scan(&vk); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, vk)
+	}
+	return out
+}
+
+func has(vks []string, want string) bool {
+	for _, vk := range vks {
+		if vk == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestWriteArabicBundleAndSearch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quran-ar-v1.db")
+	meta := Meta{Scripture: "quran", Lang: "ar", DataVersion: 1, Tokenizer: TokenizerTrigram, BuiltAt: "2026-06-22T00:00:00Z"}
+	chapters := []Chapter{{CN: 1, Title: "الفاتحة", TitleTranslit: "Al-Faatihah", VerseCount: 7}}
+	verses := []Verse{
+		{VK: "1:1", CN: 1, VN: 1, Text: "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"},
+		{VK: "1:2", CN: 1, VN: 2, Text: "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ"},
+	}
+	if err := Write(path, meta, chapters, verses); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	// Query carries full diacritics; the index stores the normalized form. They
+	// must still match because both pass through textnorm.ForSearch.
+	if got := search(t, path, "الرَّحْمَٰن"); !has(got, "1:1") {
+		t.Errorf("diacritic query did not match 1:1, got %v", got)
+	}
+	// Bare query (no diacritics) must also match. "ٱلْحَمْدُ" normalizes to
+	// "الحمد". (Note: words written with a superscript dagger alef, e.g.
+	// "ٱلْعَٰلَمِينَ", normalize to "العلمين" — the mark is stripped like any
+	// combining mark, which matches modern spelling for the majority of such
+	// words; "العالمين" is a known minority recall gap.)
+	if got := search(t, path, "الحمد"); !has(got, "1:2") {
+		t.Errorf("bare query did not match 1:2, got %v", got)
+	}
+}
+
+func TestWriteLatinBundleAndSearch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quran-en-v1.db")
+	meta := Meta{Scripture: "quran", Lang: "en", DataVersion: 3, Tokenizer: TokenizerLatin, BuiltAt: "2026-06-22T00:00:00Z"}
+	chapters := []Chapter{{CN: 1, Title: "The Key", VerseCount: 7}}
+	verses := []Verse{
+		{VK: "1:1", CN: 1, VN: 1, Text: "In the name of GOD, Most Gracious, Most Merciful."},
+		{VK: "1:3", CN: 1, VN: 3, Text: "Most Gracious, Most Merciful.", Subtitle: "The Almighty"},
+	}
+	if err := Write(path, meta, chapters, verses); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	// Case-insensitive (query normalized to lowercase, index too).
+	if got := search(t, path, "GOD"); !has(got, "1:1") {
+		t.Errorf("GOD did not match 1:1, got %v", got)
+	}
+	// Porter stemming: querying "mercy" should reach "Merciful".
+	if got := search(t, path, "mercy"); !has(got, "1:1") || !has(got, "1:3") {
+		t.Errorf("stemmed query 'mercy' should match both verses, got %v", got)
+	}
+}
+
+func TestBundleSchemaAndMeta(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quran-en-v3.db")
+	meta := Meta{Scripture: "quran", Lang: "en", DataVersion: 3, Tokenizer: TokenizerLatin, BuiltAt: "2026-06-22T00:00:00Z"}
+	chapters := []Chapter{{CN: 1, Title: "The Key", TitleTranslit: "Al-Faatihah", VerseCount: 7}}
+	verses := []Verse{{VK: "1:1", CN: 1, VN: 1, Text: "Test verse."}}
+	if err := Write(path, meta, chapters, verses); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	wantMeta := map[string]string{
+		"schema_version":        "1",
+		"data_version":          "3",
+		"normalization_version": "1",
+		"scripture":             "quran",
+		"lang":                  "en",
+		"fts_tokenizer":         TokenizerLatin,
+		"built_at":              "2026-06-22T00:00:00Z",
+	}
+	for k, want := range wantMeta {
+		var got string
+		if err := db.QueryRow(`SELECT value FROM meta WHERE key = ?`, k).Scan(&got); err != nil {
+			t.Fatalf("meta[%s]: %v", k, err)
+		}
+		if got != want {
+			t.Errorf("meta[%s] = %q, want %q", k, got, want)
+		}
+	}
+
+	// Original text is stored verbatim; norm is the folded form.
+	var text, norm string
+	if err := db.QueryRow(`SELECT text, norm FROM verses WHERE vk = '1:1'`).Scan(&text, &norm); err != nil {
+		t.Fatal(err)
+	}
+	if text != "Test verse." {
+		t.Errorf("text not stored verbatim: %q", text)
+	}
+	if norm != textnorm.ForSearch("Test verse.") {
+		t.Errorf("norm = %q, want %q", norm, textnorm.ForSearch("Test verse."))
+	}
+
+	var verseCount int
+	if err := db.QueryRow(`SELECT verse_count FROM chapters WHERE cn = 1`).Scan(&verseCount); err != nil {
+		t.Fatal(err)
+	}
+	if verseCount != 7 {
+		t.Errorf("chapter verse_count = %d, want 7", verseCount)
+	}
+}
+
+func TestNewManifestEntry(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quran-en-v3.db")
+	meta := Meta{Scripture: "quran", Lang: "en", DataVersion: 3, Tokenizer: TokenizerLatin, BuiltAt: "2026-06-22T00:00:00Z"}
+	if err := Write(path, meta, []Chapter{{CN: 1, Title: "K", VerseCount: 1}}, []Verse{{VK: "1:1", CN: 1, VN: 1, Text: "Hi."}}); err != nil {
+		t.Fatal(err)
+	}
+
+	url := "https://cdn.example/offline/quran-en-v3.db"
+	entry, err := NewManifestEntry(path, "quran-en", url, meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.ID != "quran-en" || entry.Lang != "en" || entry.URL != url {
+		t.Errorf("entry identity wrong: %+v", entry)
+	}
+	if entry.SchemaVersion != SchemaVersion || entry.NormalizationVersion != textnorm.Version {
+		t.Errorf("entry versions wrong: %+v", entry)
+	}
+	if entry.DataVersion != 3 || entry.FTSTokenizer != TokenizerLatin {
+		t.Errorf("entry meta wrong: %+v", entry)
+	}
+	if len(entry.SHA256) != 64 || entry.Bytes <= 0 {
+		t.Errorf("checksum/bytes wrong: sha=%q bytes=%d", entry.SHA256, entry.Bytes)
+	}
+
+	// Hash is stable across re-reads of the same file.
+	again, err := NewManifestEntry(path, "quran-en", url, meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.SHA256 != entry.SHA256 || again.Bytes != entry.Bytes {
+		t.Errorf("checksum not stable: %q/%d vs %q/%d", entry.SHA256, entry.Bytes, again.SHA256, again.Bytes)
+	}
+}
