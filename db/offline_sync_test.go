@@ -111,4 +111,92 @@ func TestUpsertNoteLWW(t *testing.T) {
 	}
 }
 
+// An equal client timestamp must apply (the LWW guard is updated_at <= client_ts),
+// so a re-sent identical-clock edit is not spuriously dropped as superseded.
+func TestUpsertNoteLWWEqualTimestampApplies(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	authID, _ := seedSyncUser(t, db)
+
+	ts := time.Now().UnixMilli()
+	if applied, err := db.UpsertNoteLWW(ctx, authID, "quran", "1:1", "first", nil, ts); err != nil || !applied {
+		t.Fatalf("first write: applied=%v err=%v", applied, err)
+	}
+	applied, err := db.UpsertNoteLWW(ctx, authID, "quran", "1:1", "second", nil, ts)
+	if err != nil || !applied {
+		t.Fatalf("equal-timestamp write should apply: applied=%v err=%v", applied, err)
+	}
+	notes, err := db.FetchNotes(ctx, authID, "quran", strPtr("1:1"))
+	if err != nil || len(notes) != 1 || notes[0].Content != "second" {
+		t.Fatalf("expected content 'second', got %+v err=%v", notes, err)
+	}
+}
+
+// Tags round-trip through upsert: a set then a clear (nil -> empty array).
+func TestUpsertNoteLWWTagsRoundTrip(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	authID, _ := seedSyncUser(t, db)
+
+	now := time.Now().UnixMilli()
+	if _, err := db.UpsertNoteLWW(ctx, authID, "quran", "1:1", "c", []string{"a", "b"}, now); err != nil {
+		t.Fatalf("upsert with tags: %v", err)
+	}
+	notes, err := db.FetchNotes(ctx, authID, "quran", strPtr("1:1"))
+	if err != nil || len(notes) != 1 {
+		t.Fatalf("fetch after set: %+v err=%v", notes, err)
+	}
+	if len(notes[0].Tags) != 2 || notes[0].Tags[0] != "a" || notes[0].Tags[1] != "b" {
+		t.Fatalf("expected tags [a b], got %v", notes[0].Tags)
+	}
+
+	// A later nil-tags upsert clears the tags to an empty array.
+	if _, err := db.UpsertNoteLWW(ctx, authID, "quran", "1:1", "c", nil, now+1); err != nil {
+		t.Fatalf("upsert clearing tags: %v", err)
+	}
+	notes, err = db.FetchNotes(ctx, authID, "quran", strPtr("1:1"))
+	if err != nil || len(notes) != 1 {
+		t.Fatalf("fetch after clear: %+v err=%v", notes, err)
+	}
+	if len(notes[0].Tags) != 0 {
+		t.Fatalf("expected tags cleared, got %v", notes[0].Tags)
+	}
+}
+
+// Deleting by natural key is scoped to the calling user: another user's entry at
+// the same scripture/verse in their own category must be untouched.
+func TestDeleteBookmarkEntryByVerseCrossUserIsolation(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	authA, catA := seedSyncUser(t, db)
+	authB, catB := seedSyncUser(t, db)
+
+	if _, err := db.CreateBookmarkEntry(ctx, catA, authA, "quran", "2:255"); err != nil {
+		t.Fatalf("A create: %v", err)
+	}
+	if _, err := db.CreateBookmarkEntry(ctx, catB, authB, "quran", "2:255"); err != nil {
+		t.Fatalf("B create: %v", err)
+	}
+
+	// B deletes its own entry; A's must remain.
+	deleted, err := db.DeleteBookmarkEntryByVerse(ctx, authB, catB, "quran", "2:255")
+	if err != nil || !deleted {
+		t.Fatalf("B delete own: deleted=%v err=%v", deleted, err)
+	}
+	entriesA, err := db.ListBookmarkCategoryEntries(ctx, catA, authA)
+	if err != nil || len(entriesA) != 1 {
+		t.Fatalf("A entry should survive B's delete, got %+v err=%v", entriesA, err)
+	}
+
+	// B attempting to delete via A's category id is a scoped no-op.
+	deleted, err = db.DeleteBookmarkEntryByVerse(ctx, authB, catA, "quran", "2:255")
+	if err != nil || deleted {
+		t.Fatalf("cross-user delete must be a no-op: deleted=%v err=%v", deleted, err)
+	}
+	entriesA, err = db.ListBookmarkCategoryEntries(ctx, catA, authA)
+	if err != nil || len(entriesA) != 1 {
+		t.Fatalf("A entry must still survive cross-user delete attempt, got %+v err=%v", entriesA, err)
+	}
+}
+
 func strPtr(s string) *string { return &s }
