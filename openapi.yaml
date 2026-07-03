@@ -70,6 +70,8 @@ servers:
     description: Internal Production Server
   - url: https://ws-backend-vc.wikisubmission.org/api/v1
     description: railway, temp test
+  - url: https://preview.wikisubmission.org/api/v1
+    description: Preview (Coolify)
 
 tags:
   - name: Reader

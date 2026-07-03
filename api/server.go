@@ -228,16 +228,41 @@ func StartServer(database *db.DB) {
 		// an exact match. Comparison is hostname-only (ignores port) so that e.g.
 		// localhost:8080 matches the spec entry localhost:8082.
 		reqHostname := c.Request.URL.Hostname()
+		matched := false
 		for _, s := range swagger.Servers {
-			u, err := url.Parse(s.URL)
+			su, err := url.Parse(s.URL)
 			if err != nil {
 				continue
 			}
-			if u.Hostname() == reqHostname {
-				c.Request.URL.Scheme = u.Scheme
-				c.Request.URL.Host = u.Host
+			if su.Hostname() == reqHostname {
+				c.Request.URL.Scheme = su.Scheme
+				c.Request.URL.Host = su.Host
+				matched = true
 				break
 			}
+		}
+
+		// Fallback: the incoming host is not in openapi.yaml's servers block
+		// (e.g. a new deployment domain like a Coolify/preview host, or an
+		// internal container hostname). Without this, kin-openapi rejects every
+		// contract route with an unexplained 404 — the validator can't resolve an
+		// operation because it can't match a server URL. Snap to the canonical
+		// server (u, chosen by APP_ENV above) so validation resolves against a
+		// known server. The path prefix (/api/v1) is identical across all
+		// servers, so request handling is unchanged; only the server-matching is
+		// satisfied. Logged at WARN so the missing servers: entry is visible and
+		// can be added to openapi.yaml when convenient.
+		if !matched {
+			slog.Warn("request host not in openapi servers block; snapping to canonical server for validation",
+				"request_host", c.Request.Host,
+				"x_forwarded_host", c.GetHeader("X-Forwarded-Host"),
+				"x_forwarded_proto", c.GetHeader("X-Forwarded-Proto"),
+				"req_hostname", reqHostname,
+				"canonical_host", u.Host,
+				"path", c.Request.URL.Path,
+			)
+			c.Request.URL.Scheme = u.Scheme
+			c.Request.URL.Host = u.Host
 		}
 
 		c.Next()
