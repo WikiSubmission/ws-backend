@@ -1,14 +1,19 @@
 // Command build-offline-bundles renders the offline content bundles (one
 // SQLite file per scripture+language) plus the manifest, reading from the same
 // Postgres the API uses. For Phase 1 it targets the Quran (ar, en by default)
-// and writes to a local output directory; S3/CloudFront upload is deferred.
+// and writes to a local output directory. With -upload it then publishes the
+// bundles and manifest to the public CDN through ws-lib's store-public
+// endpoint (see offline/publish), so they become fetchable at -base-url.
 //
 // Usage:
 //
 //	go run ./cmd/build-offline-bundles -out offline-bundles -langs ar,en -data-version 1
+//	go run ./cmd/build-offline-bundles -langs ar,en -data-version 1 -upload
 //
 // Environment: same DATABASE_* / DATABASE_URL vars as the API (loaded from .env
-// when present), since it connects via db.ConnectDB.
+// when present), since it connects via db.ConnectDB. -upload additionally
+// requires WSLIB_BASE_URL and STORE_AUTH_SECRET (same pair as the data-export
+// uploader in api/server.go).
 package main
 
 import (
@@ -16,6 +21,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,6 +31,7 @@ import (
 
 	"github.com/wikiSubmission/ws-backend/db"
 	"github.com/wikiSubmission/ws-backend/offline/bundle"
+	"github.com/wikiSubmission/ws-backend/offline/publish"
 )
 
 func main() {
@@ -31,18 +39,33 @@ func main() {
 	langsCSV := flag.String("langs", "ar,en", "comma-separated Quran language codes to build")
 	baseURL := flag.String("base-url", "https://cdn.wikisubmission.org/offline", "base URL the manifest points bundle downloads at")
 	dataVersion := flag.Int("data-version", 1, "data_version stamped into every bundle and its versioned filename")
+	upload := flag.Bool("upload", false, "publish bundles and manifest to the CDN via ws-lib (requires WSLIB_BASE_URL and STORE_AUTH_SECRET)")
 	flag.Parse()
 
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("info: no .env file found, using system environment variables")
 	}
 
-	if err := run(*out, splitCSV(*langsCSV), strings.TrimRight(*baseURL, "/"), *dataVersion); err != nil {
+	var store *publish.WSLibPublicStore
+	if *upload {
+		wslibURL := strings.TrimRight(os.Getenv("WSLIB_BASE_URL"), "/")
+		secret := os.Getenv("STORE_AUTH_SECRET")
+		if wslibURL == "" || secret == "" {
+			log.Fatal("build-offline-bundles: -upload requires WSLIB_BASE_URL and STORE_AUTH_SECRET to be set")
+		}
+		store = &publish.WSLibPublicStore{
+			BaseURL: wslibURL,
+			Secret:  []byte(secret),
+			Client:  &http.Client{Timeout: 2 * time.Minute},
+		}
+	}
+
+	if err := run(*out, splitCSV(*langsCSV), strings.TrimRight(*baseURL, "/"), *dataVersion, store); err != nil {
 		log.Fatalf("build-offline-bundles: %v", err)
 	}
 }
 
-func run(outDir string, langs []string, baseURL string, dataVersion int) error {
+func run(outDir string, langs []string, baseURL string, dataVersion int, store *publish.WSLibPublicStore) error {
 	if len(langs) == 0 {
 		return fmt.Errorf("no languages requested")
 	}
@@ -93,6 +116,54 @@ func run(outDir string, langs []string, baseURL string, dataVersion int) error {
 		return fmt.Errorf("write manifest: %w", err)
 	}
 	log.Printf("wrote manifest with %d bundle(s) to %s", len(manifest.Bundles), manifestPath)
+
+	if store != nil {
+		if err := uploadArtifacts(ctx, store, baseURL, outDir, manifest); err != nil {
+			return fmt.Errorf("upload: %w", err)
+		}
+	}
+	return nil
+}
+
+// uploadArtifacts publishes the bundle files first and the manifest last, so
+// a live manifest never references a bundle that has not landed yet. The key
+// prefix is derived from baseURL, keeping uploaded keys consistent with the
+// URLs the manifest advertises.
+func uploadArtifacts(
+	ctx context.Context,
+	store *publish.WSLibPublicStore,
+	baseURL, outDir string,
+	manifest bundle.Manifest,
+) error {
+	prefix, err := publish.KeyPrefixFromBaseURL(baseURL)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range manifest.Bundles {
+		filename := filepath.Base(entry.URL)
+		payload, err := os.ReadFile(filepath.Join(outDir, filename))
+		if err != nil {
+			return fmt.Errorf("read bundle %s: %w", filename, err)
+		}
+		key := prefix + "/" + filename
+		url, err := store.Upload(ctx, key, "application/octet-stream", publish.BundleCacheControl, payload)
+		if err != nil {
+			return fmt.Errorf("upload %s: %w", key, err)
+		}
+		log.Printf("uploaded %s (%d bytes) -> %s", key, len(payload), url)
+	}
+
+	payload, err := os.ReadFile(filepath.Join(outDir, "manifest.json"))
+	if err != nil {
+		return fmt.Errorf("read manifest: %w", err)
+	}
+	key := prefix + "/manifest.json"
+	url, err := store.Upload(ctx, key, "application/json", publish.ManifestCacheControl, payload)
+	if err != nil {
+		return fmt.Errorf("upload %s: %w", key, err)
+	}
+	log.Printf("uploaded %s (%d bytes) -> %s", key, len(payload), url)
 	return nil
 }
 
