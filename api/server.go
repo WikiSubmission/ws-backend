@@ -360,6 +360,7 @@ func StartServer(database *db.DB) {
 	offlineAdminGroup.Use(auth.RequireAdmin(database))
 	offlineAdminGroup.POST("/rebuild", offlineAdmin.Rebuild)
 	offlineAdminGroup.GET("/rebuild", offlineAdmin.RebuildStatus)
+	offlineAdminGroup.GET("/files", offlineAdmin.ListFiles)
 
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they

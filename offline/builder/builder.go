@@ -106,36 +106,48 @@ func Run(ctx context.Context, database *db.DB, opts Options) (bundle.Manifest, e
 	return manifest, nil
 }
 
-// NextDataVersion fetches the currently published manifest and returns
-// max(data_version)+1, so every rebuild lands on fresh immutable URLs. A
-// missing or unreadable manifest starts at 1 (first publish); any other
-// failure is returned so a transient CDN error cannot silently reset
-// versioning.
-func NextDataVersion(ctx context.Context, client *http.Client, manifestURL string) (int, error) {
+// fetchPublishedManifest reads the currently published manifest. found is
+// false when nothing is published yet (S3/CloudFront surface missing keys as
+// 403 or 404); any other failure is an error so a transient CDN problem is
+// never mistaken for an empty CDN.
+func fetchPublishedManifest(ctx context.Context, client *http.Client, manifestURL string) (bundle.Manifest, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 	if err != nil {
-		return 0, err
+		return bundle.Manifest{}, false, err
 	}
-	// The manifest is short-TTL, but a rebuild must see the latest version.
+	// The manifest is short-TTL, but callers must see the latest version.
 	req.Header.Set("Cache-Control", "no-cache")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("fetch manifest: %w", err)
+		return bundle.Manifest{}, false, fmt.Errorf("fetch manifest: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden {
-		// Not published yet (S3/CloudFront surface missing keys as 403 or 404).
-		return 1, nil
+		return bundle.Manifest{}, false, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("fetch manifest: unexpected status %d", resp.StatusCode)
+		return bundle.Manifest{}, false, fmt.Errorf("fetch manifest: unexpected status %d", resp.StatusCode)
 	}
 
 	var m bundle.Manifest
 	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
-		return 0, fmt.Errorf("decode manifest: %w", err)
+		return bundle.Manifest{}, false, fmt.Errorf("decode manifest: %w", err)
+	}
+	return m, true, nil
+}
+
+// NextDataVersion fetches the currently published manifest and returns
+// max(data_version)+1, so every rebuild lands on fresh immutable URLs. A
+// missing manifest starts at 1 (first publish).
+func NextDataVersion(ctx context.Context, client *http.Client, manifestURL string) (int, error) {
+	m, found, err := fetchPublishedManifest(ctx, client, manifestURL)
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return 1, nil
 	}
 	next := 1
 	for _, b := range m.Bundles {
@@ -144,6 +156,113 @@ func NextDataVersion(ctx context.Context, client *http.Client, manifestURL strin
 		}
 	}
 	return next, nil
+}
+
+// PublishedFile is one artifact found on the CDN.
+type PublishedFile struct {
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	Bytes        int64  `json:"bytes"`
+	LastModified string `json:"last_modified,omitempty"` // RFC1123 from the CDN, verbatim
+}
+
+// PublishedVersion groups the artifacts of one data_version.
+type PublishedVersion struct {
+	DataVersion int             `json:"data_version"`
+	Live        bool            `json:"live"` // referenced by the live manifest.json
+	Files       []PublishedFile `json:"files"`
+}
+
+// PublishedState is everything the admin UI shows about the CDN's contents.
+type PublishedState struct {
+	ManifestURL string             `json:"manifest_url"`
+	LiveVersion int                `json:"live_version"` // 0 when nothing is published
+	Versions    []PublishedVersion `json:"versions"`     // newest first
+}
+
+// ListPublished discovers what actually exists on the CDN. Bundle URLs are
+// deterministic ({id}-v{N}.db, manifest-v{N}.json), so it reads the live
+// manifest for the id set and the highest version, then HEAD-probes every
+// version from 1 through live+1 (the +1 catches artifacts a failed rebuild
+// uploaded before dying, which no manifest references). Only versions with at
+// least one existing file are returned. Ids that were dropped from the
+// manifest entirely are invisible to this probe; acceptable while the id set
+// only grows.
+func ListPublished(ctx context.Context, client *http.Client, baseURL string) (PublishedState, error) {
+	manifestURL := baseURL + "/manifest.json"
+	m, found, err := fetchPublishedManifest(ctx, client, manifestURL)
+	if err != nil {
+		return PublishedState{}, err
+	}
+	state := PublishedState{ManifestURL: manifestURL}
+	if !found {
+		return state, nil
+	}
+
+	idSet := map[string]bool{}
+	var ids []string
+	for _, b := range m.Bundles {
+		if b.DataVersion > state.LiveVersion {
+			state.LiveVersion = b.DataVersion
+		}
+		if !idSet[b.ID] {
+			idSet[b.ID] = true
+			ids = append(ids, b.ID)
+		}
+	}
+
+	for v := state.LiveVersion + 1; v >= 1; v-- {
+		names := make([]string, 0, len(ids)+1)
+		for _, id := range ids {
+			names = append(names, fmt.Sprintf("%s-v%d.db", id, v))
+		}
+		names = append(names, fmt.Sprintf("manifest-v%d.json", v))
+
+		var files []PublishedFile
+		for _, name := range names {
+			file, ok, err := probeFile(ctx, client, baseURL+"/"+name, name)
+			if err != nil {
+				return PublishedState{}, err
+			}
+			if ok {
+				files = append(files, file)
+			}
+		}
+		if len(files) > 0 {
+			state.Versions = append(state.Versions, PublishedVersion{
+				DataVersion: v,
+				Live:        v == state.LiveVersion,
+				Files:       files,
+			})
+		}
+	}
+	return state, nil
+}
+
+// probeFile HEADs one CDN URL; ok is false when the file does not exist.
+func probeFile(ctx context.Context, client *http.Client, url, name string) (PublishedFile, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return PublishedFile{}, false, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return PublishedFile{}, false, fmt.Errorf("probe %s: %w", name, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden {
+		return PublishedFile{}, false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return PublishedFile{}, false, fmt.Errorf("probe %s: unexpected status %d", name, resp.StatusCode)
+	}
+	return PublishedFile{
+		Name:         name,
+		URL:          url,
+		Bytes:        resp.ContentLength,
+		LastModified: resp.Header.Get("Last-Modified"),
+	}, true, nil
 }
 
 // uploadArtifacts publishes the bundle files first and the manifest last. The
@@ -173,6 +292,15 @@ func uploadArtifacts(ctx context.Context, opts Options, manifest bundle.Manifest
 	if err != nil {
 		return fmt.Errorf("read manifest: %w", err)
 	}
+
+	// A versioned, immutable snapshot first (manifest-v{N}.json) so past
+	// manifests stay inspectable (e.g. in the admin bundles page), then the
+	// live manifest last so it never references a missing artifact.
+	versionKey := fmt.Sprintf("%s/manifest-v%d.json", prefix, opts.DataVersion)
+	if _, err := opts.Store.Upload(ctx, versionKey, "application/json", publish.BundleCacheControl, payload); err != nil {
+		return fmt.Errorf("upload %s: %w", versionKey, err)
+	}
+
 	key := prefix + "/manifest.json"
 	url, err := opts.Store.Upload(ctx, key, "application/json", publish.ManifestCacheControl, payload)
 	if err != nil {

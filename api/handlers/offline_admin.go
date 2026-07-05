@@ -80,6 +80,22 @@ func (h *OfflineAdminHandler) RebuildStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": state})
 }
 
+// ListFiles reports every bundle and manifest version that exists on the CDN,
+// discovered by probing the deterministic artifact URLs.
+// GET /api/v1/admin/offline/files
+func (h *OfflineAdminHandler) ListFiles(c *gin.Context) {
+	state, err := builder.ListPublished(
+		c.Request.Context(),
+		&http.Client{Timeout: 15 * time.Second},
+		h.BaseURL,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"message": "could not inspect the CDN: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": state})
+}
+
 // Rebuild starts an asynchronous build+publish of every offline bundle.
 // POST /api/v1/admin/offline/rebuild
 func (h *OfflineAdminHandler) Rebuild(c *gin.Context) {
