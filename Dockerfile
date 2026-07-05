@@ -15,11 +15,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the rest of the source.
-COPY api/    ./api/
-COPY db/     ./db/
-COPY auth/   ./auth/
-COPY sanity/ ./sanity/
-COPY games/  ./games/
+COPY api/     ./api/
+COPY db/      ./db/
+COPY auth/    ./auth/
+COPY sanity/  ./sanity/
+COPY games/   ./games/
+COPY offline/ ./offline/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).
