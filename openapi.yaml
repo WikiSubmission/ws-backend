@@ -68,6 +68,8 @@ servers:
     description: Production Server
   - url: http://ws-backend.internal/api/v1
     description: Internal Production Server
+  - url: http://preview-ws-backend.internal/api/v1
+    description: Internal Preview Server (Coolify)
   - url: https://ws-backend-vc.wikisubmission.org/api/v1
     description: railway, temp test
   - url: https://preview.wikisubmission.org/api/v1
