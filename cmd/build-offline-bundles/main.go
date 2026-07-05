@@ -1,13 +1,15 @@
 // Command build-offline-bundles renders the offline content bundles (one
 // SQLite file per scripture+language) plus the manifest, reading from the same
-// Postgres the API uses. For Phase 1 it targets the Quran (ar, en by default)
-// and writes to a local output directory. With -upload it then publishes the
+// Postgres the API uses. It targets the Quran (ar, en text bundles by default)
+// and additionally builds word-by-word bundles for the languages in
+// -word-langs (en by default; each carries ar + target + tl word rows). It
+// writes to a local output directory; with -upload it then publishes the
 // bundles and manifest to the public CDN through ws-lib's store-public
 // endpoint (see offline/publish), so they become fetchable at -base-url.
 //
 // Usage:
 //
-//	go run ./cmd/build-offline-bundles -out offline-bundles -langs ar,en -data-version 1
+//	go run ./cmd/build-offline-bundles -out offline-bundles -langs ar,en -word-langs en -data-version 1
 //	go run ./cmd/build-offline-bundles -langs ar,en -data-version 1 -upload
 //
 // Environment: same DATABASE_* / DATABASE_URL vars as the API (loaded from .env
@@ -37,6 +39,7 @@ import (
 func main() {
 	out := flag.String("out", "offline-bundles", "output directory for bundle files and manifest")
 	langsCSV := flag.String("langs", "ar,en", "comma-separated Quran language codes to build")
+	wordLangsCSV := flag.String("word-langs", "en", "comma-separated languages to build word-by-word bundles for (empty to skip)")
 	baseURL := flag.String("base-url", "https://cdn.wikisubmission.org/offline", "base URL the manifest points bundle downloads at")
 	dataVersion := flag.Int("data-version", 1, "data_version stamped into every bundle and its versioned filename")
 	upload := flag.Bool("upload", false, "publish bundles and manifest to the CDN via ws-lib (requires WSLIB_BASE_URL and STORE_AUTH_SECRET)")
@@ -60,12 +63,12 @@ func main() {
 		}
 	}
 
-	if err := run(*out, splitCSV(*langsCSV), strings.TrimRight(*baseURL, "/"), *dataVersion, store); err != nil {
+	if err := run(*out, splitCSV(*langsCSV), splitCSV(*wordLangsCSV), strings.TrimRight(*baseURL, "/"), *dataVersion, store); err != nil {
 		log.Fatalf("build-offline-bundles: %v", err)
 	}
 }
 
-func run(outDir string, langs []string, baseURL string, dataVersion int, store *publish.WSLibPublicStore) error {
+func run(outDir string, langs, wordLangs []string, baseURL string, dataVersion int, store *publish.WSLibPublicStore) error {
 	if len(langs) == 0 {
 		return fmt.Errorf("no languages requested")
 	}
@@ -106,6 +109,18 @@ func run(outDir string, langs []string, baseURL string, dataVersion int, store *
 		entry, err := buildQuranBundle(ctx, database, lang, outDir, baseURL, dataVersion, builtAt)
 		if err != nil {
 			return fmt.Errorf("build quran-%s: %w", code, err)
+		}
+		manifest.Bundles = append(manifest.Bundles, entry)
+		log.Printf("built %s: %d bytes, sha256=%s", entry.ID, entry.Bytes, entry.SHA256[:12])
+	}
+
+	for _, code := range wordLangs {
+		if _, ok := langByCode[code]; !ok {
+			return fmt.Errorf("word language %q not found in languages table", code)
+		}
+		entry, err := buildQuranWordsBundle(ctx, database, code, outDir, baseURL, dataVersion, builtAt)
+		if err != nil {
+			return fmt.Errorf("build quran-words-%s: %w", code, err)
 		}
 		manifest.Bundles = append(manifest.Bundles, entry)
 		log.Printf("built %s: %d bytes, sha256=%s", entry.ID, entry.Bytes, entry.SHA256[:12])
@@ -229,6 +244,79 @@ func buildQuranBundle(
 
 	url := baseURL + "/" + filename
 	return bundle.NewManifestEntry(path, id, url, meta)
+}
+
+// buildQuranWordsBundle renders the word-by-word bundle for one target
+// language. The bundle carries every language the reader's word display needs:
+// the Arabic word text, the target-language word text (with meanings), and the
+// transliteration — mirroring the reader's word_langs of [ar, <lang>, tl].
+func buildQuranWordsBundle(
+	ctx context.Context,
+	database *db.DB,
+	langCode string,
+	outDir, baseURL string,
+	dataVersion int,
+	builtAt string,
+) (bundle.ManifestEntry, error) {
+	wordLangs := dedup([]string{"ar", langCode, "tl"})
+
+	// (1,1)..(114,300) spans every verse; 300 safely exceeds the longest chapter.
+	rows, err := database.FetchWordsForVerses(ctx, 1, 114, 1, 300, wordLangs)
+	if err != nil {
+		return bundle.ManifestEntry{}, fmt.Errorf("fetch words: %w", err)
+	}
+
+	words := make([]bundle.Word, 0, len(rows))
+	targetRows := 0
+	for _, r := range rows {
+		if r.LangCode == langCode {
+			targetRows++
+		}
+		words = append(words, bundle.Word{
+			CN:      r.ChapterNumber,
+			VN:      r.VerseIndex,
+			WI:      r.WordIndex,
+			GI:      r.GlobalIndex,
+			Lang:    r.LangCode,
+			Text:    r.WordText,
+			Root:    deref(r.WordRoot),
+			Meaning: deref(r.Meaning),
+		})
+	}
+	if targetRows == 0 {
+		return bundle.ManifestEntry{}, fmt.Errorf("no word rows for language %q", langCode)
+	}
+
+	meta := bundle.Meta{
+		Scripture:   "quran",
+		Lang:        langCode,
+		Kind:        bundle.KindWords,
+		DataVersion: dataVersion,
+		Tokenizer:   bundle.TokenizerNone,
+		BuiltAt:     builtAt,
+	}
+
+	id := "quran-words-" + langCode
+	filename := fmt.Sprintf("%s-v%d.db", id, dataVersion)
+	path := filepath.Join(outDir, filename)
+	if err := bundle.WriteWords(path, meta, words); err != nil {
+		return bundle.ManifestEntry{}, err
+	}
+
+	url := baseURL + "/" + filename
+	return bundle.NewManifestEntry(path, id, url, meta)
+}
+
+func dedup(in []string) []string {
+	seen := make(map[string]bool, len(in))
+	var out []string
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func deref(s *string) string {

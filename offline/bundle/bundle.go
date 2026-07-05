@@ -35,6 +35,18 @@ const (
 	// TokenizerLatin stems Latin translations; remove_diacritics is a backstop
 	// since the indexed `norm` column is already diacritic-free.
 	TokenizerLatin = "porter unicode61 remove_diacritics 2"
+	// TokenizerNone marks bundles that carry no FTS index (word bundles).
+	TokenizerNone = "none"
+)
+
+// Bundle kinds recorded in meta.kind and the manifest. An absent kind means
+// KindText, so pre-kind manifests and bundles stay valid.
+const (
+	// KindText is a verse-text bundle: verses + chapters + FTS index.
+	KindText = "text"
+	// KindWords is a word-by-word bundle: per-word text/root/meaning rows for
+	// the languages needed to render the word breakdown in one target language.
+	KindWords = "words"
 )
 
 // Verse is one verse in one language. Subtitle and Footnote are empty when absent.
@@ -55,13 +67,37 @@ type Chapter struct {
 	VerseCount      int
 }
 
+// Word is one word's text in one language, plus its root and meaning when the
+// source rows carry them (roots ride on Arabic rows, meanings on translation
+// rows). Root and Meaning are empty when absent.
+type Word struct {
+	CN      int    // chapter number
+	VN      int    // verse number (verse_index)
+	WI      int    // word_index within the verse (0-based)
+	GI      int    // global_index across the whole Quran (1-based)
+	Lang    string // language of Text ("ar", "en", "tl", ...)
+	Text    string
+	Root    string
+	Meaning string
+}
+
 // Meta describes a bundle. NormalizationVersion is always textnorm.Version.
 type Meta struct {
 	Scripture   string // "quran"
 	Lang        string // "ar", "en", ...
+	Kind        string // KindText (default when empty) or KindWords
 	DataVersion int    // bumped when content changes; drives client updates
 	Tokenizer   string // one of the Tokenizer* constants
 	BuiltAt     string // RFC3339; passed in by the caller (deterministic in tests)
+}
+
+// kindOrDefault resolves the empty-Kind default so callers predating the kind
+// field keep producing text bundles.
+func (m Meta) kindOrDefault() string {
+	if m.Kind == "" {
+		return KindText
+	}
+	return m.Kind
 }
 
 // Write creates a content bundle at path with the frozen schema, computing the
@@ -96,6 +132,91 @@ func Write(path string, meta Meta, chapters []Chapter, verses []Verse) (err erro
 	}
 	if err := populate(db, meta, chapters, verses); err != nil {
 		return fmt.Errorf("populate: %w", err)
+	}
+	return nil
+}
+
+// WriteWords creates a word-by-word bundle at path: per-word rows for every
+// language passed in (typically Arabic + the target translation + the
+// transliteration), keyed so the client can rebuild the API's per-verse word
+// arrays offline. No FTS index — word search stays online-only for now.
+func WriteWords(path string, meta Meta, words []Word) (err error) {
+	if meta.Scripture == "" || meta.Lang == "" {
+		return fmt.Errorf("bundle: meta.Scripture and meta.Lang are required")
+	}
+	if meta.kindOrDefault() != KindWords {
+		return fmt.Errorf("bundle: WriteWords requires meta.Kind = %q", KindWords)
+	}
+	if len(words) == 0 {
+		return fmt.Errorf("bundle: no word rows to write")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := db.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	stmts := []string{
+		`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;`,
+		`CREATE TABLE words (
+			cn INTEGER NOT NULL,
+			vn INTEGER NOT NULL,
+			wi INTEGER NOT NULL,
+			gi INTEGER NOT NULL,
+			lang TEXT NOT NULL,
+			text TEXT NOT NULL,
+			root TEXT,
+			meaning TEXT,
+			PRIMARY KEY (cn, vn, wi, lang)
+		) WITHOUT ROWID;`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return fmt.Errorf("exec %q: %w", s, err)
+		}
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := insertMeta(tx, meta); err != nil {
+		return err
+	}
+
+	wstmt, err := tx.Prepare(
+		`INSERT INTO words(cn, vn, wi, gi, lang, text, root, meaning) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer wstmt.Close()
+	for _, w := range words {
+		if _, err := wstmt.Exec(
+			w.CN, w.VN, w.WI, w.GI, w.Lang, w.Text,
+			nullIfEmpty(w.Root), nullIfEmpty(w.Meaning),
+		); err != nil {
+			return fmt.Errorf("insert word %d:%d[%d] %s: %w", w.CN, w.VN, w.WI, w.Lang, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`VACUUM`); err != nil {
+		return fmt.Errorf("vacuum: %w", err)
 	}
 	return nil
 }
@@ -142,19 +263,8 @@ func populate(db *sql.DB, meta Meta, chapters []Chapter, verses []Verse) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	metaRows := [][2]string{
-		{"schema_version", fmt.Sprintf("%d", SchemaVersion)},
-		{"data_version", fmt.Sprintf("%d", meta.DataVersion)},
-		{"normalization_version", fmt.Sprintf("%d", textnorm.Version)},
-		{"scripture", meta.Scripture},
-		{"lang", meta.Lang},
-		{"fts_tokenizer", meta.Tokenizer},
-		{"built_at", meta.BuiltAt},
-	}
-	for _, kv := range metaRows {
-		if _, err := tx.Exec(`INSERT INTO meta(key, value) VALUES(?, ?)`, kv[0], kv[1]); err != nil {
-			return err
-		}
+	if err := insertMeta(tx, meta); err != nil {
+		return err
 	}
 
 	for _, c := range chapters {
@@ -201,6 +311,25 @@ func populate(db *sql.DB, meta Meta, chapters []Chapter, verses []Verse) error {
 	return nil
 }
 
+func insertMeta(tx *sql.Tx, meta Meta) error {
+	metaRows := [][2]string{
+		{"schema_version", fmt.Sprintf("%d", SchemaVersion)},
+		{"data_version", fmt.Sprintf("%d", meta.DataVersion)},
+		{"normalization_version", fmt.Sprintf("%d", textnorm.Version)},
+		{"scripture", meta.Scripture},
+		{"lang", meta.Lang},
+		{"kind", meta.kindOrDefault()},
+		{"fts_tokenizer", meta.Tokenizer},
+		{"built_at", meta.BuiltAt},
+	}
+	for _, kv := range metaRows {
+		if _, err := tx.Exec(`INSERT INTO meta(key, value) VALUES(?, ?)`, kv[0], kv[1]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func nullIfEmpty(s string) any {
 	if s == "" {
 		return nil
@@ -216,6 +345,7 @@ type ManifestEntry struct {
 	ID                   string `json:"id"`
 	Scripture            string `json:"scripture"`
 	Lang                 string `json:"lang"`
+	Kind                 string `json:"kind"`
 	URL                  string `json:"url"`
 	Bytes                int64  `json:"bytes"`
 	SHA256               string `json:"sha256"`
@@ -241,6 +371,7 @@ func NewManifestEntry(path, id, url string, meta Meta) (ManifestEntry, error) {
 		ID:                   id,
 		Scripture:            meta.Scripture,
 		Lang:                 meta.Lang,
+		Kind:                 meta.kindOrDefault(),
 		URL:                  url,
 		Bytes:                size,
 		SHA256:               sum,

@@ -189,3 +189,100 @@ func TestNewManifestEntry(t *testing.T) {
 		t.Errorf("checksum not stable: %q/%d vs %q/%d", entry.SHA256, entry.Bytes, again.SHA256, again.Bytes)
 	}
 }
+
+func TestWriteWordsBundle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quran-words-en-v1.db")
+	meta := Meta{Scripture: "quran", Lang: "en", Kind: KindWords, DataVersion: 1, Tokenizer: TokenizerNone, BuiltAt: "2026-07-04T00:00:00Z"}
+	words := []Word{
+		{CN: 1, VN: 1, WI: 0, GI: 1, Lang: "ar", Text: "بِسْمِ", Root: "سمو"},
+		{CN: 1, VN: 1, WI: 0, GI: 1, Lang: "en", Text: "In the name", Meaning: "name"},
+		{CN: 1, VN: 1, WI: 0, GI: 1, Lang: "tl", Text: "bismi"},
+		{CN: 1, VN: 1, WI: 1, GI: 2, Lang: "ar", Text: "ٱللَّهِ", Root: "اله"},
+	}
+	if err := WriteWords(path, meta, words); err != nil {
+		t.Fatalf("WriteWords: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	wantMeta := map[string]string{
+		"schema_version": "1",
+		"kind":           KindWords,
+		"scripture":      "quran",
+		"lang":           "en",
+		"fts_tokenizer":  TokenizerNone,
+	}
+	for k, want := range wantMeta {
+		var got string
+		if err := db.QueryRow(`SELECT value FROM meta WHERE key = ?`, k).Scan(&got); err != nil {
+			t.Fatalf("meta[%s]: %v", k, err)
+		}
+		if got != want {
+			t.Errorf("meta[%s] = %q, want %q", k, got, want)
+		}
+	}
+
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM words`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 4 {
+		t.Errorf("words count = %d, want 4", n)
+	}
+
+	// Root rides on the Arabic row; meaning on the translation row. Empty
+	// strings are stored as NULL.
+	var root sql.NullString
+	if err := db.QueryRow(
+		`SELECT root FROM words WHERE cn = 1 AND vn = 1 AND wi = 0 AND lang = 'ar'`).Scan(&root); err != nil {
+		t.Fatal(err)
+	}
+	if !root.Valid || root.String != "سمو" {
+		t.Errorf("ar root = %+v, want سمو", root)
+	}
+	var meaning sql.NullString
+	if err := db.QueryRow(
+		`SELECT meaning FROM words WHERE cn = 1 AND vn = 1 AND wi = 0 AND lang = 'tl'`).Scan(&meaning); err != nil {
+		t.Fatal(err)
+	}
+	if meaning.Valid {
+		t.Errorf("tl meaning should be NULL, got %q", meaning.String)
+	}
+
+	// The manifest entry records the words kind.
+	entry, err := NewManifestEntry(path, "quran-words-en", "https://cdn.example/offline/quran-words-en-v1.db", meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Kind != KindWords {
+		t.Errorf("entry.Kind = %q, want %q", entry.Kind, KindWords)
+	}
+}
+
+func TestWriteWordsBundleRejectsWrongKind(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bad.db")
+	meta := Meta{Scripture: "quran", Lang: "en", DataVersion: 1, Tokenizer: TokenizerNone, BuiltAt: "2026-07-04T00:00:00Z"}
+	if err := WriteWords(path, meta, []Word{{CN: 1, VN: 1, WI: 0, GI: 1, Lang: "en", Text: "x"}}); err == nil {
+		t.Fatal("expected error for meta without KindWords")
+	}
+}
+
+func TestTextBundleKindDefaultsToText(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quran-en-v1.db")
+	meta := Meta{Scripture: "quran", Lang: "en", DataVersion: 1, Tokenizer: TokenizerLatin, BuiltAt: "2026-07-04T00:00:00Z"}
+	if err := Write(path, meta, []Chapter{{CN: 1, Title: "K", VerseCount: 1}}, []Verse{{VK: "1:1", CN: 1, VN: 1, Text: "Hi."}}); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := NewManifestEntry(path, "quran-en", "https://cdn.example/offline/quran-en-v1.db", meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Kind != KindText {
+		t.Errorf("entry.Kind = %q, want %q", entry.Kind, KindText)
+	}
+}
