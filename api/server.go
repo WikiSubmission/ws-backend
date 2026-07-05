@@ -25,6 +25,7 @@ import (
 	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/offline/publish"
 	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
@@ -350,6 +351,16 @@ func StartServer(database *db.DB) {
 	meSyncGroup.Use(auth.RequireAuth(verifier))
 	meSyncGroup.POST("/sync", meSync.Sync)
 
+	// Admin rebuild of the offline content bundles (build from Postgres, publish
+	// to the CDN via ws-lib). Outside the OpenAPI surface like the routes above;
+	// admin-only since it mutates a public, CDN-cached artifact.
+	offlineAdmin := handlers.NewOfflineAdminHandler(database, buildOfflinePublishStore(), offlineBundlesBaseURL())
+	offlineAdminGroup := r.Group("/api/v1/admin/offline")
+	offlineAdminGroup.Use(auth.RequireAuth(verifier))
+	offlineAdminGroup.Use(auth.RequireAdmin(database))
+	offlineAdminGroup.POST("/rebuild", offlineAdmin.Rebuild)
+	offlineAdminGroup.GET("/rebuild", offlineAdmin.RebuildStatus)
+
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
 	// register before the validator like the sanity and games routes above.
@@ -480,6 +491,33 @@ func buildExportUploader() handlers.ExportUploader {
 		Secret:  []byte(secret),
 		Client:  &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// buildOfflinePublishStore wires the offline-bundle publisher from the same
+// WSLIB_BASE_URL / STORE_AUTH_SECRET pair as the data-export uploader. Returns
+// nil when unset; the admin rebuild endpoint then responds 503 so the feature
+// degrades visibly instead of building without publishing.
+func buildOfflinePublishStore() *publish.WSLibPublicStore {
+	baseURL := strings.TrimRight(os.Getenv("WSLIB_BASE_URL"), "/")
+	secret := os.Getenv("STORE_AUTH_SECRET")
+	if baseURL == "" || secret == "" {
+		slog.Warn("WSLIB_BASE_URL or STORE_AUTH_SECRET not set; admin offline-bundle rebuild disabled")
+		return nil
+	}
+	return &publish.WSLibPublicStore{
+		BaseURL: baseURL,
+		Secret:  []byte(secret),
+		Client:  &http.Client{Timeout: 2 * time.Minute},
+	}
+}
+
+// offlineBundlesBaseURL is where the published bundles and manifest live.
+// Overridable for preview environments.
+func offlineBundlesBaseURL() string {
+	if v := strings.TrimRight(os.Getenv("OFFLINE_BUNDLES_BASE_URL"), "/"); v != "" {
+		return v
+	}
+	return "https://cdn.wikisubmission.org/offline"
 }
 
 // buildNativeAuthHandler wires the mobile native-auth handler from the
