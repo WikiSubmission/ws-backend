@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/email"
 )
 
 // nativeAuthStore is the slice of the DB the native-auth handlers need. Keeping
@@ -33,6 +34,18 @@ type NativeAuthHandler struct {
 	Verifier   *auth.AuthJSVerifier
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
+	// OTP issues and verifies email one-time codes for passwordless sign-in.
+	// Nil/unconfigured disables the /auth/mobile/otp/* endpoints (503).
+	OTP *auth.OTPManager
+	// Mailer delivers the OTP code. Nil means email delivery is unconfigured;
+	// OTPDevLog then decides between a dev log and a 503.
+	Mailer email.Sender
+	// OTPDevLog, when true, logs the code instead of failing when Mailer is nil.
+	// Intended for local development only, mirroring the web send-otp dev path.
+	OTPDevLog bool
+	// otpIPLimiter / otpEmailLimiter throttle OTP requests. Lazily initialised.
+	otpIPLimiter    *rateLimiter
+	otpEmailLimiter *rateLimiter
 	// Now is injectable so tests can pin issuance time; defaults to time.Now.
 	Now func() time.Time
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/wikiSubmission/ws-backend/api/health"
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
+	"github.com/wikiSubmission/ws-backend/email"
 	"github.com/wikiSubmission/ws-backend/offline/publish"
 	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
@@ -369,6 +370,8 @@ func StartServer(database *db.DB) {
 	mobileAuth := r.Group("/api/v1/auth/mobile")
 	mobileAuth.POST("/exchange", nativeAuthHandler.Exchange)
 	mobileAuth.POST("/refresh", nativeAuthHandler.Refresh)
+	mobileAuth.POST("/otp/request", nativeAuthHandler.OtpRequest)
+	mobileAuth.POST("/otp/verify", nativeAuthHandler.OtpVerify)
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
@@ -540,6 +543,26 @@ func buildNativeAuthHandler(database *db.DB, verifier *auth.AuthJSVerifier) *han
 		Verifier:   verifier,
 		AccessTTL:  parseDurationEnv("MOBILE_ACCESS_TOKEN_TTL", auth.DefaultAccessTokenTTL),
 		RefreshTTL: parseDurationEnv("MOBILE_REFRESH_TOKEN_TTL", auth.DefaultRefreshTokenTTL),
+	}
+
+	// Email-OTP sign-in. The pending-code manager reuses WS_BACKEND_JWT_SECRET
+	// (domain-separated internally, so its tokens are distinct from session
+	// tokens). Delivery goes through SES; without SES credentials the request
+	// endpoint 503s in production but logs the code in non-production so local
+	// dev works without email, mirroring the web send-otp route.
+	if otp, err := auth.NewOTPManager(os.Getenv("WS_BACKEND_JWT_SECRET"), parseDurationEnv("MOBILE_OTP_TTL", auth.DefaultOTPTTL)); err != nil {
+		slog.Warn("OTP manager init failed; email sign-in disabled", slog.Any("error", err))
+	} else {
+		h.OTP = otp
+	}
+	if sender, ok := email.NewSESSenderFromEnv(); ok {
+		h.Mailer = sender
+		slog.Info("Email OTP sign-in enabled (SES delivery)")
+	} else if os.Getenv("APP_ENV") != "production" {
+		h.OTPDevLog = true
+		slog.Warn("Email OTP: no SES config; codes will be logged (non-production dev mode)")
+	} else {
+		slog.Warn("Email OTP: no SES config; /auth/mobile/otp/request will return 503")
 	}
 
 	if auds := splitCommaEnv("AUTH_GOOGLE_MOBILE_CLIENT_IDS"); len(auds) > 0 {
