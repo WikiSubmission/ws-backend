@@ -43,6 +43,7 @@ func main() {
 	out := flag.String("out", "offline-bundles", "output directory for bundle files and manifest")
 	langsCSV := flag.String("langs", "ar,en", "comma-separated Quran language codes to build")
 	wordLangsCSV := flag.String("word-langs", "en", "comma-separated languages to build word-by-word bundles for (empty to skip)")
+	libraryLangsCSV := flag.String("library-langs", "en", "comma-separated languages to build library-document bundles for (empty to skip)")
 	baseURL := flag.String("base-url", "https://cdn.wikisubmission.org/offline", "base URL the manifest points bundle downloads at")
 	dataVersion := flag.Int("data-version", 1, "data_version stamped into every bundle and its versioned filename")
 	upload := flag.Bool("upload", false, "publish bundles and manifest to the CDN via ws-lib (requires WSLIB_BASE_URL and STORE_AUTH_SECRET)")
@@ -73,12 +74,13 @@ func main() {
 	defer database.Close()
 
 	_, err = builder.Run(context.Background(), database, builder.Options{
-		Langs:       splitCSV(*langsCSV),
-		WordLangs:   splitCSV(*wordLangsCSV),
-		OutDir:      *out,
-		BaseURL:     strings.TrimRight(*baseURL, "/"),
-		DataVersion: *dataVersion,
-		Store:       store,
+		Langs:        splitCSV(*langsCSV),
+		WordLangs:    splitCSV(*wordLangsCSV),
+		LibraryLangs: splitCSV(*libraryLangsCSV),
+		OutDir:       *out,
+		BaseURL:      strings.TrimRight(*baseURL, "/"),
+		DataVersion:  *dataVersion,
+		Store:        store,
 	})
 	if err != nil {
 		log.Fatalf("build-offline-bundles: %v", err)

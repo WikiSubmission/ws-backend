@@ -345,6 +345,10 @@ seed-music TARGET="local":
 seed-admin EMAIL:
     go run ./api/cmd/seed_admin/ --email "{{EMAIL}}"
 
+# Load the library documents seed (introduction, proclamation, appendices)
+seed-library:
+    go run ./api/cmd/seed_library/
+
 # ---------------------------------------------------------------------------
 # Quran Games
 # ---------------------------------------------------------------------------

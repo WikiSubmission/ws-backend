@@ -31,8 +31,9 @@ import (
 // whole, so omitting a language would drop its bundles from the live manifest.
 // Extend these lists as more translations gain offline support.
 var (
-	offlineTextLangs = []string{"ar", "en"}
-	offlineWordLangs = []string{"en"}
+	offlineTextLangs    = []string{"ar", "en"}
+	offlineWordLangs    = []string{"en"}
+	offlineLibraryLangs = []string{"en"}
 )
 
 // rebuildTimeout bounds a stuck rebuild (DB stall, CDN outage) so the single
@@ -166,12 +167,13 @@ func (h *OfflineAdminHandler) runRebuild(version int) {
 	defer os.RemoveAll(outDir)
 
 	manifest, err := builder.Run(ctx, h.DB, builder.Options{
-		Langs:       offlineTextLangs,
-		WordLangs:   offlineWordLangs,
-		OutDir:      outDir,
-		BaseURL:     h.BaseURL,
-		DataVersion: version,
-		Store:       h.Store,
+		Langs:        offlineTextLangs,
+		WordLangs:    offlineWordLangs,
+		LibraryLangs: offlineLibraryLangs,
+		OutDir:       outDir,
+		BaseURL:      h.BaseURL,
+		DataVersion:  version,
+		Store:        h.Store,
 	})
 	if err != nil {
 		slog.Error("offline bundle rebuild failed", "data_version", version, "error", err)

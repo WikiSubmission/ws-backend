@@ -47,7 +47,22 @@ const (
 	// KindWords is a word-by-word bundle: per-word text/root/meaning rows for
 	// the languages needed to render the word breakdown in one target language.
 	KindWords = "words"
+	// KindLibrary is a library-documents bundle: introduction, proclamation,
+	// and appendix sections plus an FTS index over headings and bodies.
+	KindLibrary = "library"
 )
+
+// Doc is one library document section (introduction, proclamation, or an
+// appendix) as stored in a library bundle. DocNumber is 0 for the two single
+// documents.
+type Doc struct {
+	DocType      string // "appendix" | "introduction" | "proclamation"
+	DocNumber    int    // appendix number; 0 when not an appendix
+	Title        string
+	SectionIndex int
+	Heading      string // empty when the section has no heading
+	Body         string
+}
 
 // Verse is one verse in one language. Subtitle and Footnote are empty when absent.
 type Verse struct {
@@ -61,10 +76,10 @@ type Verse struct {
 
 // Chapter is the per-bundle chapter metadata that lets the sidebar render offline.
 type Chapter struct {
-	CN              int
-	Title           string
-	TitleTranslit   string
-	VerseCount      int
+	CN            int
+	Title         string
+	TitleTranslit string
+	VerseCount    int
 }
 
 // Word is one word's text in one language, plus its root and meaning when the
@@ -210,6 +225,108 @@ func WriteWords(path string, meta Meta, words []Word) (err error) {
 		); err != nil {
 			return fmt.Errorf("insert word %d:%d[%d] %s: %w", w.CN, w.VN, w.WI, w.Lang, err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`VACUUM`); err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+	return nil
+}
+
+// WriteLibrary creates a library bundle at path: one row per document section
+// with an FTS index over the normalized heading+body, so the client can search
+// the introduction, proclamation, and appendices offline. The `norm` column is
+// indexed (mirroring the verses schema), keeping snippet queries symmetric
+// with verse search on both platforms.
+func WriteLibrary(path string, meta Meta, docs []Doc) (err error) {
+	if meta.Scripture == "" || meta.Lang == "" {
+		return fmt.Errorf("bundle: meta.Scripture and meta.Lang are required")
+	}
+	if meta.kindOrDefault() != KindLibrary {
+		return fmt.Errorf("bundle: WriteLibrary requires meta.Kind = %q", KindLibrary)
+	}
+	if meta.Tokenizer == "" {
+		return fmt.Errorf("bundle: meta.Tokenizer is required")
+	}
+	if len(docs) == 0 {
+		return fmt.Errorf("bundle: no library sections to write")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := db.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	stmts := []string{
+		`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;`,
+		`CREATE TABLE docs (
+			doc_type TEXT NOT NULL,
+			doc_number INTEGER NOT NULL,
+			title TEXT NOT NULL,
+			section_index INTEGER NOT NULL,
+			heading TEXT,
+			body TEXT NOT NULL,
+			norm TEXT NOT NULL
+		);`,
+		`CREATE INDEX idx_docs_identity ON docs(doc_type, doc_number, section_index);`,
+		fmt.Sprintf(`CREATE VIRTUAL TABLE docs_fts USING fts5(
+			norm,
+			content='docs', content_rowid='rowid',
+			tokenize='%s'
+		);`, meta.Tokenizer),
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return fmt.Errorf("exec %q: %w", s, err)
+		}
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := insertMeta(tx, meta); err != nil {
+		return err
+	}
+
+	dstmt, err := tx.Prepare(
+		`INSERT INTO docs(doc_type, doc_number, title, section_index, heading, body, norm)
+		 VALUES(?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer dstmt.Close()
+	for _, d := range docs {
+		if _, err := dstmt.Exec(
+			d.DocType, d.DocNumber, d.Title, d.SectionIndex,
+			nullIfEmpty(d.Heading), d.Body,
+			textnorm.ForSearch(d.Heading+" "+d.Body),
+		); err != nil {
+			return fmt.Errorf("insert doc %s/%d[%d]: %w", d.DocType, d.DocNumber, d.SectionIndex, err)
+		}
+	}
+
+	if _, err := tx.Exec(`INSERT INTO docs_fts(docs_fts) VALUES('rebuild')`); err != nil {
+		return fmt.Errorf("fts rebuild: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT INTO docs_fts(docs_fts) VALUES('optimize')`); err != nil {
+		return fmt.Errorf("fts optimize: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

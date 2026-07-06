@@ -27,6 +27,9 @@ type Options struct {
 	// WordLangs are the word-by-word bundle target languages (each bundle
 	// carries ar + target + tl word rows). Empty skips word bundles.
 	WordLangs []string
+	// LibraryLangs are the library-documents bundle languages (introduction,
+	// proclamation, appendices with FTS). Empty skips library bundles.
+	LibraryLangs []string
 	// OutDir receives the bundle files and manifest.json.
 	OutDir string
 	// BaseURL is the public URL prefix the manifest points downloads at,
@@ -87,6 +90,15 @@ func Run(ctx context.Context, database *db.DB, opts Options) (bundle.Manifest, e
 		entry, err := buildQuranWordsBundle(ctx, database, code, opts, builtAt)
 		if err != nil {
 			return bundle.Manifest{}, fmt.Errorf("build quran-words-%s: %w", code, err)
+		}
+		manifest.Bundles = append(manifest.Bundles, entry)
+		slog.Info("built offline bundle", "id", entry.ID, "bytes", entry.Bytes, "sha256", entry.SHA256[:12])
+	}
+
+	for _, code := range opts.LibraryLangs {
+		entry, err := buildLibraryBundle(ctx, database, code, opts, builtAt)
+		if err != nil {
+			return bundle.Manifest{}, fmt.Errorf("build library-%s: %w", code, err)
 		}
 		manifest.Bundles = append(manifest.Bundles, entry)
 		slog.Info("built offline bundle", "id", entry.ID, "bytes", entry.Bytes, "sha256", entry.SHA256[:12])
@@ -426,6 +438,65 @@ func buildQuranWordsBundle(
 	filename := fmt.Sprintf("%s-v%d.db", id, opts.DataVersion)
 	path := filepath.Join(opts.OutDir, filename)
 	if err := bundle.WriteWords(path, meta, words); err != nil {
+		return bundle.ManifestEntry{}, err
+	}
+
+	url := opts.BaseURL + "/" + filename
+	return bundle.NewManifestEntry(path, id, url, meta)
+}
+
+// buildLibraryBundle renders the library-documents bundle for one language:
+// every section of the introduction, proclamation, and appendices, with an
+// FTS index so the client can search them offline. Scripture is "library" so
+// the id scheme ({scripture}-{lang}) yields library-en.
+func buildLibraryBundle(
+	ctx context.Context,
+	database *db.DB,
+	langCode string,
+	opts Options,
+	builtAt string,
+) (bundle.ManifestEntry, error) {
+	rows, err := database.FetchLibrarySections(ctx, langCode)
+	if err != nil {
+		return bundle.ManifestEntry{}, fmt.Errorf("fetch library sections: %w", err)
+	}
+	if len(rows) == 0 {
+		return bundle.ManifestEntry{}, fmt.Errorf("no library sections for language %q (run the library seed)", langCode)
+	}
+
+	docs := make([]bundle.Doc, 0, len(rows))
+	for _, r := range rows {
+		docNumber := 0
+		if r.DocNumber != nil {
+			docNumber = *r.DocNumber
+		}
+		heading := ""
+		if r.Heading != nil {
+			heading = *r.Heading
+		}
+		docs = append(docs, bundle.Doc{
+			DocType:      r.DocType,
+			DocNumber:    docNumber,
+			Title:        r.Title,
+			SectionIndex: r.SectionIndex,
+			Heading:      heading,
+			Body:         r.Body,
+		})
+	}
+
+	meta := bundle.Meta{
+		Scripture:   "library",
+		Lang:        langCode,
+		Kind:        bundle.KindLibrary,
+		DataVersion: opts.DataVersion,
+		Tokenizer:   bundle.TokenizerLatin,
+		BuiltAt:     builtAt,
+	}
+
+	id := "library-" + langCode
+	filename := fmt.Sprintf("%s-v%d.db", id, opts.DataVersion)
+	path := filepath.Join(opts.OutDir, filename)
+	if err := bundle.WriteLibrary(path, meta, docs); err != nil {
 		return bundle.ManifestEntry{}, err
 	}
 

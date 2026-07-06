@@ -286,3 +286,104 @@ func TestTextBundleKindDefaultsToText(t *testing.T) {
 		t.Errorf("entry.Kind = %q, want %q", entry.Kind, KindText)
 	}
 }
+
+func TestWriteLibraryBundleAndSearch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library-en-v1.db")
+	meta := Meta{Scripture: "library", Lang: "en", Kind: KindLibrary, DataVersion: 1, Tokenizer: TokenizerLatin, BuiltAt: "2026-07-05T00:00:00Z"}
+	docs := []Doc{
+		{DocType: "introduction", DocNumber: 0, Title: "Introduction", SectionIndex: 0, Body: "This is God's final message to humanity."},
+		{DocType: "appendix", DocNumber: 19, Title: "Hadith and Sunna", SectionIndex: 0, Heading: "Satanic Innovations", Body: "Hadith and Sunna are fabrications."},
+		{DocType: "appendix", DocNumber: 1, Title: "One of the Great Miracles", SectionIndex: 2, Body: "The mathematical miracle of the Quran."},
+	}
+	if err := WriteLibrary(path, meta, docs); err != nil {
+		t.Fatalf("WriteLibrary: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	wantMeta := map[string]string{
+		"schema_version": "1",
+		"kind":           KindLibrary,
+		"scripture":      "library",
+		"lang":           "en",
+		"fts_tokenizer":  TokenizerLatin,
+	}
+	for k, want := range wantMeta {
+		var got string
+		if err := db.QueryRow(`SELECT value FROM meta WHERE key = ?`, k).Scan(&got); err != nil {
+			t.Fatalf("meta[%s]: %v", k, err)
+		}
+		if got != want {
+			t.Errorf("meta[%s] = %q, want %q", k, got, want)
+		}
+	}
+
+	// The client query path: normalized quoted MATCH with a snippet, joined
+	// back to docs (mirrors native-content-store searchDocs).
+	norm := textnorm.ForSearch("hadith")
+	match := `"` + strings.ReplaceAll(norm, `"`, `""`) + `"`
+	rows, err := db.Query(
+		`SELECT d.doc_type, d.doc_number, d.title, d.section_index,
+		        snippet(docs_fts, 0, '<b>', '</b>', '…', 12) AS hl
+		 FROM docs_fts f JOIN docs d ON d.rowid = f.rowid
+		 WHERE docs_fts MATCH ? ORDER BY rank`, match)
+	if err != nil {
+		t.Fatalf("searchDocs: %v", err)
+	}
+	defer rows.Close()
+
+	type hit struct {
+		docType string
+		num     int
+		title   string
+		idx     int
+		hl      string
+	}
+	var hits []hit
+	for rows.Next() {
+		var h hit
+		if err := rows.Scan(&h.docType, &h.num, &h.title, &h.idx, &h.hl); err != nil {
+			t.Fatal(err)
+		}
+		hits = append(hits, h)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit for %q, got %d: %+v", "hadith", len(hits), hits)
+	}
+	if hits[0].docType != "appendix" || hits[0].num != 19 {
+		t.Errorf("hit = %+v, want appendix 19", hits[0])
+	}
+	if !strings.Contains(hits[0].hl, "<b>") {
+		t.Errorf("snippet missing highlight: %q", hits[0].hl)
+	}
+
+	// Heading text must be searchable too (norm indexes heading + body).
+	if got := searchDocsCount(t, db, "satanic innovations"); got != 1 {
+		t.Errorf("heading search hits = %d, want 1", got)
+	}
+}
+
+func searchDocsCount(t *testing.T, db *sql.DB, query string) int {
+	t.Helper()
+	norm := textnorm.ForSearch(query)
+	match := `"` + strings.ReplaceAll(norm, `"`, `""`) + `"`
+	var n int
+	if err := db.QueryRow(
+		`SELECT COUNT(*) FROM docs_fts WHERE docs_fts MATCH ?`, match).Scan(&n); err != nil {
+		t.Fatalf("count %q: %v", query, err)
+	}
+	return n
+}
+
+func TestWriteLibraryRejectsWrongKind(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library-en-v1.db")
+	meta := Meta{Scripture: "library", Lang: "en", DataVersion: 1, Tokenizer: TokenizerLatin, BuiltAt: "2026-07-05T00:00:00Z"}
+	err := WriteLibrary(path, meta, []Doc{{DocType: "appendix", DocNumber: 1, Title: "t", Body: "b"}})
+	if err == nil {
+		t.Fatal("expected error for missing KindLibrary")
+	}
+}
