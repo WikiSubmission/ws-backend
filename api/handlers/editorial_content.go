@@ -317,8 +317,17 @@ func (s *Server) validateContentFields(
 
 // ── shared plumbing ────────────────────────────────────────────────────────────
 
+// companionReadModules lets holders of one module's read grant list another
+// module's documents when the editing surface needs them as picker options:
+// the article editor references authors and categories.
+var companionReadModules = map[db.EditorModule][]db.EditorModule{
+	db.ModuleAuthor:   {db.ModuleArticle},
+	db.ModuleCategory: {db.ModuleArticle},
+}
+
 // resolveContentActor authorizes the caller for one module. write=false checks
-// read access. Returns userID 0 when the caller must be denied (403).
+// read access (including companion grants). Returns userID 0 when the caller
+// must be denied (403).
 func (s *Server) resolveContentActor(
 	ctx context.Context,
 	module db.EditorModule,
@@ -332,6 +341,14 @@ func (s *Server) resolveContentActor(
 		return 0, nil
 	}
 	allowed := perms.CanReadModule(module)
+	if !allowed && !write {
+		for _, companion := range companionReadModules[module] {
+			if perms.CanReadModule(companion) {
+				allowed = true
+				break
+			}
+		}
+	}
 	if write {
 		allowed = perms.CanWriteModule(module)
 	}
