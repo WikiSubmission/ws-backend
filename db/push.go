@@ -93,6 +93,18 @@ func (db *DB) FetchPushSubscriptionsByAuthID(ctx context.Context, authID string)
 	return pgx.CollectRows(rows, pgx.RowToStructByName[PushSubscriptionRow])
 }
 
+// FetchAllPushSubscriptions returns every stored endpoint. Used by the
+// notification dispatcher for schedules addressed to all web-push subscribers.
+func (db *DB) FetchAllPushSubscriptions(ctx context.Context) ([]PushSubscriptionRow, error) {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT `+pushCols+` FROM push_subscriptions`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[PushSubscriptionRow])
+}
+
 // FetchPushSubscriptionsByCategory returns endpoints opted into a category.
 // Used by senders (e.g. prayer-time reminders, new content).
 func (db *DB) FetchPushSubscriptionsByCategory(ctx context.Context, category string) ([]PushSubscriptionRow, error) {

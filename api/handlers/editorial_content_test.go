@@ -135,7 +135,7 @@ func TestValidateAppendixFields(t *testing.T) {
 
 	scalars, err := s.validateContentFields(db.ModuleAppendix, map[string]any{
 		"version_id": float64(3), "code": "19", "title": "One of the Great Miracles",
-		"snippet": "…", "body": []any{},
+		"snippet": "…", "body": "## One of the Great Miracles\n\nText.",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

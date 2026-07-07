@@ -299,11 +299,11 @@ func (s *Server) validateContentFields(
 		if _, err := requiredString(fields, "title"); err != nil {
 			return scalars, err
 		}
-		if _, err := optionalString(fields, "snippet"); err != nil {
-			return scalars, err
-		}
-		if err := optionalArray(fields, "body"); err != nil {
-			return scalars, err
+		// body is markdown text (matching the appendix model), not Portable Text.
+		for _, ostr := range []string{"snippet", "body"} {
+			if _, err := optionalString(fields, ostr); err != nil {
+				return scalars, err
+			}
 		}
 		scalars.VersionID = versionID
 		scalars.Code = &code

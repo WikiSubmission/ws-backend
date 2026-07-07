@@ -121,6 +121,36 @@ func RequireAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 	}
 }
 
+// OptionalAuth populates the auth context when a valid Bearer JWT is present
+// and continues silently otherwise. Used by endpoints that accept anonymous
+// callers but want to attach an identity when one is offered (e.g. FCM device
+// registration).
+func OptionalAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		header := c.GetHeader("Authorization")
+		if !strings.HasPrefix(header, "Bearer ") {
+			c.Next()
+			return
+		}
+		token := strings.TrimPrefix(header, "Bearer ")
+		authID, email, name, err := verifier.VerifyToken(token)
+		if err != nil || authID == "" {
+			// A bad token on an optional endpoint is treated as anonymous, not
+			// rejected — the caller may hold an expired session.
+			c.Next()
+			return
+		}
+		reqCtx := context.WithValue(c.Request.Context(), ContextKeyUID, authID)
+		reqCtx = context.WithValue(reqCtx, ContextKeyEmail, email)
+		reqCtx = context.WithValue(reqCtx, ContextKeyName, name)
+		c.Request = c.Request.WithContext(reqCtx)
+		c.Set(ContextKeyUID, authID)
+		c.Set(ContextKeyEmail, email)
+		c.Set(ContextKeyName, name)
+		c.Next()
+	}
+}
+
 // RequireAdmin additionally checks that the authenticated user has role=admin in the DB.
 func RequireAdmin(database *db.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -26,6 +26,7 @@ import (
 	"github.com/wikiSubmission/ws-backend/auth"
 	"github.com/wikiSubmission/ws-backend/db"
 	"github.com/wikiSubmission/ws-backend/email"
+	"github.com/wikiSubmission/ws-backend/notify"
 	"github.com/wikiSubmission/ws-backend/offline/publish"
 	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
@@ -373,6 +374,47 @@ func StartServer(database *db.DB) {
 	mobileAuth.POST("/otp/request", nativeAuthHandler.OtpRequest)
 	mobileAuth.POST("/otp/verify", nativeAuthHandler.OtpVerify)
 
+	// Notifications surface: public zikr list, FCM device registration, and the
+	// admin scheduling routes — all outside the OpenAPI contract, so registered
+	// before the validator like the routes above. The dispatcher fans scheduled
+	// notifications out over web push (existing VAPID sender) and FCM.
+	webPushSender := handlers.NewWebPushSender()
+	dispatcher := &notify.Dispatcher{
+		DB:  database,
+		Web: webPushAdapter{sender: webPushSender},
+		FCM: notify.NewFCMSenderFromEnv(context.Background()),
+	}
+
+	zikrHandler := handlers.ZikrHandler{DB: database}
+	r.GET("/api/v1/zikr", zikrHandler.List)
+
+	fcmDevices := handlers.NewFCMDeviceHandler(database)
+	fcmGroup := r.Group("/api/v1/devices/fcm")
+	fcmGroup.Use(auth.OptionalAuth(verifier))
+	fcmGroup.POST("", fcmDevices.Register)
+	fcmGroup.DELETE("", fcmDevices.Unregister)
+
+	notificationsAdmin := handlers.NotificationsAdminHandler{DB: database, Sender: webPushSender, Dispatcher: dispatcher}
+	notifAdminGroup := r.Group("/api/v1/admin/notifications")
+	notifAdminGroup.Use(auth.RequireAuth(verifier))
+	notifAdminGroup.Use(auth.RequireAdmin(database))
+	notifAdminGroup.GET("/zikr", notificationsAdmin.ListZikr)
+	notifAdminGroup.POST("/zikr", notificationsAdmin.CreateZikr)
+	notifAdminGroup.PATCH("/zikr/:id", notificationsAdmin.UpdateZikr)
+	notifAdminGroup.DELETE("/zikr/:id", notificationsAdmin.DeleteZikr)
+	notifAdminGroup.GET("/schedules", notificationsAdmin.ListSchedules)
+	notifAdminGroup.POST("/schedules", notificationsAdmin.CreateSchedule)
+	notifAdminGroup.PATCH("/schedules/:id", notificationsAdmin.UpdateSchedule)
+	notifAdminGroup.DELETE("/schedules/:id", notificationsAdmin.DeleteSchedule)
+	notifAdminGroup.POST("/schedules/:id/send-now", notificationsAdmin.SendNow)
+	notifAdminGroup.POST("/test", notificationsAdmin.SendTest)
+
+	// The scheduler goroutine claims due scheduled_notifications and dispatches
+	// them; cancelled on shutdown before the HTTP server drains.
+	schedulerCtx, stopScheduler := context.WithCancel(context.Background())
+	scheduler := &notify.Scheduler{Dispatcher: dispatcher}
+	go scheduler.Run(schedulerCtx)
+
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
 	r.Use(middleware.OapiRequestValidatorWithOptions(swagger, validatorOptions))
@@ -394,7 +436,7 @@ func StartServer(database *db.DB) {
 		DB:             database,
 		Sanity:         sanityClient,
 		ExportUploader: buildExportUploader(),
-		PushSender:     handlers.NewWebPushSender(),
+		PushSender:     webPushSender,
 	}
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		serverImpl.Embedder = apitembed.NewOpenAIEmbedder(apiKey)
@@ -460,6 +502,10 @@ func StartServer(database *db.DB) {
 	<-quit // Block here until a signal is received
 	slog.Info("Shutdown signal received; shutting down gracefully...")
 
+	// Stop the notification scheduler before draining HTTP so no new dispatch
+	// starts mid-shutdown.
+	stopScheduler()
+
 	// Create a deadline for the shutdown process
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -469,6 +515,24 @@ func StartServer(database *db.DB) {
 	}
 
 	slog.Info("Server exited cleanly")
+}
+
+// webPushAdapter satisfies notify.WebPushSender with the handlers package's
+// VAPID sender, converting the channel-agnostic notify.Message into the
+// service-worker PushMessage shape.
+type webPushAdapter struct {
+	sender handlers.WebPushSender
+}
+
+func (a webPushAdapter) Configured() bool { return a.sender.Configured() }
+
+func (a webPushAdapter) Send(ctx context.Context, sub db.PushSubscriptionRow, msg notify.Message) (bool, error) {
+	return a.sender.Send(ctx, sub, handlers.PushMessage{
+		Title: msg.Title,
+		Body:  msg.Body,
+		URL:   msg.URL,
+		Tag:   msg.Tag,
+	})
 }
 
 // buildExportUploader wires the S3-backed data-export uploader from the
