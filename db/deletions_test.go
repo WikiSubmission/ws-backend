@@ -100,6 +100,99 @@ func TestPurgeUserCategories_DeletesOnlySelected(t *testing.T) {
 	}
 }
 
+func TestPurgeUserAccount_ErasesEverythingAndUserRow(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	authID := "test-purge-acct-" + time.Now().Format("150405.000000")
+	email := authID + "@example.com"
+	if _, err := db.UpsertUser(ctx, authID, email, nil); err != nil {
+		t.Fatalf("UpsertUser: %v", err)
+	}
+	t.Cleanup(func() {
+		// Belt-and-suspenders: the purge should already have removed the row, but
+		// clean up defensively in case the test failed partway through.
+		_, _ = db.Pool.Exec(ctx, `DELETE FROM users WHERE auth_id = $1`, authID)
+		_, _ = db.Pool.Exec(ctx, `DELETE FROM push_subscriptions WHERE auth_id = $1`, authID)
+	})
+
+	// Seed personal data across both the cascade path (notes, bookmarks, reading
+	// progress, activity) and the auth_id-keyed path (push subscriptions).
+	if _, err := db.SetActivityConsent(ctx, authID, true); err != nil {
+		t.Fatalf("SetActivityConsent: %v", err)
+	}
+	if _, err := db.UpsertNote(ctx, authID, "quran", "1:1", "note", nil); err != nil {
+		t.Fatalf("UpsertNote: %v", err)
+	}
+	if _, err := db.CreateBookmark(ctx, authID, "quran", "2:255", "bm", "#fff", "normal"); err != nil {
+		t.Fatalf("CreateBookmark: %v", err)
+	}
+	if _, err := db.UpsertReadingProgress(ctx, authID, "quran", "4:1"); err != nil {
+		t.Fatalf("UpsertReadingProgress: %v", err)
+	}
+	if ok, err := db.InsertActivity(ctx, authID, "search", "quran", nil, ptr("mercy")); err != nil || !ok {
+		t.Fatalf("InsertActivity: ok=%v err=%v", ok, err)
+	}
+	endpoint := "https://example.com/push/" + authID
+	if _, err := db.UpsertPushSubscription(ctx, authID, endpoint, "p256dh", "authkey", nil, nil, nil, nil); err != nil {
+		t.Fatalf("UpsertPushSubscription: %v", err)
+	}
+
+	// Baseline global content that must NOT be touched by an account purge.
+	langsBefore, err := db.FetchAllLanguages(ctx)
+	if err != nil {
+		t.Fatalf("FetchAllLanguages: %v", err)
+	}
+
+	counts, err := db.PurgeUserAccount(ctx, authID)
+	if err != nil {
+		t.Fatalf("PurgeUserAccount: %v", err)
+	}
+	if counts["users"] != 1 {
+		t.Errorf("expected users count 1, got %d", counts["users"])
+	}
+	if counts["push_subscriptions"] < 1 {
+		t.Errorf("expected push_subscriptions count >= 1, got %d", counts["push_subscriptions"])
+	}
+
+	// The account row is gone.
+	user, err := db.FetchUserByAuthID(ctx, authID)
+	if err != nil {
+		t.Fatalf("FetchUserByAuthID: %v", err)
+	}
+	if user != nil {
+		t.Fatal("expected users row deleted, still present")
+	}
+
+	// Auth_id-keyed personal data is gone.
+	subs, err := db.FetchPushSubscriptionsByAuthID(ctx, authID)
+	if err != nil {
+		t.Fatalf("FetchPushSubscriptionsByAuthID: %v", err)
+	}
+	if len(subs) != 0 {
+		t.Errorf("expected push subscriptions deleted, got %d", len(subs))
+	}
+
+	// Cascade-path personal data is gone. These are keyed by auth_id → user, and
+	// with the user row deleted they must return nothing.
+	notes, err := db.FetchNotes(ctx, authID, "quran", nil)
+	if err != nil {
+		t.Fatalf("FetchNotes: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Errorf("expected notes cascaded away, got %d", len(notes))
+	}
+
+	// Global content is untouched.
+	langsAfter, err := db.FetchAllLanguages(ctx)
+	if err != nil {
+		t.Fatalf("FetchAllLanguages after purge: %v", err)
+	}
+	if len(langsAfter) != len(langsBefore) {
+		t.Errorf("global languages changed by account purge: before=%d after=%d", len(langsBefore), len(langsAfter))
+	}
+}
+
 func TestPurgeUserCategories_RejectsUnknown(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()

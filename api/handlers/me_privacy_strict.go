@@ -336,6 +336,39 @@ func (s *Server) GetMeContentDeletionStatus(ctx context.Context, _ GetMeContentD
 	return GetMeContentDeletionStatus200JSONResponse(UserDataDeletionEnvelope{Data: deletionFromRow(row)}), nil
 }
 
+func (s *Server) DeleteMeAccount(ctx context.Context, _ DeleteMeAccountRequestObject) (DeleteMeAccountResponseObject, error) {
+	user, authID, _, ok := s.resolveCurrentUser(ctx)
+	if !ok {
+		return DeleteMeAccount500JSONResponse{internalServerResponse()}, nil
+	}
+
+	// Export gate: the user must have a recent, completed export so a usable copy
+	// of their data exists before this irreversible deletion. Enforced here, not
+	// just in the UI, so it cannot be bypassed.
+	latestExport, err := s.DB.LatestUserDataExport(ctx, user.ID)
+	if err != nil {
+		return DeleteMeAccount500JSONResponse{internalServerResponse()}, nil
+	}
+	if !exportGateSatisfied(latestExport, time.Now().UTC()) {
+		return DeleteMeAccount409JSONResponse(ReasonResponse{Reason: "export_required"}), nil
+	}
+
+	// The export S3 object is left to expire on its own (30-day TTL); ws-lib
+	// exposes no delete endpoint, and the object is orphaned once its
+	// user_data_exports row is removed by the purge below.
+	counts, err := s.DB.PurgeUserAccount(ctx, authID)
+	if err != nil {
+		slog.Error("DeleteMeAccount: PurgeUserAccount", "provider", auth.ProviderFromAuthID(authID), "error", err)
+		return DeleteMeAccount500JSONResponse{internalServerResponse()}, nil
+	}
+	slog.Info("DeleteMeAccount: account purged", "user_id", user.ID, "counts", counts)
+
+	return DeleteMeAccount200JSONResponse(AccountDeletionResponse{
+		Status: Deleted,
+		Counts: &counts,
+	}), nil
+}
+
 func (s *Server) SubscribeMePush(ctx context.Context, request SubscribeMePushRequestObject) (SubscribeMePushResponseObject, error) {
 	authID, ok := authIDFromContext(ctx)
 	if !ok {

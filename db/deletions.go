@@ -235,3 +235,104 @@ func (db *DB) PurgeUserCategories(ctx context.Context, authID string, categories
 	}
 	return counts, nil
 }
+
+// PurgeUserAccount erases a user's entire account: every personal record plus
+// the users row itself, in a single atomic transaction. Any failure rolls back
+// the whole operation. It returns per-table counts of the rows explicitly
+// removed (the FK-cascaded tables clean up when the users row is deleted and are
+// not counted individually).
+//
+// Two classes of rows need explicit handling before the users row can go:
+//
+//   - auth_id-keyed tables have no FK to users(id), so they never cascade:
+//     game_sessions, game_blank_attempts (orphans, no real FK), push_subscriptions,
+//     and fcm_devices.
+//   - editorial audit rows reference users(id) with NO "on delete" clause, so a
+//     dangling reference would block the delete. Nullable references are detached
+//     (SET NULL) to preserve the org content; NOT NULL audit rows the user
+//     authored are removed. Published editorial content lives in separate tables
+//     that do not reference users and is left untouched.
+//
+// Everything else (bookmarks, notes, collections, reading data, preferences,
+// activity, game_attempts/variants, exports, deletions, idempotency keys, editor
+// grants, …) references users(id) ON DELETE CASCADE and is cleaned by the final
+// DELETE FROM users.
+func (db *DB) PurgeUserAccount(ctx context.Context, authID string) (map[string]int64, error) {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var userID int
+	if err := tx.QueryRow(ctx, `SELECT id FROM users WHERE auth_id = $1`, authID).Scan(&userID); err != nil {
+		return nil, fmt.Errorf("resolve user: %w", err)
+	}
+
+	exec := func(sql string, args ...any) (int64, error) {
+		tag, err := tx.Exec(ctx, sql, args...)
+		if err != nil {
+			return 0, err
+		}
+		return tag.RowsAffected(), nil
+	}
+
+	counts := make(map[string]int64, 8)
+
+	// Editorial audit rows that would otherwise block the users delete. Detach
+	// what is nullable, remove the NOT NULL rows the user authored.
+	if _, err := exec(`UPDATE quran_publish_requests SET reviewed_by = NULL WHERE reviewed_by = $1`, userID); err != nil {
+		return nil, err
+	}
+	if _, err := exec(`UPDATE quran_root_meaning_drafts SET author_id = NULL WHERE author_id = $1`, userID); err != nil {
+		return nil, err
+	}
+	// changelog before publish_requests: changelog.publish_request_id is ON
+	// DELETE SET NULL, so removing the user's requests can't strand it, but
+	// clearing the user's own audit rows first keeps the intent explicit.
+	n, err := exec(`DELETE FROM quran_editorial_changelog WHERE actor_id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	counts["editorial_changelog"] = n
+	n, err = exec(`DELETE FROM quran_publish_requests WHERE requested_by = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	counts["publish_requests"] = n
+
+	// auth_id-keyed tables (no FK to users, never cascade).
+	n, err = exec(`DELETE FROM game_blank_attempts
+		WHERE session_id IN (SELECT session_id FROM game_sessions WHERE auth_id = $1)`, authID)
+	if err != nil {
+		return nil, err
+	}
+	counts["game_blank_attempts"] = n
+	n, err = exec(`DELETE FROM game_sessions WHERE auth_id = $1`, authID)
+	if err != nil {
+		return nil, err
+	}
+	counts["game_sessions"] = n
+	n, err = exec(`DELETE FROM push_subscriptions WHERE auth_id = $1`, authID)
+	if err != nil {
+		return nil, err
+	}
+	counts["push_subscriptions"] = n
+	n, err = exec(`DELETE FROM fcm_devices WHERE auth_id = $1`, authID)
+	if err != nil {
+		return nil, err
+	}
+	counts["fcm_devices"] = n
+
+	// The account itself — cascades every remaining personal table.
+	n, err = exec(`DELETE FROM users WHERE id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	counts["users"] = n
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
