@@ -22,6 +22,7 @@ COPY email/   ./email/
 COPY sanity/  ./sanity/
 COPY games/   ./games/
 COPY offline/ ./offline/
+COPY notify/  ./notify/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).
