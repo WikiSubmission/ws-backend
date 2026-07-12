@@ -411,6 +411,9 @@ func StartServer(database *db.DB) {
 	fcmGroup.POST("", fcmDevices.Register)
 	fcmGroup.DELETE("", fcmDevices.Unregister)
 
+	clientErrors := handlers.NewClientErrorHandler()
+	r.POST("/api/v1/client-errors", clientErrors.Report)
+
 	notificationsAdmin := handlers.NotificationsAdminHandler{DB: database, Sender: webPushSender, Dispatcher: dispatcher}
 	notifAdminGroup := r.Group("/api/v1/admin/notifications")
 	notifAdminGroup.Use(auth.RequireAuth(verifier))
