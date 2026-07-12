@@ -128,7 +128,12 @@ func (h FCMDeviceHandler) Unregister(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.DB.DeleteFCMDevice(c.Request.Context(), req.Token); err != nil {
+	var authID *string
+	if id, ok := authIDFromGin(c); ok && id != "" {
+		authID = &id
+	}
+
+	if _, err := h.DB.DeleteFCMDevice(c.Request.Context(), req.Token, authID); err != nil {
 		slog.Error("fcm: DeleteFCMDevice", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return

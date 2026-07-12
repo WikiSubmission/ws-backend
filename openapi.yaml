@@ -2401,6 +2401,8 @@ paths:
                 $ref: '#/components/schemas/UserListEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerErrror'
 
@@ -2433,6 +2435,8 @@ paths:
                 $ref: '#/components/schemas/UserEnvelope'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':

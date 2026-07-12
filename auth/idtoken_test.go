@@ -182,7 +182,7 @@ func TestAppleVerifierNonce(t *testing.T) {
 	// Raw nonce form.
 	tok := signIDToken(t, key, claims{
 		iss: "https://appleid.apple.com", aud: "org.wikisubmission.app",
-		sub: "apple-sub-1", email: "u@privaterelay.appleid.com", nonce: "rawnonce123",
+		sub: "apple-sub-1", email: "u@privaterelay.appleid.com", emailVerified: true, nonce: "rawnonce123",
 	})
 	if _, err := v.Verify(context.Background(), tok, "rawnonce123"); err != nil {
 		t.Fatalf("raw nonce should verify: %v", err)
@@ -209,6 +209,41 @@ func TestAppleVerifierNonce(t *testing.T) {
 	})
 	if _, err := v.Verify(context.Background(), missing, "rawnonce123"); err == nil {
 		t.Fatal("expected rejection when token has no nonce")
+	}
+}
+
+// Apple must reject a token that asserts an email it has not verified, so an
+// unverified email can never be bound onto an account.
+func TestAppleVerifierRejectsUnverifiedEmail(t *testing.T) {
+	set, key := newTestKeySet(t)
+	v := NewAppleVerifier(set, []string{"org.wikisubmission.app"})
+
+	tok := signIDToken(t, key, claims{
+		iss: "https://appleid.apple.com", aud: "org.wikisubmission.app",
+		sub: "apple-sub-1", email: "victim@example.com", emailVerified: false, nonce: "n1",
+	})
+	if _, err := v.Verify(context.Background(), tok, "n1"); err == nil {
+		t.Fatal("expected rejection of unverified email")
+	}
+}
+
+// A repeat Apple login omits the email entirely; that token must still verify
+// (the account is later resolved by subject), so email_verified enforcement
+// must not fire when there is no email.
+func TestAppleVerifierAllowsMissingEmail(t *testing.T) {
+	set, key := newTestKeySet(t)
+	v := NewAppleVerifier(set, []string{"org.wikisubmission.app"})
+
+	tok := signIDToken(t, key, claims{
+		iss: "https://appleid.apple.com", aud: "org.wikisubmission.app",
+		sub: "apple-sub-1", nonce: "n1",
+	})
+	id, err := v.Verify(context.Background(), tok, "n1")
+	if err != nil {
+		t.Fatalf("repeat login without email should verify: %v", err)
+	}
+	if id.Subject != "apple-sub-1" || id.Email != "" {
+		t.Fatalf("unexpected identity: %+v", id)
 	}
 }
 

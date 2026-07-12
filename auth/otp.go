@@ -31,6 +31,12 @@ const (
 
 	// otpCodeDigits is the length of the numeric code emailed to the user.
 	otpCodeDigits = 6
+
+	// otpMaxAttempts caps how many wrong guesses a single pending token tolerates
+	// before it is permanently burned. Without this cap the 6-digit (10^6) code
+	// space is brute-forceable within the token's TTL, since a wrong guess does
+	// not otherwise consume the token.
+	otpMaxAttempts = 5
 )
 
 // ErrOTPNotConfigured is returned by a disabled manager (empty secret).
@@ -57,8 +63,16 @@ type OTPManager struct {
 	ttl     time.Duration // pending-token lifetime
 	now     func() time.Time
 
-	mu   sync.Mutex
-	used map[string]time.Time // jti -> expiry, for single-use enforcement
+	mu     sync.Mutex
+	states map[string]*otpState // jti -> per-token verification state
+}
+
+// otpState tracks single-use and brute-force state for one pending token,
+// keyed by its jti. exp mirrors the token expiry so entries can be swept.
+type otpState struct {
+	exp      time.Time
+	attempts int  // wrong guesses seen so far
+	spent    bool // consumed by a correct code, or burned after too many wrong guesses
 }
 
 // NewOTPManager builds a manager from the shared backend secret. An empty secret
@@ -86,7 +100,7 @@ func NewOTPManager(secret string, ttl time.Duration) (*OTPManager, error) {
 		hmacKey: deriveKey(secret, "ws-otp-code-v1"),
 		ttl:     ttl,
 		now:     time.Now,
-		used:    make(map[string]time.Time),
+		states:  make(map[string]*otpState),
 	}, nil
 }
 
@@ -168,14 +182,23 @@ func (m *OTPManager) Verify(token, code string) (string, error) {
 	if p, _ := stringClaim(tok, otpPurposeClaim); p != otpPurpose {
 		return "", ErrOTPInvalid
 	}
+	jti := tok.JwtID()
+	// Reject tokens that are already spent — verified once, or burned after too
+	// many wrong guesses — before any code comparison.
+	if m.isSpent(jti) {
+		return "", ErrOTPInvalid
+	}
 	wantHash, _ := stringClaim(tok, otpCodeHashClaim)
 	gotHash := m.hashCode(code)
 	if subtle.ConstantTimeCompare([]byte(wantHash), []byte(gotHash)) != 1 {
+		// Count the wrong guess and burn the token once the attempt cap is hit,
+		// so a single pending token cannot be used to walk the 10^6 code space.
+		m.recordFailure(jti, tok.Expiration())
 		return "", ErrOTPInvalid
 	}
 	// Single-use: consume the jti only after the code matches, so a wrong guess
-	// does not burn the (still-valid) token.
-	if !m.consume(tok.JwtID(), tok.Expiration()) {
+	// below the cap does not burn the (still-valid) token.
+	if !m.consume(jti, tok.Expiration()) {
 		return "", ErrOTPInvalid
 	}
 	return tok.Subject(), nil
@@ -187,24 +210,66 @@ func (m *OTPManager) hashCode(code string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
+// sweep drops expired state entries to bound map growth. Caller must hold m.mu.
+func (m *OTPManager) sweep() {
+	now := m.clock()
+	for k, st := range m.states {
+		if now.After(st.exp) {
+			delete(m.states, k)
+		}
+	}
+}
+
+// isSpent reports whether the token identified by jti has already been consumed
+// or burned. An empty jti is treated as spent so it can never be verified.
+func (m *OTPManager) isSpent(jti string) bool {
+	if jti == "" {
+		return true
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sweep()
+	st := m.states[jti]
+	return st != nil && st.spent
+}
+
+// recordFailure counts a wrong guess against jti and burns the token once the
+// attempt cap is reached.
+func (m *OTPManager) recordFailure(jti string, exp time.Time) {
+	if jti == "" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sweep()
+	st := m.states[jti]
+	if st == nil {
+		st = &otpState{exp: exp}
+		m.states[jti] = st
+	}
+	st.attempts++
+	if st.attempts >= otpMaxAttempts {
+		st.spent = true
+	}
+}
+
 // consume records the jti as spent, returning false if it was already spent.
-// Expired entries are swept opportunistically to bound the map's growth.
 func (m *OTPManager) consume(jti string, exp time.Time) bool {
 	if jti == "" {
 		return false
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	now := m.clock()
-	for k, v := range m.used {
-		if now.After(v) {
-			delete(m.used, k)
-		}
+	m.sweep()
+	st := m.states[jti]
+	if st == nil {
+		st = &otpState{exp: exp}
+		m.states[jti] = st
 	}
-	if _, seen := m.used[jti]; seen {
+	if st.spent {
 		return false
 	}
-	m.used[jti] = exp
+	st.spent = true
 	return true
 }
 

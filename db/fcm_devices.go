@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type FCMDeviceRow struct {
@@ -61,9 +62,23 @@ func (db *DB) UpsertFCMDevice(
 }
 
 // DeleteFCMDevice removes a token (app opt-out). Returns false when nothing
-// matched.
-func (db *DB) DeleteFCMDevice(ctx context.Context, token string) (bool, error) {
-	tag, err := db.Pool.Exec(ctx, `DELETE FROM fcm_devices WHERE token = $1`, token)
+// matched. When authID is non-nil the delete is scoped to the caller's own
+// devices (or still-anonymous ones), so an authenticated user cannot remove a
+// token bound to a different account merely by knowing its value. An anonymous
+// caller (authID nil) deletes purely by token, matching the anonymous
+// registration model where possession of the token is the only credential.
+func (db *DB) DeleteFCMDevice(ctx context.Context, token string, authID *string) (bool, error) {
+	var (
+		tag pgconn.CommandTag
+		err error
+	)
+	if authID != nil {
+		tag, err = db.Pool.Exec(ctx,
+			`DELETE FROM fcm_devices WHERE token = $1 AND (auth_id = $2 OR auth_id IS NULL)`,
+			token, *authID)
+	} else {
+		tag, err = db.Pool.Exec(ctx, `DELETE FROM fcm_devices WHERE token = $1`, token)
+	}
 	if err != nil {
 		return false, err
 	}

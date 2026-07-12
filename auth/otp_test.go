@@ -51,6 +51,22 @@ func TestOTPWrongCode(t *testing.T) {
 	}
 }
 
+func TestOTPBruteForceBurnsToken(t *testing.T) {
+	m, _ := NewOTPManager(otpTestSecret, time.Minute)
+	token, _ := m.IssueToken("a@b.c", "314159")
+
+	// Exhaust the wrong-guess allowance.
+	for i := 0; i < otpMaxAttempts; i++ {
+		if _, err := m.Verify(token, "000000"); err != ErrOTPInvalid {
+			t.Fatalf("wrong guess %d err = %v, want ErrOTPInvalid", i, err)
+		}
+	}
+	// The token is now burned: even the correct code must be rejected.
+	if _, err := m.Verify(token, "314159"); err != ErrOTPInvalid {
+		t.Fatalf("correct code after cap err = %v, want ErrOTPInvalid (token burned)", err)
+	}
+}
+
 func TestOTPSingleUse(t *testing.T) {
 	m, _ := NewOTPManager(otpTestSecret, time.Minute)
 	token, _ := m.IssueToken("a@b.c", "424242")

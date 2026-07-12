@@ -37,6 +37,17 @@ func StartServer(database *db.DB) {
 
 	// ── Auth setup ───────────────────────────────────────────────────────────
 	jwtSecret := os.Getenv("WS_BACKEND_JWT_SECRET")
+	// A short secret invites offline brute-forcing of the HS256 signing key that
+	// protects every session and refresh token. Require a reasonable length: hard
+	// fail in production, warn in development.
+	const minJWTSecretLen = 32
+	if jwtSecret != "" && len(jwtSecret) < minJWTSecretLen {
+		if os.Getenv("APP_ENV") == "production" {
+			slog.Error("WS_BACKEND_JWT_SECRET is too short; refusing to start", "min_len", minJWTSecretLen, "got_len", len(jwtSecret))
+			os.Exit(1)
+		}
+		slog.Warn("WS_BACKEND_JWT_SECRET is shorter than recommended", "min_len", minJWTSecretLen, "got_len", len(jwtSecret))
+	}
 	verifier, err := auth.NewAuthJSVerifier(jwtSecret)
 	if err != nil {
 		slog.Warn("Auth.js verifier init failed, auth endpoints will return errors", "error", err)
@@ -48,7 +59,7 @@ func StartServer(database *db.DB) {
 	r := gin.New()
 
 	originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
-	allowedOrigins := []string{"*"} // Default fallback
+	allowedOrigins := []string{"*"} // Default fallback (development only)
 
 	// If the env var is set and not empty, split it into a slice
 	if originsEnv != "" {
@@ -63,8 +74,14 @@ func StartServer(database *db.DB) {
 		allowedOrigins = append(allowedOrigins,
 			"capacitor://localhost", "https://localhost", "ionic://localhost")
 		slog.Info("CORS configured with specific origins", "origins", allowedOrigins)
+	} else if os.Getenv("APP_ENV") == "production" {
+		// Fail closed: a permissive '*' CORS policy in production would let any
+		// origin call the authenticated API. Refuse to boot so the missing
+		// allowlist is caught at deploy time rather than silently opened up.
+		slog.Error("CORS_ALLOWED_ORIGINS must be set in production; refusing to start with permissive '*'")
+		os.Exit(1)
 	} else {
-		slog.Warn("CORS_ALLOWED_ORIGINS not set; defaulting to '*' (Permissive)")
+		slog.Warn("CORS_ALLOWED_ORIGINS not set; defaulting to '*' (Permissive, development only)")
 	}
 
 	r.Use(cors.New(cors.Config{

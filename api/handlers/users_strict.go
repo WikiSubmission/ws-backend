@@ -31,7 +31,32 @@ func userFromRow(u *db.UserRow) (User, error) {
 	}, nil
 }
 
+// callerIsAdmin resolves the authenticated caller from the request context and
+// reports whether they are an active admin. The user-administration endpoints
+// are declared "admin only" in openapi.yaml but the bearerAuth scheme only
+// proves a valid session; the role check must happen here.
+func (s *Server) callerIsAdmin(ctx context.Context) (bool, error) {
+	authID, ok := authIDFromContext(ctx)
+	if !ok {
+		return false, nil
+	}
+	caller, err := s.DB.FetchUserByAuthID(ctx, authID)
+	if err != nil {
+		return false, err
+	}
+	return caller != nil && caller.IsActive && caller.Role == "admin", nil
+}
+
 func (s *Server) ListUsersAdmin(ctx context.Context, request ListUsersAdminRequestObject) (ListUsersAdminResponseObject, error) {
+	isAdmin, err := s.callerIsAdmin(ctx)
+	if err != nil {
+		slog.Error("ListUsersAdmin: admin check failed", "error", err)
+		return ListUsersAdmin500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if !isAdmin {
+		return ListUsersAdmin403JSONResponse{ForbiddenJSONResponse{Message: "admin access required"}}, nil
+	}
+
 	limit := 50
 	offset := 0
 	if request.Params.Limit != nil {
@@ -93,6 +118,15 @@ func (s *Server) GetCurrentUserAccess(ctx context.Context, _ GetCurrentUserAcces
 }
 
 func (s *Server) UpdateUserAdmin(ctx context.Context, request UpdateUserAdminRequestObject) (UpdateUserAdminResponseObject, error) {
+	isAdmin, err := s.callerIsAdmin(ctx)
+	if err != nil {
+		slog.Error("UpdateUserAdmin: admin check failed", "error", err)
+		return UpdateUserAdmin500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if !isAdmin {
+		return UpdateUserAdmin403JSONResponse{ForbiddenJSONResponse{Message: "admin access required"}}, nil
+	}
+
 	if request.Id <= 0 {
 		return UpdateUserAdmin400JSONResponse{BadRequestJSONResponse{Message: "invalid user id"}}, nil
 	}

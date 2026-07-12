@@ -151,15 +151,12 @@ func (h *NativeAuthHandler) emailLimiter() *rateLimiter {
 	return h.otpEmailLimiter
 }
 
-// clientIP prefers the proxy-forwarded client address, falling back to gin's
-// resolved remote IP.
+// clientIP returns gin's resolved client IP. gin only honours X-Forwarded-For
+// when the peer is a configured trusted proxy (see SetTrustedProxies in
+// server.go), so an untrusted client cannot spoof the header to evade the
+// per-IP OTP rate limit. Reading the raw header directly, as this used to,
+// let any caller forge an arbitrary source IP per request.
 func clientIP(c *gin.Context) string {
-	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
-		if first, _, found := strings.Cut(xff, ","); found {
-			return strings.TrimSpace(first)
-		}
-		return strings.TrimSpace(xff)
-	}
 	return c.ClientIP()
 }
 
@@ -177,7 +174,26 @@ type windowEntry struct {
 }
 
 func newRateLimiter() *rateLimiter {
-	return &rateLimiter{entries: make(map[string]*windowEntry)}
+	r := &rateLimiter{entries: make(map[string]*windowEntry)}
+	go r.cleanup()
+	return r
+}
+
+// cleanup evicts expired windows every 10 minutes so the entry map cannot grow
+// without bound (each distinct key — client IP or email — otherwise lingers
+// forever after its window closes).
+func (r *rateLimiter) cleanup() {
+	t := time.NewTicker(10 * time.Minute)
+	for range t.C {
+		r.mu.Lock()
+		now := time.Now()
+		for k, e := range r.entries {
+			if now.After(e.reset) {
+				delete(r.entries, k)
+			}
+		}
+		r.mu.Unlock()
+	}
 }
 
 // exceeded records a hit for key and reports whether it is over max within the

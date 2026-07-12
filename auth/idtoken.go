@@ -64,13 +64,17 @@ func NewGoogleVerifier(keySet jwk.Set, audiences []string) *OIDCVerifier {
 
 // NewAppleVerifier verifies Sign in with Apple identity tokens. audiences must
 // list the app bundle/services IDs. A nonce is always required: native Sign in
-// with Apple supplies one and it defends against token replay.
+// with Apple supplies one and it defends against token replay. Like Google, an
+// asserted email must be verified before it can key an account (Apple sends
+// email_verified alongside the email on first sign-in); repeat logins that omit
+// the email entirely are unaffected.
 func NewAppleVerifier(keySet jwk.Set, audiences []string) *OIDCVerifier {
 	return &OIDCVerifier{
-		keySet:       keySet,
-		issuers:      appleIssuers,
-		audiences:    audiences,
-		requireNonce: true,
+		keySet:               keySet,
+		issuers:              appleIssuers,
+		audiences:            audiences,
+		requireNonce:         true,
+		requireEmailVerified: true,
 	}
 }
 
@@ -112,7 +116,11 @@ func (v *OIDCVerifier) Verify(_ context.Context, idToken, nonce string) (Verifie
 	id.Email, _ = stringClaim(tok, "email")
 	id.Name, _ = stringClaim(tok, "name")
 	id.EmailVerified = boolClaim(tok, "email_verified")
-	if v.requireEmailVerified && !id.EmailVerified {
+	// Only enforce email_verified when the token actually asserts an email:
+	// binding an unverified email onto an account is the risk. Apple omits the
+	// email on repeat logins, and those tokens must still verify (the account is
+	// then resolved by subject, not email).
+	if v.requireEmailVerified && id.Email != "" && !id.EmailVerified {
 		return VerifiedIdentity{}, errors.New("auth: email not verified")
 	}
 
