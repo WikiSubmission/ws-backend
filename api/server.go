@@ -85,7 +85,12 @@ func StartServer(database *db.DB) {
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins,
+		AllowOrigins: allowedOrigins,
+		// The Capacitor webview origins appended above use non-HTTP schemes,
+		// which cors.Validate rejects unless they are declared here (it only
+		// permits http:// and https:// by default) — without this the middleware
+		// panics at startup on any deploy that sets CORS_ALLOWED_ORIGINS.
+		CustomSchemas:    []string{"capacitor://", "ionic://"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
