@@ -191,9 +191,6 @@ func (s *Server) validateContentFields(
 		if _, err := requiredString(fields, "first_name"); err != nil {
 			return scalars, err
 		}
-		if _, err := requiredString(fields, "last_name"); err != nil {
-			return scalars, err
-		}
 		slug, err := requiredString(fields, "slug")
 		if err != nil {
 			return scalars, err
@@ -201,7 +198,8 @@ func (s *Server) validateContentFields(
 		if !validSlug(slug) {
 			return scalars, fieldErrf("slug must match %s", slugPattern.String())
 		}
-		for _, ostr := range []string{"photo_url", "bio"} {
+		// last_name is optional so single-name (mononym) authors are valid.
+		for _, ostr := range []string{"last_name", "photo_url", "bio"} {
 			if _, err := optionalString(fields, ostr); err != nil {
 				return scalars, err
 			}

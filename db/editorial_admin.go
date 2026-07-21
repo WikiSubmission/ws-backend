@@ -266,6 +266,15 @@ func (db *DB) ReplaceEditorGrants(
 		}
 	}
 
+	// Article editors are attributed on the content they write, so ensure the
+	// user has a 1:1 author profile seeded from their account. Runs in the same
+	// transaction: a failed seed rolls the grant change back.
+	if _, granted := modules[ModuleArticle]; granted {
+		if err := db.ensureAuthorForUser(ctx, tx, userID); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
