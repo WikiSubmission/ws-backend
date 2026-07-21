@@ -410,6 +410,23 @@ func StartServer(database *db.DB) {
 	zikrHandler := handlers.ZikrHandler{DB: database}
 	r.GET("/api/v1/zikr", zikrHandler.List)
 
+	// Public blog: unauthenticated reads of published editorial articles (Sanity
+	// replacement). Outside the OpenAPI surface, so registered before the
+	// validator like the routes above. Only published snapshots are ever served.
+	editorialPublic := handlers.EditorialPublicHandler{DB: database}
+	r.GET("/api/v1/editorial/public/articles", editorialPublic.List)
+	r.GET("/api/v1/editorial/public/articles/:lang/:slug", editorialPublic.GetBySlug)
+	r.GET("/api/v1/editorial/public/articles/:lang/:slug/related", editorialPublic.Related)
+	r.GET("/api/v1/editorial/public/search", editorialPublic.Search)
+
+	// Editor image uploads: authenticated (RequireAuth + in-handler editorial
+	// permission check), forwarded to ws-lib's public store under editorial/.
+	// Outside the OpenAPI surface, so registered before the validator.
+	editorialUpload := handlers.EditorialUploadHandler{DB: database, Store: buildEditorialUploadStore()}
+	editorialUploadGroup := r.Group("/api/v1/editorial/uploads")
+	editorialUploadGroup.Use(auth.RequireAuth(verifier))
+	editorialUploadGroup.POST("", editorialUpload.Upload)
+
 	fcmDevices := handlers.NewFCMDeviceHandler(database)
 	fcmGroup := r.Group("/api/v1/devices/fcm")
 	fcmGroup.Use(auth.OptionalAuth(verifier))
@@ -601,6 +618,23 @@ func buildOfflinePublishStore() *publish.WSLibPublicStore {
 		BaseURL: baseURL,
 		Secret:  []byte(secret),
 		Client:  &http.Client{Timeout: 2 * time.Minute},
+	}
+}
+
+// buildEditorialUploadStore configures the ws-lib public store used for editor
+// image uploads. Same ws-lib endpoint and HMAC secret as the offline store; a
+// shorter timeout since uploads are single images, not bundles.
+func buildEditorialUploadStore() *publish.WSLibPublicStore {
+	baseURL := strings.TrimRight(os.Getenv("WSLIB_BASE_URL"), "/")
+	secret := os.Getenv("STORE_AUTH_SECRET")
+	if baseURL == "" || secret == "" {
+		slog.Warn("WSLIB_BASE_URL or STORE_AUTH_SECRET not set; editor image uploads disabled")
+		return nil
+	}
+	return &publish.WSLibPublicStore{
+		BaseURL: baseURL,
+		Secret:  []byte(secret),
+		Client:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
