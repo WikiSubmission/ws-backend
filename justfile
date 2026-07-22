@@ -46,7 +46,7 @@ clean:
 # Connection helpers (private)
 # ---------------------------------------------------------------------------
 
-# Resolve a target name (local|railway|hetzner|...) to a Postgres URL.
+# Resolve a target name (local|hetzner|...) to a Postgres URL.
 # Looks up DATABASE_URL_<UPPER>; for `local` falls back to composed DSN.
 [private]
 url TARGET:
@@ -120,8 +120,8 @@ coolify-init:
 # Snapshots
 # ---------------------------------------------------------------------------
 
-# Dump data from a target into db/dumps/<ts>__<source>.dump (default: railway)
-export SOURCE="railway":
+# Dump data from a target into db/dumps/<ts>__<source>.dump (default: hetzner)
+export SOURCE="hetzner":
     #!/usr/bin/env bash
     set -euo pipefail
     url="$(just url "$1")"
@@ -143,7 +143,7 @@ export SOURCE="railway":
     echo "Done. dump=$sz, verse_text=$rows rows."
 
 # Dump only the verse_text embedding column (slow + large; rarely needed)
-export-embeddings SOURCE="railway":
+export-embeddings SOURCE="hetzner":
     #!/usr/bin/env bash
     set -euo pipefail
     url="$(just url "$1")"
@@ -190,7 +190,7 @@ import VERSION="latest":
       || psql "$url" --set ON_ERROR_STOP=1 -c "REFRESH MATERIALIZED VIEW root_index_mv;"
     echo "Import complete."
 
-# Push a snapshot to a non-local target (railway|hetzner|...). Prompts.
+# Push a snapshot to a non-local target (hetzner|...). Prompts.
 push TARGET VERSION="latest":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -284,7 +284,7 @@ embed-quran:
 # Offline content bundles (SQLite + FTS5) for the PWA / Capacitor app
 # ---------------------------------------------------------------------------
 
-# Build offline Quran bundles + manifest from a target DB (local|railway|...).
+# Build offline Quran bundles + manifest from a target DB (local|hetzner|...).
 # Outputs to ./offline-bundles. S3/CloudFront upload is deferred (local fixtures).
 offline-bundles TARGET="local" LANGS="ar,en" DATA_VERSION="1":
     #!/usr/bin/env bash
@@ -297,7 +297,7 @@ offline-bundles TARGET="local" LANGS="ar,en" DATA_VERSION="1":
 # Seeding (legacy source data → normalized schema)
 # ---------------------------------------------------------------------------
 
-# Import legacy ws_quran_* source dumps into a target (local|railway)
+# Import legacy ws_quran_* source dumps into a target (local|hetzner)
 source-import TARGET="local":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -323,7 +323,7 @@ seed TARGET="local":
 seed-bible:
     go run ./api/cmd/seed_bible/
 
-# Seed music tables on a target (local|railway)
+# Seed music tables on a target (local|hetzner)
 seed-music TARGET="local":
     #!/usr/bin/env bash
     set -euo pipefail
