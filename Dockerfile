@@ -37,13 +37,14 @@ RUN CGO_ENABLED=0 GOOS=linux \
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Runtime
-# Alpine ships /bin/sh, wget, and ca-certificates out of the box so platform
-# healthchecks (Coolify, Kubernetes) that wrap calls in `sh -c "wget ..."`
-# work without extra plumbing. Static Go binary so libc is unused.
+# Alpine ships /bin/sh and ca-certificates out of the box. curl is added
+# because Coolify's HTTP-type healthcheck renders a `curl` command inside the
+# container (it does not use wget for that type); without it the check fails
+# with `sh: curl: not found`. Static Go binary so libc is unused.
 # ---------------------------------------------------------------------------
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates && \
+RUN apk add --no-cache ca-certificates curl && \
     addgroup -S nonroot && adduser -S -G nonroot nonroot
 
 # Migrations are embedded in the binary via //go:embed, so no extra COPY needed.
