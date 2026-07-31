@@ -344,21 +344,30 @@ func StartServer(database *db.DB) {
 
 	// Editor routes (Quran Games catalog) live OUTSIDE the OpenAPI surface, so
 	// like the sanity routes they must be registered before the validator or it
-	// would 404 them. Gated by the DB-backed games_editor permission (or admin
-	// role); see auth.RequireEditor. Replaced the GAMES_EDITOR_EMAILS env
-	// allowlist so editors can be granted through the admin access page.
+	// would 404 them.
+	//
+	// The :gameKey segment is what makes per-game access enforceable: the gates
+	// resolve the caller's grants and check them against the game named in the
+	// route, so a grant on one game cannot reach another game's endpoints — the
+	// old single games_editor boolean could not express that. Reads require
+	// CanReadGame; the mutations are destructive and require CanWriteGame. See
+	// migration 027 and auth.RequireGameEditor / auth.RequireGameWriter.
 	gamesAdmin := handlers.GamesAdminHandler{DB: database}
-	editor := r.Group("/api/v1/admin/games")
-	editor.Use(auth.RequireAuth(verifier))
-	editor.Use(auth.RequireEditor(database))
-	editor.GET("/passages", gamesAdmin.ListPassages)
-	editor.GET("/passages/:id", gamesAdmin.GetPassage)
-	editor.POST("/passages/:id/status", gamesAdmin.SetStatus)
-	editor.GET("/maintenance/frequency-stats", gamesAdmin.GetFrequencyStats)
-	editor.GET("/maintenance/lemma-stats", gamesAdmin.GetLemmaStats)
-	editor.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
-	editor.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
-	editor.POST("/curate", gamesAdmin.Curate)
+	gameRead := r.Group("/api/v1/admin/games/:gameKey")
+	gameRead.Use(auth.RequireAuth(verifier))
+	gameRead.Use(auth.RequireGameEditor(database))
+	gameRead.GET("/passages", gamesAdmin.ListPassages)
+	gameRead.GET("/passages/:id", gamesAdmin.GetPassage)
+	gameRead.GET("/maintenance/frequency-stats", gamesAdmin.GetFrequencyStats)
+	gameRead.GET("/maintenance/lemma-stats", gamesAdmin.GetLemmaStats)
+
+	gameWrite := r.Group("/api/v1/admin/games/:gameKey")
+	gameWrite.Use(auth.RequireAuth(verifier))
+	gameWrite.Use(auth.RequireGameWriter(database))
+	gameWrite.POST("/passages/:id/status", gamesAdmin.SetStatus)
+	gameWrite.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
+	gameWrite.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
+	gameWrite.POST("/curate", gamesAdmin.Curate)
 
 	// In-play check endpoint (instant per-blank feedback). Lives outside the
 	// OpenAPI surface like the editor routes, so it must be registered before

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -19,6 +20,10 @@ import (
 type nativeAuthStore interface {
 	UpsertUser(ctx context.Context, authID, email string, displayName *string) (*db.UserRow, error)
 	FetchUserByAuthID(ctx context.Context, authID string) (*db.UserRow, error)
+	// FetchEditorPermissions resolves the grant snapshot behind the session's
+	// isEditor flag. Games access moved from a JSONB flag to grant tables in
+	// migration 027, so it can no longer be read off the user row.
+	FetchEditorPermissions(ctx context.Context, userID int, isAdmin bool) (*db.EditorPermissions, error)
 }
 
 // NativeAuthHandler serves the mobile native-auth endpoints. A mobile client
@@ -229,12 +234,21 @@ func (h *NativeAuthHandler) respondWithSession(c *gin.Context, user *db.UserRow)
 		return
 	}
 
+	// isEditor now comes from the grant tables rather than a JSONB flag, so the
+	// snapshot has to be resolved here. A failure degrades to "no games access"
+	// rather than failing the sign-in — the backend re-checks on every request.
+	perms, err := h.Store.FetchEditorPermissions(c.Request.Context(), user.ID, user.Role == "admin")
+	if err != nil {
+		slog.Error("mobile auth: fetch editor permissions", "error", err, "user_id", user.ID)
+		perms = nil
+	}
+
 	c.JSON(http.StatusOK, mobileAuthResponse{
 		AccessToken:  access,
 		RefreshToken: refresh,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(h.AccessTTL.Seconds()),
-		User:         mobileUserFromRow(user),
+		User:         mobileUserFromRow(user, perms),
 	})
 }
 
@@ -251,7 +265,7 @@ func displayNameOrFallback(user *db.UserRow) string {
 	return user.Email
 }
 
-func mobileUserFromRow(user *db.UserRow) mobileAuthUser {
+func mobileUserFromRow(user *db.UserRow, perms *db.EditorPermissions) mobileAuthUser {
 	permissions := map[string]any{}
 	if len(user.Permissions) > 0 {
 		_ = json.Unmarshal(user.Permissions, &permissions)
@@ -265,6 +279,6 @@ func mobileUserFromRow(user *db.UserRow) mobileAuthUser {
 		Permissions: permissions,
 		IsActive:    user.IsActive,
 		IsAdmin:     user.Role == "admin",
-		IsEditor:    auth.HasGamesEditorAccess(user),
+		IsEditor:    auth.HasGamesEditorAccess(user, perms),
 	}
 }

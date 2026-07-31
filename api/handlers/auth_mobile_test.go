@@ -25,6 +25,10 @@ type fakeStore struct {
 	// template, when set, is returned by UpsertUser with auth_id/email applied,
 	// so a test can control role / permissions / active state.
 	template *db.UserRow
+	// perms, when set, is returned by FetchEditorPermissions — it drives the
+	// session's isEditor flag. Nil means no grants (the common case).
+	perms    *db.EditorPermissions
+	permsErr error
 }
 
 func (f *fakeStore) UpsertUser(_ context.Context, authID, email string, displayName *string) (*db.UserRow, error) {
@@ -53,6 +57,16 @@ func (f *fakeStore) FetchUserByAuthID(_ context.Context, authID string) (*db.Use
 		return nil, f.fetchErr
 	}
 	return f.users[authID], nil
+}
+
+func (f *fakeStore) FetchEditorPermissions(_ context.Context, _ int, isAdmin bool) (*db.EditorPermissions, error) {
+	if f.permsErr != nil {
+		return nil, f.permsErr
+	}
+	if f.perms != nil {
+		return f.perms, nil
+	}
+	return &db.EditorPermissions{IsAdmin: isAdmin}, nil
 }
 
 type stubVerifier struct {
@@ -168,6 +182,30 @@ func TestExchangeAdminFlags(t *testing.T) {
 	resp := decodeAuth(t, w)
 	if !resp.User.IsAdmin || !resp.User.IsEditor {
 		t.Fatalf("admin should be admin and editor: %+v", resp.User)
+	}
+}
+
+// A non-admin with only a per-game grant is an editor as far as the session is
+// concerned. Guards the migration off the legacy permissions.games_editor flag:
+// the flag is absent here, so isEditor can only come from the grant tables.
+func TestExchangeEditorFromGameGrant(t *testing.T) {
+	store := &fakeStore{
+		template: &db.UserRow{ID: 9, Role: "member", IsActive: true},
+		perms:    &db.EditorPermissions{Games: map[string]bool{"fill-blank": false}},
+	}
+	google := stubVerifier{identity: auth.VerifiedIdentity{Subject: "x", Email: "a@b.c", EmailVerified: true}}
+	h := newTestHandler(t, store, google, nil)
+
+	w := doJSON(t, h, "exchange", "/api/v1/auth/mobile/exchange", mobileExchangeRequest{Provider: "google", IDToken: "t"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	resp := decodeAuth(t, w)
+	if resp.User.IsAdmin {
+		t.Fatalf("member must not be admin: %+v", resp.User)
+	}
+	if !resp.User.IsEditor {
+		t.Fatalf("read-only per-game grant should make the user an editor: %+v", resp.User)
 	}
 }
 

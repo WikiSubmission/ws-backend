@@ -50,22 +50,38 @@ func TestHasPermission(t *testing.T) {
 	}
 }
 
+// Games access now comes from the grant tables, not the legacy
+// permissions.games_editor JSONB flag — so a user carrying only that flag is
+// denied, and a user with a grant is allowed regardless of the flag.
 func TestHasGamesEditorAccess(t *testing.T) {
+	globalGrant := &db.EditorPermissions{Modules: map[db.EditorModule]bool{db.ModuleGame: false}}
+	perGameGrant := &db.EditorPermissions{Games: map[string]bool{"fill-blank": true}}
+	unrelatedGrant := &db.EditorPermissions{Modules: map[db.EditorModule]bool{db.ModuleArticle: true}}
+
 	cases := []struct {
-		name string
-		user *db.UserRow
-		want bool
+		name  string
+		user  *db.UserRow
+		perms *db.EditorPermissions
+		want  bool
 	}{
-		{"nil", nil, false},
-		{"admin", &db.UserRow{Role: "admin", IsActive: true}, true},
-		{"editor with permission", &db.UserRow{Role: "editor", IsActive: true, Permissions: json.RawMessage(`{"games_editor":true}`)}, true},
-		{"member with permission", &db.UserRow{Role: "member", IsActive: true, Permissions: json.RawMessage(`{"games_editor":true}`)}, true},
-		{"editor without permission", &db.UserRow{Role: "editor", IsActive: true}, false},
-		{"admin but inactive", &db.UserRow{Role: "admin", IsActive: false}, false},
+		{"nil user", nil, globalGrant, false},
+		{"admin needs no grants", &db.UserRow{Role: "admin", IsActive: true}, nil, true},
+		{"admin but inactive", &db.UserRow{Role: "admin", IsActive: false}, globalGrant, false},
+		{"global games grant", &db.UserRow{Role: "member", IsActive: true}, globalGrant, true},
+		{"per-game grant only", &db.UserRow{Role: "member", IsActive: true}, perGameGrant, true},
+		{"unrelated module grant", &db.UserRow{Role: "editor", IsActive: true}, unrelatedGrant, false},
+		{"no grants at all", &db.UserRow{Role: "editor", IsActive: true}, &db.EditorPermissions{}, false},
+		{"nil perms denies non-admin", &db.UserRow{Role: "member", IsActive: true}, nil, false},
+		{
+			"legacy games_editor flag alone is no longer enough",
+			&db.UserRow{Role: "member", IsActive: true, Permissions: json.RawMessage(`{"games_editor":true}`)},
+			&db.EditorPermissions{},
+			false,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := HasGamesEditorAccess(c.user); got != c.want {
+			if got := HasGamesEditorAccess(c.user, c.perms); got != c.want {
 				t.Errorf("HasGamesEditorAccess = %v, want %v", got, c.want)
 			}
 		})

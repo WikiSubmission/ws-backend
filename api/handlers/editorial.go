@@ -65,7 +65,10 @@ func (s *Server) GetEditorialSession(ctx context.Context, _ GetEditorialSessionR
 		slog.Error("GetEditorialSession: resolve permissions", "error", err)
 		return GetEditorialSession500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 	}
-	if !perms.HasAnyEditorialAccess() {
+	// Games-only editors get a snapshot too: the games studio reads this endpoint
+	// to resolve per-game access on every request rather than trusting a stale
+	// flag baked into the caller's session token.
+	if !perms.HasAnyEditorialAccess() && !perms.HasAnyGameAccess() {
 		return GetEditorialSession403JSONResponse{ForbiddenJSONResponse{Message: "editorial access required"}}, nil
 	}
 	return GetEditorialSession200JSONResponse(EditorialSessionEnvelope{Data: editorialSessionFromPerms(perms)}), nil
@@ -118,6 +121,31 @@ func (s *Server) ListEditorialBibleVersions(ctx context.Context, _ ListEditorial
 	return ListEditorialBibleVersions200JSONResponse(EditorialBibleVersionListEnvelope{Data: out}), nil
 }
 
+// ListEditorialGames returns the game registry so the access console can offer a
+// per-game grant row for each. Admin-only: it exists to author grants, and only
+// admins can do that (see ReplaceEditorialEditorGrants).
+func (s *Server) ListEditorialGames(ctx context.Context, _ ListEditorialGamesRequestObject) (ListEditorialGamesResponseObject, error) {
+	isAdmin, err := s.requireEditorialAdmin(ctx)
+	if err != nil {
+		slog.Error("ListEditorialGames: resolve permissions", "error", err)
+		return ListEditorialGames500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if !isAdmin {
+		return ListEditorialGames403JSONResponse{ForbiddenJSONResponse{Message: "admin access required"}}, nil
+	}
+	rows, err := s.DB.FetchEditorGames(ctx)
+	if err != nil {
+		slog.Error("ListEditorialGames: DB error", "error", err)
+		return ListEditorialGames500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	out := make([]EditorGame, len(rows))
+	for i, r := range rows {
+		sortOrder := r.SortOrder
+		out[i] = EditorGame{Key: r.Key, Name: r.Name, SortOrder: &sortOrder}
+	}
+	return ListEditorialGames200JSONResponse(EditorGameListEnvelope{Data: out}), nil
+}
+
 // editorialSessionFromPerms shapes the resolved permissions into the wire model.
 // Integer version-id keys become string map keys per JSON object semantics.
 func editorialSessionFromPerms(p *db.EditorPermissions) EditorialSession {
@@ -137,6 +165,13 @@ func editorialSessionFromPerms(p *db.EditorPermissions) EditorialSession {
 	for id, canApprove := range p.QuranApproverVersions {
 		approver[strconv.Itoa(id)] = canApprove
 	}
+	// Per-game grants only. The global tier already rides along in modules under
+	// the "game" key, and admins hold no grant rows at all — clients resolve both
+	// via is_admin / modules.game.
+	games := make(map[string]bool, len(p.Games))
+	for key, canWrite := range p.Games {
+		games[key] = canWrite
+	}
 	var ref *int64
 	if p.QuranReferenceVersionID != nil {
 		v := int64(*p.QuranReferenceVersionID)
@@ -148,6 +183,7 @@ func editorialSessionFromPerms(p *db.EditorPermissions) EditorialSession {
 		QuranVersions:           quran,
 		QuranApproverVersions:   approver,
 		BibleVersions:           bible,
+		Games:                   games,
 		QuranReferenceVersionId: ref,
 	}
 }

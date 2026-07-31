@@ -9,9 +9,10 @@ import (
 )
 
 // Admin-side editorial grant management. Reads and writes the grant tables
-// introduced in migrations 018/019 (editor_module_grants,
+// introduced in migrations 018/019/027 (editor_module_grants,
 // editor_quran_version_grants incl. can_approve, editor_bible_version_grants,
-// editor_quran_reference_pref). Admin-only surface; callers gate on IsAdmin.
+// editor_game_grants, editor_quran_reference_pref). Admin-only surface; callers
+// gate on IsAdmin.
 
 // ErrUserNotFound signals an unknown user id (HTTP 404).
 var ErrUserNotFound = errors.New("user not found")
@@ -21,6 +22,13 @@ type EditorVersionGrantRow struct {
 	VersionID  int
 	CanWrite   bool
 	CanApprove bool // Quran only; always false for Bible
+}
+
+// EditorGameGrantRow is one per-game grant. The global "all games" grant is a
+// module grant (module = 'game') and arrives in Modules instead.
+type EditorGameGrantRow struct {
+	GameKey  string
+	CanWrite bool
 }
 
 // EditorGrantsRow aggregates one user's editorial grants.
@@ -33,6 +41,7 @@ type EditorGrantsRow struct {
 	Modules                 map[string]bool
 	QuranVersions           []EditorVersionGrantRow
 	BibleVersions           []EditorVersionGrantRow
+	Games                   []EditorGameGrantRow
 	QuranReferenceVersionID *int
 }
 
@@ -168,6 +177,28 @@ func (db *DB) attachGrants(ctx context.Context, ids []int, byID map[int]*EditorG
 		return err
 	}
 
+	games, err := db.Pool.Query(ctx, `
+		SELECT user_id, game_key, can_write
+		FROM editor_game_grants WHERE user_id = ANY($1)
+		ORDER BY game_key`, ids)
+	if err != nil {
+		return err
+	}
+	defer games.Close()
+	for games.Next() {
+		var uid int
+		var g EditorGameGrantRow
+		if err := games.Scan(&uid, &g.GameKey, &g.CanWrite); err != nil {
+			return err
+		}
+		if u := byID[uid]; u != nil {
+			u.Games = append(u.Games, g)
+		}
+	}
+	if err := games.Err(); err != nil {
+		return err
+	}
+
 	prefs, err := db.Pool.Query(ctx, `
 		SELECT user_id, reference_version_id
 		FROM editor_quran_reference_pref WHERE user_id = ANY($1)`, ids)
@@ -190,14 +221,15 @@ func (db *DB) attachGrants(ctx context.Context, ids []int, byID map[int]*EditorG
 
 // ReplaceEditorGrants swaps out one user's editorial grants in a single
 // transaction: module grants, per-version Quran grants (write + approve),
-// per-version Bible grants and the word-by-word reference preference. Grants
-// absent from the input are revoked.
+// per-version Bible grants, per-game grants and the word-by-word reference
+// preference. Grants absent from the input are revoked.
 func (db *DB) ReplaceEditorGrants(
 	ctx context.Context,
 	userID int,
 	modules map[EditorModule]bool,
 	quranVersions []EditorVersionGrantRow,
 	bibleVersions []EditorVersionGrantRow,
+	games []EditorGameGrantRow,
 	quranReferenceVersionID *int,
 ) (*EditorGrantsRow, error) {
 	defer observe("replace_editor_grants", time.Now())
@@ -247,6 +279,17 @@ func (db *DB) ReplaceEditorGrants(
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO editor_bible_version_grants (user_id, version_id, can_write)
 			VALUES ($1, $2, $3)`, userID, g.VersionID, g.CanWrite); err != nil {
+			return nil, translateContentPgError(err)
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM editor_game_grants WHERE user_id = $1`, userID); err != nil {
+		return nil, err
+	}
+	for _, g := range games {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO editor_game_grants (user_id, game_key, can_write)
+			VALUES ($1, $2, $3)`, userID, g.GameKey, g.CanWrite); err != nil {
 			return nil, translateContentPgError(err)
 		}
 	}

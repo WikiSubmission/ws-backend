@@ -13,6 +13,10 @@ import (
 // Only admins pass; module/version grants never grant access to this surface.
 
 // validEditorModules mirrors the editor_module DB enum for input validation.
+//
+// "game" is accepted here — it is the global games tier — but is deliberately
+// absent from the EditorialContentModule enum, since games have no content
+// documents and must never route into the /editorial/content endpoints.
 var validEditorModules = map[string]bool{
 	"article":   true,
 	"quran":     true,
@@ -21,6 +25,31 @@ var validEditorModules = map[string]bool{
 	"author":    true,
 	"category":  true,
 	"appendix":  true,
+	"game":      true,
+}
+
+// gameGrantRows validates the requested per-game grants against the registry
+// and converts them to DB rows. A non-empty badKey names the first unknown game
+// key; games is only meaningful when badKey is empty and err is nil.
+func (s *Server) gameGrantRows(
+	ctx context.Context,
+	grants *[]EditorGameGrant,
+) (games []db.EditorGameGrantRow, badKey string, err error) {
+	if grants == nil || len(*grants) == 0 {
+		return nil, "", nil
+	}
+	known, err := s.DB.FetchEditorGameKeys(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	games = make([]db.EditorGameGrantRow, 0, len(*grants))
+	for _, g := range *grants {
+		if !known[g.GameKey] {
+			return nil, g.GameKey, nil
+		}
+		games = append(games, db.EditorGameGrantRow{GameKey: g.GameKey, CanWrite: g.CanWrite})
+	}
+	return games, "", nil
 }
 
 // requireEditorialAdmin resolves the caller and returns true only for admins.
@@ -46,6 +75,10 @@ func editorFromGrantsRow(r *db.EditorGrantsRow) EditorialEditor {
 	for i, g := range r.BibleVersions {
 		bible[i] = EditorVersionGrant{VersionId: int64(g.VersionID), CanWrite: g.CanWrite}
 	}
+	games := make([]EditorGameGrant, len(r.Games))
+	for i, g := range r.Games {
+		games[i] = EditorGameGrant{GameKey: g.GameKey, CanWrite: g.CanWrite}
+	}
 	var ref *int64
 	if r.QuranReferenceVersionID != nil {
 		v := int64(*r.QuranReferenceVersionID)
@@ -60,6 +93,7 @@ func editorFromGrantsRow(r *db.EditorGrantsRow) EditorialEditor {
 		Modules:                 modules,
 		QuranVersions:           quran,
 		BibleVersions:           bible,
+		Games:                   games,
 		QuranReferenceVersionId: ref,
 	}
 }
@@ -130,6 +164,18 @@ func (s *Server) ReplaceEditorialEditorGrants(ctx context.Context, request Repla
 		return out
 	}
 
+	// Validate game keys against the registry rather than a hard-coded list, so
+	// adding a game is a data change and a typo is a 400 instead of a silent
+	// grant nobody holds.
+	games, badKey, err := s.gameGrantRows(ctx, request.Body.Games)
+	if err != nil {
+		slog.Error("ReplaceEditorialEditorGrants: fetch game registry", "error", err)
+		return ReplaceEditorialEditorGrants500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if badKey != "" {
+		return ReplaceEditorialEditorGrants400JSONResponse{BadRequestJSONResponse{Message: "unknown game " + badKey}}, nil
+	}
+
 	var ref *int
 	if request.Body.QuranReferenceVersionId != nil {
 		v := int(*request.Body.QuranReferenceVersionId)
@@ -142,6 +188,7 @@ func (s *Server) ReplaceEditorialEditorGrants(ctx context.Context, request Repla
 		modules,
 		toGrantRows(request.Body.QuranVersions),
 		toGrantRows(request.Body.BibleVersions),
+		games,
 		ref,
 	)
 	switch {

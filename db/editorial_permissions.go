@@ -23,6 +23,11 @@ const (
 	ModuleAuthor    EditorModule = "author"
 	ModuleCategory  EditorModule = "category"
 	ModuleAppendix  EditorModule = "appendix"
+	// ModuleGame is the global tier of games access: it grants every game at
+	// once. Added in migration 027; unlike the other modules it has no content
+	// documents of its own, so it is deliberately excluded from the content
+	// module taxonomy (see validEditorModules in api/handlers/editorial_admin.go).
+	ModuleGame EditorModule = "game"
 )
 
 // EditorPermissions is the resolved, in-memory authorization snapshot for one
@@ -37,12 +42,18 @@ const (
 //   - A version appears in QuranVersions/BibleVersions iff the user has READ on
 //     that version; the bool reports WRITE. Version access additionally requires
 //     READ on the owning module (quran/bible).
+//   - A game appears in Games iff the user has READ on that game; the bool
+//     reports WRITE. Games are the one exception to the rule above: game access
+//     is a UNION, not an intersection — either the global ModuleGame grant or a
+//     per-game grant is sufficient on its own. That is what lets an admin give
+//     someone one game without handing them the whole games surface.
 type EditorPermissions struct {
 	IsAdmin                 bool
 	Modules                 map[EditorModule]bool
 	QuranVersions           map[int]bool
 	QuranApproverVersions   map[int]bool
 	BibleVersions           map[int]bool
+	Games                   map[string]bool
 	QuranReferenceVersionID *int
 }
 
@@ -55,6 +66,7 @@ func newEditorPermissions(isAdmin bool) *EditorPermissions {
 		QuranVersions:         make(map[int]bool),
 		QuranApproverVersions: make(map[int]bool),
 		BibleVersions:         make(map[int]bool),
+		Games:                 make(map[string]bool),
 	}
 }
 
@@ -177,13 +189,99 @@ func (p *EditorPermissions) CanWriteBibleVersion(versionID int) bool {
 	return p.BibleVersions[versionID]
 }
 
+// CanReadGame reports whether the user may view the given game's editorial
+// surface. Unlike version access this is a UNION: the global ModuleGame grant
+// covers every game, and a per-game grant stands on its own without it. Both
+// paths are checked because an admin may grant either.
+func (p *EditorPermissions) CanReadGame(gameKey string) bool {
+	if p == nil {
+		return false
+	}
+	if p.IsAdmin {
+		return true
+	}
+	if _, ok := p.Modules[ModuleGame]; ok {
+		return true
+	}
+	_, ok := p.Games[gameKey]
+	return ok
+}
+
+// CanWriteGame reports whether the user may make changes to the given game
+// (approve/reject passages, curate, run maintenance jobs). Union semantics as
+// in CanReadGame: global write covers every game, per-game write covers one.
+func (p *EditorPermissions) CanWriteGame(gameKey string) bool {
+	if p == nil {
+		return false
+	}
+	if p.IsAdmin {
+		return true
+	}
+	if p.Modules[ModuleGame] {
+		return true
+	}
+	return p.Games[gameKey]
+}
+
+// HasGlobalGameAccess reports whether the user holds the global ModuleGame
+// grant, i.e. access to every game including ones added later. Callers listing
+// games must treat this (and IsAdmin) as "all", since neither produces per-game
+// rows in Games.
+func (p *EditorPermissions) HasGlobalGameAccess() bool {
+	if p == nil {
+		return false
+	}
+	if p.IsAdmin {
+		return true
+	}
+	_, ok := p.Modules[ModuleGame]
+	return ok
+}
+
+// AccessibleGameKeys returns the game keys explicitly granted to the user.
+// Empty for admins and global games editors — they reach every game, so check
+// HasGlobalGameAccess first rather than treating an empty slice as "none".
+func (p *EditorPermissions) AccessibleGameKeys() []string {
+	if p == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(p.Games))
+	for key := range p.Games {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+// HasAnyGameAccess reports whether the user can reach any games surface at all
+// (admin, the global grant, or at least one per-game grant). Backs the coarse
+// isEditor flag the web and mobile sessions carry for nav gating.
+func (p *EditorPermissions) HasAnyGameAccess() bool {
+	if p == nil {
+		return false
+	}
+	return p.IsAdmin || p.HasGlobalGameAccess() || len(p.Games) > 0
+}
+
 // HasAnyEditorialAccess reports whether the user can reach the editor at all
 // (admin, or holds at least one module grant). Used to gate the /editor surface.
+//
+// ModuleGame does not count: games have no content documents and their studio
+// lives under /admin/games, so a games-only editor would land on an empty
+// workspace. Callers gating the shared permission snapshot (rather than /editor
+// itself) should also accept HasAnyGameAccess — see GetEditorialSession.
 func (p *EditorPermissions) HasAnyEditorialAccess() bool {
 	if p == nil {
 		return false
 	}
-	return p.IsAdmin || len(p.Modules) > 0
+	if p.IsAdmin {
+		return true
+	}
+	for module := range p.Modules {
+		if module != ModuleGame {
+			return true
+		}
+	}
+	return false
 }
 
 // FetchEditorPermissions assembles the resolved permission snapshot for a user
@@ -225,6 +323,11 @@ func (db *DB) FetchEditorPermissions(ctx context.Context, userID int, isAdmin bo
 		return nil, fmt.Errorf("fetch_editor_permissions: bible version grants: %w", err)
 	}
 
+	// Per-game grants (the global tier arrives with the module grants above).
+	if err := db.scanGameGrants(ctx, userID, perms.Games); err != nil {
+		return nil, fmt.Errorf("fetch_editor_permissions: game grants: %w", err)
+	}
+
 	// Quran word-by-word reference preference (optional row).
 	var refVersionID *int
 	err = db.Pool.QueryRow(ctx,
@@ -258,6 +361,26 @@ func (db *DB) scanQuranVersionGrants(ctx context.Context, userID int, perms *Edi
 		if canApprove {
 			perms.QuranApproverVersions[versionID] = true
 		}
+	}
+	return rows.Err()
+}
+
+// scanGameGrants fills the caller's per-game grants. The global games grant is
+// a module grant and is read alongside the other modules, not here.
+func (db *DB) scanGameGrants(ctx context.Context, userID int, dst map[string]bool) error {
+	rows, err := db.Pool.Query(ctx,
+		`SELECT game_key, can_write FROM editor_game_grants WHERE user_id = $1`, userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var gameKey string
+		var canWrite bool
+		if err := rows.Scan(&gameKey, &canWrite); err != nil {
+			return err
+		}
+		dst[gameKey] = canWrite
 	}
 	return rows.Err()
 }
@@ -308,6 +431,52 @@ func (db *DB) FetchQuranVersions(ctx context.Context) ([]QuranVersionRow, error)
 	}
 	defer rows.Close()
 	return pgx.CollectRows(rows, pgx.RowToStructByName[QuranVersionRow])
+}
+
+// EditorGameRow mirrors a row of public.editor_games — the registry of games
+// that have an editorial surface. Key matches the {gameKey} route segment.
+type EditorGameRow struct {
+	Key       string `db:"key"        json:"key"`
+	Name      string `db:"name"       json:"name"`
+	SortOrder int    `db:"sort_order" json:"sort_order"`
+	IsActive  bool   `db:"is_active"  json:"is_active"`
+}
+
+// FetchEditorGames returns the active game registry in display order. Used to
+// render the grant rows in the access console.
+func (db *DB) FetchEditorGames(ctx context.Context) ([]EditorGameRow, error) {
+	defer observe("fetch_editor_games", time.Now())
+	rows, err := db.Pool.Query(ctx,
+		`SELECT key, name, sort_order, is_active FROM editor_games
+		 WHERE is_active ORDER BY sort_order, key`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[EditorGameRow])
+}
+
+// FetchEditorGameKeys returns every registered game key, including inactive
+// ones. Grant validation uses this rather than FetchEditorGames: a deactivated
+// game is hidden from the console but existing grants on it are still valid
+// input, so validating against the active list alone would reject every save for
+// a user who happens to hold one.
+func (db *DB) FetchEditorGameKeys(ctx context.Context) (map[string]bool, error) {
+	defer observe("fetch_editor_game_keys", time.Now())
+	rows, err := db.Pool.Query(ctx, `SELECT key FROM editor_games`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	keys := make(map[string]bool)
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		keys[key] = true
+	}
+	return keys, rows.Err()
 }
 
 // BibleVersionRow mirrors a row of public.bible_versions.

@@ -12,9 +12,12 @@ import (
 	"github.com/wikiSubmission/ws-backend/db"
 )
 
-// PermissionGamesEditor is the JSONB key on users.permissions that grants
-// access to the games editorial surface. Admins are always allowed; other
-// users need this permission set to true.
+// PermissionGamesEditor is the legacy JSONB key on users.permissions that used
+// to grant access to the games editorial surface as a single all-or-nothing
+// boolean. Enforcement moved to the grant tables in migration 027
+// (editor_module_grants module='game' for all games, editor_game_grants for a
+// single game), so nothing reads this key to make an access decision any more.
+// The column data is left in place so a rollback stays non-destructive.
 const PermissionGamesEditor = "games_editor"
 
 // HasPermission reports whether the user's permissions JSONB blob has the
@@ -35,11 +38,23 @@ func HasPermission(raw json.RawMessage, key string) bool {
 	return ok && b
 }
 
-// RequireEditor allows admins and users granted the games_editor permission
-// via the admin access page. Must run after RequireAuth so the auth id is on
-// the context. The env-based allowlist (GAMES_EDITOR_EMAILS) it replaced has
-// been retired in favor of DB-backed access control.
-func RequireEditor(database *db.DB) gin.HandlerFunc {
+// ContextKeyGamePerms is where the game gates stash the caller's resolved
+// permission snapshot, so a handler can make a finer decision (for example a
+// read-gated route that writes only for CanWriteGame holders) without a second
+// round-trip to the database.
+const ContextKeyGamePerms = "game_perms"
+
+// requireGame is the shared body of the per-game gates. It resolves the caller,
+// reads the :gameKey route param, and delegates the verdict to allow. Must run
+// after RequireAuth so the auth id is on the context.
+//
+// The game key comes from the route, so a caller who is granted game A cannot
+// reach game B's endpoints — which the old single games_editor boolean could
+// not express.
+func requireGame(
+	database *db.DB,
+	allow func(perms *db.EditorPermissions, gameKey string) bool,
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authID, exists := c.Get(ContextKeyUID)
 		authIDStr, _ := authID.(string)
@@ -52,26 +67,56 @@ func RequireEditor(database *db.DB) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
 			return
 		}
-		if user.Role != "admin" && !HasPermission(user.Permissions, PermissionGamesEditor) {
+		perms, err := database.FetchEditorPermissions(c.Request.Context(), user.ID, user.Role == "admin")
+		if err != nil {
+			slog.Error("game gate: fetch permissions", "error", err, "path", c.FullPath())
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
+		}
+		gameKey := c.Param("gameKey")
+		if gameKey == "" || !allow(perms, gameKey) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
 			return
 		}
 		c.Set(ContextKeyRole, user.Role)
+		c.Set(ContextKeyGamePerms, perms)
 		c.Next()
 	}
 }
 
-// HasGamesEditorAccess reports whether the given user passes the same gate
-// as RequireEditor. Exposed so handlers serving the session shape can populate
-// session.isEditor consistently with the middleware.
-func HasGamesEditorAccess(u *db.UserRow) bool {
+// RequireGameEditor allows admins, holders of the global games grant, and
+// holders of a per-game grant on the game named by the :gameKey route param.
+// Use for reads.
+func RequireGameEditor(database *db.DB) gin.HandlerFunc {
+	return requireGame(database, func(p *db.EditorPermissions, gameKey string) bool {
+		return p.CanReadGame(gameKey)
+	})
+}
+
+// RequireGameWriter is RequireGameEditor for mutations — curation, passage
+// status changes and the maintenance jobs, which are destructive and so demand
+// write rather than mere read on the game.
+func RequireGameWriter(database *db.DB) gin.HandlerFunc {
+	return requireGame(database, func(p *db.EditorPermissions, gameKey string) bool {
+		return p.CanWriteGame(gameKey)
+	})
+}
+
+// HasGamesEditorAccess reports whether the user can reach any games surface.
+// Exposed so handlers serving the session shape can populate session.isEditor
+// consistently with the gates above. Kept as a pure decision function — the
+// caller resolves perms (via db.FetchEditorPermissions) and passes it in, so
+// this stays unit-testable without a database.
+//
+// perms may be nil, which denies every non-admin.
+func HasGamesEditorAccess(u *db.UserRow, perms *db.EditorPermissions) bool {
 	if u == nil || !u.IsActive {
 		return false
 	}
 	if u.Role == "admin" {
 		return true
 	}
-	return HasPermission(u.Permissions, PermissionGamesEditor)
+	return perms.HasAnyGameAccess()
 }
 
 const (

@@ -286,6 +286,26 @@ func TestEditorPermissions_HasAnyEditorialAccess(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			// Games live under /admin/games and have no content documents, so a
+			// games-only editor must not be treated as having editorial access —
+			// /editor would render them an empty workspace.
+			name:  "games module only is not editorial access",
+			perms: &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: true}},
+			want:  false,
+		},
+		{
+			name: "games module alongside a real module still counts",
+			perms: &EditorPermissions{
+				Modules: map[EditorModule]bool{ModuleGame: true, ModuleArticle: false},
+			},
+			want: true,
+		},
+		{
+			name:  "per-game grant only is not editorial access",
+			perms: &EditorPermissions{Games: map[string]bool{"fill-blank": true}},
+			want:  false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -293,6 +313,150 @@ func TestEditorPermissions_HasAnyEditorialAccess(t *testing.T) {
 				t.Errorf("HasAnyEditorialAccess = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// Game access is the one UNION in this model: unlike a version grant, which is
+// only honored alongside its module grant, a per-game grant stands alone and the
+// global ModuleGame grant covers every game. These tests pin that asymmetry —
+// it is the whole point of per-game access.
+func TestEditorPermissions_Game(t *testing.T) {
+	tests := []struct {
+		name      string
+		perms     *EditorPermissions
+		gameKey   string
+		wantRead  bool
+		wantWrite bool
+	}{
+		{
+			name:      "admin reads and writes any game",
+			perms:     &EditorPermissions{IsAdmin: true},
+			gameKey:   "fill-blank",
+			wantRead:  true,
+			wantWrite: true,
+		},
+		{
+			name:      "global read-only grant covers a game it has no row for",
+			perms:     &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: false}},
+			gameKey:   "some-future-game",
+			wantRead:  true,
+			wantWrite: false,
+		},
+		{
+			name:      "global write grant writes any game",
+			perms:     &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: true}},
+			gameKey:   "some-future-game",
+			wantRead:  true,
+			wantWrite: true,
+		},
+		{
+			// The union: no ModuleGame grant at all, yet the game is reachable.
+			name:      "per-game read grant works without the module grant",
+			perms:     &EditorPermissions{Games: map[string]bool{"fill-blank": false}},
+			gameKey:   "fill-blank",
+			wantRead:  true,
+			wantWrite: false,
+		},
+		{
+			name:      "per-game write grant works without the module grant",
+			perms:     &EditorPermissions{Games: map[string]bool{"fill-blank": true}},
+			gameKey:   "fill-blank",
+			wantRead:  true,
+			wantWrite: true,
+		},
+		{
+			// The isolation guarantee the old single boolean could not give.
+			name:      "grant on one game does not leak to another",
+			perms:     &EditorPermissions{Games: map[string]bool{"fill-blank": true}},
+			gameKey:   "other-game",
+			wantRead:  false,
+			wantWrite: false,
+		},
+		{
+			name:      "global read plus per-game write escalates that one game",
+			perms:     &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: false}, Games: map[string]bool{"fill-blank": true}},
+			gameKey:   "fill-blank",
+			wantRead:  true,
+			wantWrite: true,
+		},
+		{
+			name:      "no grants",
+			perms:     newEditorPermissions(false),
+			gameKey:   "fill-blank",
+			wantRead:  false,
+			wantWrite: false,
+		},
+		{
+			name:      "unrelated module grant does not grant games",
+			perms:     &EditorPermissions{Modules: map[EditorModule]bool{ModuleQuran: true}},
+			gameKey:   "fill-blank",
+			wantRead:  false,
+			wantWrite: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.perms.CanReadGame(tt.gameKey); got != tt.wantRead {
+				t.Errorf("CanReadGame(%q) = %v, want %v", tt.gameKey, got, tt.wantRead)
+			}
+			if got := tt.perms.CanWriteGame(tt.gameKey); got != tt.wantWrite {
+				t.Errorf("CanWriteGame(%q) = %v, want %v", tt.gameKey, got, tt.wantWrite)
+			}
+		})
+	}
+}
+
+func TestEditorPermissions_GameNilSafe(t *testing.T) {
+	var p *EditorPermissions
+	if p.CanReadGame("fill-blank") || p.CanWriteGame("fill-blank") {
+		t.Error("nil perms must not grant game access")
+	}
+	if p.HasAnyGameAccess() || p.HasGlobalGameAccess() {
+		t.Error("nil perms must not report game access")
+	}
+	if got := p.AccessibleGameKeys(); got != nil {
+		t.Errorf("AccessibleGameKeys on nil = %v, want nil", got)
+	}
+}
+
+func TestEditorPermissions_HasAnyGameAccess(t *testing.T) {
+	tests := []struct {
+		name  string
+		perms *EditorPermissions
+		want  bool
+	}{
+		{"admin", &EditorPermissions{IsAdmin: true}, true},
+		{"global grant", &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: false}}, true},
+		{"per-game grant", &EditorPermissions{Games: map[string]bool{"fill-blank": false}}, true},
+		{"no grants", newEditorPermissions(false), false},
+		{"other modules only", &EditorPermissions{Modules: map[EditorModule]bool{ModuleArticle: true}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.perms.HasAnyGameAccess(); got != tt.want {
+				t.Errorf("HasAnyGameAccess = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// A global games editor holds no per-game rows, so callers must not read an
+// empty AccessibleGameKeys as "no games" — HasGlobalGameAccess answers that.
+func TestEditorPermissions_AccessibleGameKeys(t *testing.T) {
+	global := &EditorPermissions{Modules: map[EditorModule]bool{ModuleGame: true}}
+	if got := global.AccessibleGameKeys(); len(got) != 0 {
+		t.Errorf("global grant should hold no per-game rows, got %v", got)
+	}
+	if !global.HasGlobalGameAccess() {
+		t.Error("global grant must report HasGlobalGameAccess")
+	}
+
+	perGame := &EditorPermissions{Games: map[string]bool{"fill-blank": true}}
+	if got := perGame.AccessibleGameKeys(); len(got) != 1 || got[0] != "fill-blank" {
+		t.Errorf("AccessibleGameKeys = %v, want [fill-blank]", got)
+	}
+	if perGame.HasGlobalGameAccess() {
+		t.Error("a per-game grant must not report global access")
 	}
 }
 
