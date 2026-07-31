@@ -113,6 +113,28 @@ func (db *DB) UpdateUserDisplayName(ctx context.Context, id int, displayName str
 	return nil
 }
 
+// IsLastActiveAdmin reports whether the given user is an active admin and no
+// other active admin exists. Callers use it to refuse changes that would leave
+// nobody able to reach the admin surfaces — notably /admin/access, which is now
+// the single place all access is granted from. Recovering from that state needs
+// direct database access, so it warrants a guard rather than a warning.
+//
+// Both halves are evaluated in one statement so a concurrent demotion cannot
+// slip between them and take the second-to-last admin with it.
+func (db *DB) IsLastActiveAdmin(ctx context.Context, id int) (bool, error) {
+	var isLast bool
+	err := db.Pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM users WHERE id = $1 AND role = 'admin' AND is_active
+		) AND NOT EXISTS (
+			SELECT 1 FROM users WHERE id <> $1 AND role = 'admin' AND is_active
+		)`, id).Scan(&isLast)
+	if err != nil {
+		return false, err
+	}
+	return isLast, nil
+}
+
 func (db *DB) UpdateUserRole(ctx context.Context, id int, role string) error {
 	query := `UPDATE users SET role = $1::user_role, updated_at = NOW() WHERE id = $2`
 	tag, err := db.Pool.Exec(ctx, query, role, id)

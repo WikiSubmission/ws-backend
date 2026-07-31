@@ -44,15 +44,20 @@ func HasPermission(raw json.RawMessage, key string) bool {
 // round-trip to the database.
 const ContextKeyGamePerms = "game_perms"
 
-// requireGame is the shared body of the per-game gates. It resolves the caller,
-// reads the :gameKey route param, and delegates the verdict to allow. Must run
-// after RequireAuth so the auth id is on the context.
+// requireGame is the shared body of the per-game gates. It resolves the caller
+// and delegates the verdict to allow. Must run after RequireAuth so the auth id
+// is on the context.
 //
-// The game key comes from the route, so a caller who is granted game A cannot
-// reach game B's endpoints — which the old single games_editor boolean could
-// not express.
+// gameKey is supplied by the caller at route-registration time, NOT read from
+// the request. That is deliberate and load-bearing: the handlers behind these
+// routes each serve one specific game's data and never inspect the path, so a
+// gate that authorized whatever key the request carried would hand a holder of
+// game B's grant the contents of game A. Binding the key at registration means
+// the authorized game and the served game are the same by construction, and a
+// game added later cannot inherit another game's routes.
 func requireGame(
 	database *db.DB,
+	gameKey string,
 	allow func(perms *db.EditorPermissions, gameKey string) bool,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -73,7 +78,6 @@ func requireGame(
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
-		gameKey := c.Param("gameKey")
 		if gameKey == "" || !allow(perms, gameKey) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
 			return
@@ -85,20 +89,20 @@ func requireGame(
 }
 
 // RequireGameEditor allows admins, holders of the global games grant, and
-// holders of a per-game grant on the game named by the :gameKey route param.
-// Use for reads.
-func RequireGameEditor(database *db.DB) gin.HandlerFunc {
-	return requireGame(database, func(p *db.EditorPermissions, gameKey string) bool {
-		return p.CanReadGame(gameKey)
+// holders of a per-game grant on gameKey. Use for reads. gameKey must name the
+// game whose data the routes behind this gate actually serve.
+func RequireGameEditor(database *db.DB, gameKey string) gin.HandlerFunc {
+	return requireGame(database, gameKey, func(p *db.EditorPermissions, key string) bool {
+		return p.CanReadGame(key)
 	})
 }
 
 // RequireGameWriter is RequireGameEditor for mutations — curation, passage
 // status changes and the maintenance jobs, which are destructive and so demand
 // write rather than mere read on the game.
-func RequireGameWriter(database *db.DB) gin.HandlerFunc {
-	return requireGame(database, func(p *db.EditorPermissions, gameKey string) bool {
-		return p.CanWriteGame(gameKey)
+func RequireGameWriter(database *db.DB, gameKey string) gin.HandlerFunc {
+	return requireGame(database, gameKey, func(p *db.EditorPermissions, key string) bool {
+		return p.CanWriteGame(key)
 	})
 }
 

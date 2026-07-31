@@ -137,6 +137,25 @@ func (s *Server) UpdateUserAdmin(ctx context.Context, request UpdateUserAdminReq
 	id := int(request.Id)
 	req := request.Body
 
+	// Refuse to strip the last active admin, whether by demoting their role or by
+	// deactivating them — either one locks everyone out of /admin/access, which is
+	// the only surface that can grant it back. Checked before any write, so a
+	// rejected request changes nothing.
+	demotesRole := req.Role != nil && string(*req.Role) != "admin"
+	deactivates := req.IsActive != nil && !*req.IsActive
+	if demotesRole || deactivates {
+		isLast, err := s.DB.IsLastActiveAdmin(ctx, id)
+		if err != nil {
+			slog.Error("UpdateUserAdmin: last-admin check failed", "error", err, "user_id", id)
+			return UpdateUserAdmin500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		}
+		if isLast {
+			return UpdateUserAdmin400JSONResponse{BadRequestJSONResponse{
+				Message: "cannot remove the last active admin; grant admin to another account first",
+			}}, nil
+		}
+	}
+
 	if req.Role != nil {
 		if err := s.DB.UpdateUserRole(ctx, id, string(*req.Role)); err != nil {
 			slog.Error("UpdateUserAdmin: UpdateUserRole error", "error", err)

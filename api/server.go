@@ -346,28 +346,36 @@ func StartServer(database *db.DB) {
 	// like the sanity routes they must be registered before the validator or it
 	// would 404 them.
 	//
-	// The :gameKey segment is what makes per-game access enforceable: the gates
-	// resolve the caller's grants and check them against the game named in the
-	// route, so a grant on one game cannot reach another game's endpoints — the
-	// old single games_editor boolean could not express that. Reads require
-	// CanReadGame; the mutations are destructive and require CanWriteGame. See
-	// migration 027 and auth.RequireGameEditor / auth.RequireGameWriter.
+	// Per-game access is enforced by pairing each route group with the literal
+	// game it serves. The group prefix is the game key, so an unknown or
+	// not-yet-implemented game 404s instead of reaching a handler, and the gate
+	// authorizes that same key.
+	//
+	// Do NOT collapse these into a `:gameKey` wildcard. The handlers below serve
+	// the fill-blank catalog and never read the path, so a wildcard would let a
+	// holder of another game's grant read and mutate fill-blank data. A second
+	// game gets its own group, its own key and its own handlers.
+	//
+	// Reads require CanReadGame; the mutations are destructive and require
+	// CanWriteGame. See migration 027.
 	gamesAdmin := handlers.GamesAdminHandler{DB: database}
-	gameRead := r.Group("/api/v1/admin/games/:gameKey")
-	gameRead.Use(auth.RequireAuth(verifier))
-	gameRead.Use(auth.RequireGameEditor(database))
-	gameRead.GET("/passages", gamesAdmin.ListPassages)
-	gameRead.GET("/passages/:id", gamesAdmin.GetPassage)
-	gameRead.GET("/maintenance/frequency-stats", gamesAdmin.GetFrequencyStats)
-	gameRead.GET("/maintenance/lemma-stats", gamesAdmin.GetLemmaStats)
+	const fillBlankKey = "fill-blank"
 
-	gameWrite := r.Group("/api/v1/admin/games/:gameKey")
-	gameWrite.Use(auth.RequireAuth(verifier))
-	gameWrite.Use(auth.RequireGameWriter(database))
-	gameWrite.POST("/passages/:id/status", gamesAdmin.SetStatus)
-	gameWrite.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
-	gameWrite.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
-	gameWrite.POST("/curate", gamesAdmin.Curate)
+	fillBlankRead := r.Group("/api/v1/admin/games/" + fillBlankKey)
+	fillBlankRead.Use(auth.RequireAuth(verifier))
+	fillBlankRead.Use(auth.RequireGameEditor(database, fillBlankKey))
+	fillBlankRead.GET("/passages", gamesAdmin.ListPassages)
+	fillBlankRead.GET("/passages/:id", gamesAdmin.GetPassage)
+	fillBlankRead.GET("/maintenance/frequency-stats", gamesAdmin.GetFrequencyStats)
+	fillBlankRead.GET("/maintenance/lemma-stats", gamesAdmin.GetLemmaStats)
+
+	fillBlankWrite := r.Group("/api/v1/admin/games/" + fillBlankKey)
+	fillBlankWrite.Use(auth.RequireAuth(verifier))
+	fillBlankWrite.Use(auth.RequireGameWriter(database, fillBlankKey))
+	fillBlankWrite.POST("/passages/:id/status", gamesAdmin.SetStatus)
+	fillBlankWrite.POST("/maintenance/seed-frequency", gamesAdmin.SeedFrequency)
+	fillBlankWrite.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
+	fillBlankWrite.POST("/curate", gamesAdmin.Curate)
 
 	// In-play check endpoint (instant per-blank feedback). Lives outside the
 	// OpenAPI surface like the editor routes, so it must be registered before
