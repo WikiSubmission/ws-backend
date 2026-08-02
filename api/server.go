@@ -331,6 +331,18 @@ func StartServer(database *db.DB) {
 			},
 		},
 		SilenceServersWarning: true,
+		// gin-middleware's default error handler collapses every validation
+		// failure to 400, including a failed AuthenticationFunc (expired or
+		// invalid bearer token), which ValidateRequestFromContext wraps as a
+		// SecurityRequirementsError. Clients rely on a real 401 to trigger
+		// token-refresh-and-retry, so surface auth failures as 401 instead of
+		// letting them masquerade as a generic bad request.
+		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
+			if strings.Contains(message, "SecurityRequirementsError") {
+				statusCode = http.StatusUnauthorized
+			}
+			c.AbortWithStatusJSON(statusCode, gin.H{"error": message})
+		},
 	}
 
 	// Sanity proxy: webhook + image passthrough live OUTSIDE the OpenAPI surface.
