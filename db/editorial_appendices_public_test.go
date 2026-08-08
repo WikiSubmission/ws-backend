@@ -82,3 +82,35 @@ func TestPublishedAppendixColumnsNeverReadDraft(t *testing.T) {
 		t.Error("single-appendix columns must include the markdown body")
 	}
 }
+
+// The video is metadata, not prose, so both views select it: the reader needs
+// it beside the body and a listing can flag which appendices have one.
+func TestPublishedAppendixColumnsIncludeVideo(t *testing.T) {
+	for _, full := range []bool{false, true} {
+		cols := publishedAppendixColumns(full)
+		for _, key := range []string{"published->>'video_id'", "published->>'video_title'"} {
+			if !strings.Contains(cols, key) {
+				t.Errorf("publishedAppendixColumns(%v) is missing %s", full, key)
+			}
+		}
+	}
+}
+
+// scanPublishedAppendix binds positionally, so the column list and the scan
+// targets must stay the same length or every field shifts by one.
+func TestPublishedAppendixColumnCountMatchesScan(t *testing.T) {
+	// Scan targets in scanPublishedAppendix, in order. Counted by line rather
+	// than by comma, because COALESCE(…, '') puts commas inside a column.
+	const scanTargets = 13
+	for _, full := range []bool{false, true} {
+		got := 0
+		for _, line := range strings.Split(publishedAppendixColumns(full), "\n") {
+			if strings.TrimSpace(line) != "" {
+				got++
+			}
+		}
+		if got != scanTargets {
+			t.Errorf("publishedAppendixColumns(%v) selects %d columns, scan binds %d", full, got, scanTargets)
+		}
+	}
+}

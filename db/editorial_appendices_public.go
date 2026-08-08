@@ -21,6 +21,12 @@ import (
 // the version slug.
 //
 // `body` is markdown text (see ws-backend commit c54d4db), not Portable Text.
+//
+// An appendix carries at most one video: a single trailing YouTube embed. That
+// is metadata rather than prose, so it lives in its own payload keys
+// (`video_id`, `video_title`) instead of being expressed in the markdown body.
+// Keeping it out of the body leaves the body plain CommonMark, and lets a
+// listing show a video badge without parsing prose.
 
 // PublishedAppendix is one published appendix shaped for the public reader.
 type PublishedAppendix struct {
@@ -29,6 +35,8 @@ type PublishedAppendix struct {
 	Title       string
 	Snippet     string
 	Body        string
+	VideoID     string // bare 11-char YouTube id, empty when there is no video
+	VideoTitle  string
 	Language    string // language code of the owning version, e.g. "en"
 	VersionSlug string
 	VersionName string
@@ -45,7 +53,8 @@ type AppendixFilter struct {
 
 // publishedAppendixColumns is the shared SELECT list. `full` includes the
 // markdown body (single-appendix view); the listing omits it to keep the
-// payload small.
+// payload small. The video keys are two short strings, so they ride along on
+// listings too.
 func publishedAppendixColumns(full bool) string {
 	body := "''::text"
 	if full {
@@ -57,6 +66,8 @@ func publishedAppendixColumns(full bool) string {
 		COALESCE(a.published->>'title', ''),
 		COALESCE(a.published->>'snippet', ''),
 		` + body + ` AS body,
+		COALESCE(a.published->>'video_id', ''),
+		COALESCE(a.published->>'video_title', ''),
 		l.code,
 		v.slug,
 		v.name,
@@ -81,6 +92,7 @@ func scanPublishedAppendix(row pgx.Row) (*PublishedAppendix, error) {
 	var a PublishedAppendix
 	if err := row.Scan(
 		&a.ID, &a.Code, &a.Title, &a.Snippet, &a.Body,
+		&a.VideoID, &a.VideoTitle,
 		&a.Language, &a.VersionSlug, &a.VersionName, &a.Direction,
 		&a.PublishedAt, &a.UpdatedAt,
 	); err != nil {

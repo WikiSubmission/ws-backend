@@ -19,6 +19,8 @@ func sampleAppendixRow() db.PublishedAppendix {
 		Title:       "Hadith and Sunna: Satanic Innovations",
 		Snippet:     "The Quran is complete, perfect and fully detailed.",
 		Body:        "## Heading\n\nBody markdown.",
+		VideoID:     "2UxqrtHtYd0",
+		VideoTitle:  "Appendix 19 — Hadith & Sunna: Satanic Innovations",
 		Language:    "en",
 		VersionSlug: "authorized-translation",
 		VersionName: "Authorized Translation",
@@ -65,6 +67,52 @@ func TestPublicAppendixListingOmitsBodyKey(t *testing.T) {
 		if _, ok := decoded[key]; !ok {
 			t.Errorf("listing JSON is missing %q: %s", key, raw)
 		}
+	}
+}
+
+// The single trailing YouTube embed is metadata, so it survives on listings as
+// well as on the full view, unlike the body.
+func TestPublicAppendixCarriesVideoOnBothViews(t *testing.T) {
+	row := sampleAppendixRow()
+
+	for _, withBody := range []bool{false, true} {
+		got := publicAppendixFromRow(row, withBody)
+		if got.VideoID != row.VideoID || got.VideoTitle != row.VideoTitle {
+			t.Errorf("withBody=%v: video = %q/%q, want %q/%q",
+				withBody, got.VideoID, got.VideoTitle, row.VideoID, row.VideoTitle)
+		}
+	}
+}
+
+// 7 of the 38 appendices have no video; those rows must not carry empty video
+// keys on the wire, so the reader can branch on presence alone.
+func TestPublicAppendixOmitsVideoKeysWhenAbsent(t *testing.T) {
+	row := sampleAppendixRow()
+	row.VideoID, row.VideoTitle = "", ""
+
+	raw, err := json.Marshal(publicAppendixFromRow(row, true))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, key := range []string{"video_id", "video_title"} {
+		if _, ok := decoded[key]; ok {
+			t.Errorf("JSON contains an empty %q: %s", key, raw)
+		}
+	}
+
+	raw, err = json.Marshal(publicAppendixFromRow(sampleAppendixRow(), true))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded["video_id"] != "2UxqrtHtYd0" {
+		t.Errorf("video_id = %v, want 2UxqrtHtYd0: %s", decoded["video_id"], raw)
 	}
 }
 

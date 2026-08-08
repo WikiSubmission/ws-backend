@@ -180,6 +180,50 @@ func TestValidateAppendixFields(t *testing.T) {
 	}
 }
 
+// The single trailing YouTube embed is stored as payload metadata, so the
+// admin surface must accept those keys and must insist on a bare video id.
+func TestValidateAppendixVideoFields(t *testing.T) {
+	s := testContentServer()
+
+	base := func(extra map[string]any) map[string]any {
+		fields := map[string]any{
+			"version_id": float64(3), "code": "19", "title": "T",
+		}
+		for k, v := range extra {
+			fields[k] = v
+		}
+		return fields
+	}
+
+	if _, err := s.validateContentFields(db.ModuleAppendix, base(map[string]any{
+		"video_id": "2UxqrtHtYd0", "video_title": "Appendix 19",
+	})); err != nil {
+		t.Fatalf("valid video fields rejected: %v", err)
+	}
+
+	// No video at all, and an explicitly cleared video, both stay valid.
+	for _, empty := range []any{nil, ""} {
+		if _, err := s.validateContentFields(db.ModuleAppendix, base(map[string]any{
+			"video_id": empty,
+		})); err != nil {
+			t.Errorf("empty video_id (%#v) rejected: %v", empty, err)
+		}
+	}
+
+	for _, bad := range []string{
+		"https://www.youtube.com/watch?v=2UxqrtHtYd0",
+		"2UxqrtHtYd",   // too short
+		"2UxqrtHtYd0x", // too long
+		"2Uxqrt/Yd0!",
+	} {
+		if _, err := s.validateContentFields(db.ModuleAppendix, base(map[string]any{
+			"video_id": bad,
+		})); err == nil {
+			t.Errorf("video_id %q must be rejected", bad)
+		}
+	}
+}
+
 func TestPrepareContentWrite(t *testing.T) {
 	s := testContentServer()
 

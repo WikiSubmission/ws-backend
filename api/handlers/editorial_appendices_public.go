@@ -22,12 +22,18 @@ type EditorialAppendicesPublicHandler struct {
 
 // publicAppendix is the wire shape. `body` is markdown text, not Portable
 // Text, and is omitted from listings.
+//
+// `video_id` / `video_title` are the appendix's single trailing YouTube embed,
+// carried as metadata rather than as body syntax. Both are omitted when the
+// appendix has no video, which is the case for 7 of the 38.
 type publicAppendix struct {
 	ID          int        `json:"id"`
 	Code        string     `json:"code"`
 	Title       string     `json:"title"`
 	Snippet     string     `json:"snippet"`
 	Body        string     `json:"body,omitempty"`
+	VideoID     string     `json:"video_id,omitempty"`
+	VideoTitle  string     `json:"video_title,omitempty"`
 	Language    string     `json:"language"`
 	VersionSlug string     `json:"version_slug"`
 	VersionName string     `json:"version_name"`
@@ -42,6 +48,8 @@ func publicAppendixFromRow(a db.PublishedAppendix, withBody bool) publicAppendix
 		Code:        a.Code,
 		Title:       a.Title,
 		Snippet:     a.Snippet,
+		VideoID:     a.VideoID,
+		VideoTitle:  a.VideoTitle,
 		Language:    a.Language,
 		VersionSlug: a.VersionSlug,
 		VersionName: a.VersionName,
