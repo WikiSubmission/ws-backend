@@ -984,10 +984,10 @@ paths:
       operationId: getCommunities
       summary: List communities (online and physical)
       description: >
-        Returns active community entries authored in Sanity (online communities
-        on platforms like Discord/Telegram, plus physical meet-up locations).
-        Backed by the Sanity content lake; results are cached server-side and
-        invalidated by webhook on document changes.
+        Returns active community entries (online communities on platforms like
+        Discord/Telegram, plus physical meet-up locations). Backed by the
+        first-party editorial store that replaced the Sanity content lake: only
+        published snapshots are returned, and they are edited in /editor.
       parameters:
         - name: kind
           in: query
@@ -4605,8 +4605,10 @@ components:
       properties:
         _id:
           type: string
-          description: Sanity document ID.
-          example: drafts.community-foo
+          description: >
+            Editorial content row id, as a string. Previously a Sanity document
+            id, so the type is kept for backwards compatibility.
+          example: '12'
         kind:
           type: string
           enum: [online, physical]
@@ -4625,10 +4627,8 @@ components:
           type: string
         imageUrl:
           type: string
-          description: >
-            Proxied image URL routed through `/sanity/image/...`. Preserves
-            Sanity's image transform query string when present.
-          example: /sanity/image/abc123-1024x768.jpg
+          description: Absolute image URL on the WikiSubmission CDN.
+          example: https://cdn.wikisubmission.org/editorial/images/abc123.jpg
         tags:
           type: array
           items:

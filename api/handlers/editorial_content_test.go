@@ -91,10 +91,17 @@ func TestValidateAuthorCategoryFields(t *testing.T) {
 		t.Errorf("author user_id not extracted: %#v", scalars.UserID)
 	}
 
+	// last_name is optional so single-name (mononym) authors are valid.
 	if _, err := s.validateContentFields(db.ModuleAuthor, map[string]any{
 		"first_name": "R", "slug": "r",
+	}); err != nil {
+		t.Errorf("author without last_name must be accepted: %v", err)
+	}
+
+	if _, err := s.validateContentFields(db.ModuleAuthor, map[string]any{
+		"last_name": "Khalifa", "slug": "khalifa",
 	}); err == nil {
-		t.Error("author without last_name must fail")
+		t.Error("author without first_name must fail")
 	}
 
 	if _, err := s.validateContentFields(db.ModuleCategory, map[string]any{

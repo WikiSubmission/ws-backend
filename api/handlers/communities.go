@@ -3,25 +3,22 @@ package handlers
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"github.com/wikiSubmission/ws-backend/sanity"
+	"github.com/wikiSubmission/ws-backend/db"
 )
 
-// GetCommunities returns active communities from Sanity, with optional kind /
-// language / country filters. Returns 502 if Sanity is unreachable.
+// GetCommunities returns active, published communities with optional kind /
+// language / country filters. Reads the first-party editorial store, which
+// replaced the Sanity proxy this endpoint used to front; the documents were
+// ported into editorial_communities by studio's sync:content and are now edited
+// in /editor.
 //
 // TODO(auth): /communities is currently public read. Add auth gating once the
 // consumer site needs user-specific filtering or write access.
 func (s *Server) GetCommunities(ctx context.Context, request GetCommunitiesRequestObject) (GetCommunitiesResponseObject, error) {
-	if s.Sanity == nil {
-		slog.Error("GetCommunities called but sanity client is not configured")
-		return GetCommunities502JSONResponse{
-			BadGatewayJSONResponse{Message: "Sanity proxy is not configured on this instance"},
-		}, nil
-	}
-
-	filter := sanity.CommunityFilter{}
+	filter := db.CommunityFilter{}
 	if request.Params.Kind != nil {
 		filter.Kind = string(*request.Params.Kind)
 	}
@@ -32,24 +29,25 @@ func (s *Server) GetCommunities(ctx context.Context, request GetCommunitiesReque
 		filter.Country = *request.Params.Country
 	}
 
-	rows, err := s.Sanity.GetCommunities(ctx, filter)
+	rows, err := s.DB.ListPublishedCommunities(ctx, filter)
 	if err != nil {
-		slog.Error("Failed to fetch communities from Sanity", "error", err)
-		return GetCommunities502JSONResponse{
-			BadGatewayJSONResponse{Message: "Upstream content source is unavailable"},
+		slog.Error("Failed to list published communities", "error", err)
+		return GetCommunities500JSONResponse{
+			InternalServerErrrorJSONResponse{Message: "Failed to load communities"},
 		}, nil
 	}
 
 	out := make([]Community, len(rows))
 	for i := range rows {
-		out[i] = sanityCommunityToAPI(rows[i])
+		out[i] = editorialCommunityToAPI(rows[i])
 	}
 	return GetCommunities200JSONResponse(out), nil
 }
 
-func sanityCommunityToAPI(c sanity.Community) Community {
+func editorialCommunityToAPI(c db.PublishedCommunity) Community {
 	api := Community{
-		UnderscoreId:    c.ID,
+		// The public id was a Sanity document id; it is now the editorial row id.
+		UnderscoreId:    strconv.Itoa(c.ID),
 		Name:            c.Name,
 		Kind:            CommunityKind(c.Kind),
 		IsActive:        c.IsActive,
