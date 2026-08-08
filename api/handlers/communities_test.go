@@ -7,7 +7,7 @@ import (
 )
 
 func strptr(s string) *string { return &s }
-func intptr(i int) *int      { return &i }
+func intptr(i int) *int       { return &i }
 
 // The public shape predates the editorial store — it was fed by Sanity — so the
 // mapping is what keeps existing consumers working after the cutover.
