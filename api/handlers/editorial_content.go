@@ -139,6 +139,7 @@ func (s *Server) validateContentFields(
 		if err := rejectUnknownKeys(fields,
 			"title", "slug", "language", "author_id", "categories",
 			"excerpt", "thumbnail_url", "thumbnail_text", "body",
+			"enable_scripture_refs",
 		); err != nil {
 			return scalars, err
 		}
@@ -176,6 +177,9 @@ func (s *Server) validateContentFields(
 			if err := optionalArray(fields, arr); err != nil {
 				return scalars, err
 			}
+		}
+		if err := optionalBool(fields, "enable_scripture_refs"); err != nil {
+			return scalars, err
 		}
 		langID := langCache.ID
 		scalars.Slug = &slug

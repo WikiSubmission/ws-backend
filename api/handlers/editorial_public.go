@@ -22,41 +22,43 @@ type EditorialPublicHandler struct {
 }
 
 type publicArticle struct {
-	ID               int             `json:"id"`
-	TranslationGroup string          `json:"translation_group"`
-	Slug             string          `json:"slug"`
-	Language         string          `json:"language"`
-	Title            string          `json:"title"`
-	Excerpt          string          `json:"excerpt"`
-	ThumbnailURL     string          `json:"thumbnail_url"`
-	ThumbnailText    json.RawMessage `json:"thumbnail_text"`
-	Body             json.RawMessage `json:"body,omitempty"`
-	Category         string          `json:"category"`
-	CategorySlug     string          `json:"category_slug"`
-	AuthorName       string          `json:"author_name"`
-	AuthorPhotoURL   string          `json:"author_photo_url"`
-	AuthorSlug       string          `json:"author_slug"`
-	PublishedAt      *time.Time      `json:"published_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID                  int             `json:"id"`
+	TranslationGroup    string          `json:"translation_group"`
+	Slug                string          `json:"slug"`
+	Language            string          `json:"language"`
+	Title               string          `json:"title"`
+	Excerpt             string          `json:"excerpt"`
+	ThumbnailURL        string          `json:"thumbnail_url"`
+	EnableScriptureRefs bool            `json:"enable_scripture_refs"`
+	ThumbnailText       json.RawMessage `json:"thumbnail_text"`
+	Body                json.RawMessage `json:"body,omitempty"`
+	Category            string          `json:"category"`
+	CategorySlug        string          `json:"category_slug"`
+	AuthorName          string          `json:"author_name"`
+	AuthorPhotoURL      string          `json:"author_photo_url"`
+	AuthorSlug          string          `json:"author_slug"`
+	PublishedAt         *time.Time      `json:"published_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 func publicArticleFromRow(a db.PublishedArticle, withBody bool) publicArticle {
 	out := publicArticle{
-		ID:               a.ID,
-		TranslationGroup: a.TranslationGroup,
-		Slug:             a.Slug,
-		Language:         a.Language,
-		Title:            a.Title,
-		Excerpt:          a.Excerpt,
-		ThumbnailURL:     a.ThumbnailURL,
-		ThumbnailText:    a.ThumbnailText,
-		Category:         a.CategoryName,
-		CategorySlug:     a.CategorySlug,
-		AuthorName:       a.AuthorName,
-		AuthorPhotoURL:   a.AuthorPhotoURL,
-		AuthorSlug:       a.AuthorSlug,
-		PublishedAt:      a.PublishedAt,
-		UpdatedAt:        a.UpdatedAt,
+		ID:                  a.ID,
+		TranslationGroup:    a.TranslationGroup,
+		Slug:                a.Slug,
+		Language:            a.Language,
+		Title:               a.Title,
+		Excerpt:             a.Excerpt,
+		ThumbnailURL:        a.ThumbnailURL,
+		EnableScriptureRefs: a.EnableScriptureRefs,
+		ThumbnailText:       a.ThumbnailText,
+		Category:            a.CategoryName,
+		CategorySlug:        a.CategorySlug,
+		AuthorName:          a.AuthorName,
+		AuthorPhotoURL:      a.AuthorPhotoURL,
+		AuthorSlug:          a.AuthorSlug,
+		PublishedAt:         a.PublishedAt,
+		UpdatedAt:           a.UpdatedAt,
 	}
 	if withBody {
 		out.Body = a.Body

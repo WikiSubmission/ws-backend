@@ -29,13 +29,16 @@ type PublishedArticle struct {
 	ThumbnailURL     string
 	ThumbnailText    json.RawMessage
 	Body             json.RawMessage
-	CategoryName     string
-	CategorySlug     string
-	AuthorName       string
-	AuthorPhotoURL   string
-	AuthorSlug       string
-	PublishedAt      *time.Time
-	UpdatedAt        time.Time
+	// Defaults to true when absent so articles predating the field keep
+	// linkifying scripture references exactly as they did before.
+	EnableScriptureRefs bool
+	CategoryName        string
+	CategorySlug        string
+	AuthorName          string
+	AuthorPhotoURL      string
+	AuthorSlug          string
+	PublishedAt         *time.Time
+	UpdatedAt           time.Time
 }
 
 // publishedArticleColumns is the shared SELECT list. `full` includes the body
@@ -53,6 +56,7 @@ func publishedArticleColumns(full bool) string {
 		COALESCE(a.published->>'title', ''),
 		COALESCE(a.published->>'excerpt', ''),
 		COALESCE(a.published->>'thumbnail_url', ''),
+		COALESCE((a.published->>'enable_scripture_refs')::boolean, true),
 		COALESCE(a.published->'thumbnail_text', '[]'::jsonb),
 		` + body + ` AS body,
 		COALESCE(cat.name, ''),
@@ -85,7 +89,7 @@ func scanPublishedArticle(row pgx.Row) (*PublishedArticle, error) {
 	var a PublishedArticle
 	if err := row.Scan(
 		&a.ID, &a.TranslationGroup, &a.Slug, &a.Language,
-		&a.Title, &a.Excerpt, &a.ThumbnailURL, &a.ThumbnailText, &a.Body,
+		&a.Title, &a.Excerpt, &a.ThumbnailURL, &a.EnableScriptureRefs, &a.ThumbnailText, &a.Body,
 		&a.CategoryName, &a.CategorySlug,
 		&a.AuthorName, &a.AuthorPhotoURL, &a.AuthorSlug,
 		&a.PublishedAt, &a.UpdatedAt,

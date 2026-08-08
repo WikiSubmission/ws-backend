@@ -58,6 +58,15 @@ func TestValidateArticleFields(t *testing.T) {
 		}
 	})
 
+	t.Run("enable_scripture_refs is accepted", func(t *testing.T) {
+		if _, err := s.validateContentFields(db.ModuleArticle, map[string]any{
+			"title": "T", "slug": "t", "language": "en",
+			"enable_scripture_refs": false,
+		}); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
 	fail := func(name string, fields map[string]any) {
 		t.Run(name, func(t *testing.T) {
 			if _, err := s.validateContentFields(db.ModuleArticle, fields); err == nil {
@@ -65,6 +74,11 @@ func TestValidateArticleFields(t *testing.T) {
 			}
 		})
 	}
+
+	fail("enable_scripture_refs must be a boolean", map[string]any{
+		"title": "T", "slug": "t", "language": "en",
+		"enable_scripture_refs": "yes",
+	})
 	fail("missing title", map[string]any{"slug": "x", "language": "en"})
 	fail("missing slug", map[string]any{"title": "T", "language": "en"})
 	fail("bad slug format", map[string]any{"title": "T", "slug": "Bad Slug!", "language": "en"})
