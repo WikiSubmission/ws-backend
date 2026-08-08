@@ -28,7 +28,6 @@ import (
 	"github.com/wikiSubmission/ws-backend/email"
 	"github.com/wikiSubmission/ws-backend/notify"
 	"github.com/wikiSubmission/ws-backend/offline/publish"
-	"github.com/wikiSubmission/ws-backend/sanity"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
@@ -345,18 +344,8 @@ func StartServer(database *db.DB) {
 		},
 	}
 
-	// Sanity proxy: webhook + image passthrough live OUTSIDE the OpenAPI surface.
-	// Register before the validator middleware so the validator does not 404 them.
-	sanityClient, err := sanity.NewFromEnv()
-	if err != nil {
-		slog.Error("Sanity client init failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	registerSanityRoutes(r, sanityClient)
-
 	// Editor routes (Quran Games catalog) live OUTSIDE the OpenAPI surface, so
-	// like the sanity routes they must be registered before the validator or it
-	// would 404 them.
+	// they must be registered before the validator or it would 404 them.
 	//
 	// Per-game access is enforced by pairing each route group with the literal
 	// game it serves. The group prefix is the game key, so an unknown or
@@ -417,7 +406,7 @@ func StartServer(database *db.DB) {
 
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
-	// register before the validator like the sanity and games routes above.
+	// register before the validator like the games routes above.
 	nativeAuthHandler := buildNativeAuthHandler(database, verifier)
 	mobileAuth := r.Group("/api/v1/auth/mobile")
 	mobileAuth.POST("/exchange", nativeAuthHandler.Exchange)
@@ -439,7 +428,7 @@ func StartServer(database *db.DB) {
 	zikrHandler := handlers.ZikrHandler{DB: database}
 	r.GET("/api/v1/zikr", zikrHandler.List)
 
-	// Public blog: unauthenticated reads of published editorial articles (Sanity
+	// Public blog: unauthenticated reads of published editorial articles (the
 	// replacement). Outside the OpenAPI surface, so registered before the
 	// validator like the routes above. Only published snapshots are ever served.
 	editorialPublic := handlers.EditorialPublicHandler{DB: database}
@@ -505,7 +494,6 @@ func StartServer(database *db.DB) {
 	// 4. Register handlers using the BaseURL
 	serverImpl := &handlers.Server{
 		DB:             database,
-		Sanity:         sanityClient,
 		ExportUploader: buildExportUploader(),
 		PushSender:     webPushSender,
 	}

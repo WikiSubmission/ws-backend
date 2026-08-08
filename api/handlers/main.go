@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/wikiSubmission/ws-backend/db"
-	"github.com/wikiSubmission/ws-backend/sanity"
 )
 
 // Embedder generates query embeddings for semantic search.
@@ -41,7 +40,6 @@ type Server struct {
 	QuranLangs     map[string]bool // lang codes with Quran verse_text content
 	BibleLangs     map[string]bool // lang codes with Bible verse_text content
 	Embedder       Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
-	Sanity         *sanity.Client  // nil = Sanity proxy disabled (SANITY_PROJECT_ID not set)
 	ExportUploader ExportUploader  // nil = user data export upload disabled
 	PushSender     WebPushSender   // zero value = push sending disabled
 

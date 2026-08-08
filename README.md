@@ -49,12 +49,6 @@ Copy `.env.example` to `.env` and fill in the values:
 | `WSLIB_BASE_URL` | Internal ws-lib base URL used to store user data exports. | *(unset = export upload disabled)* |
 | `STORE_AUTH_SECRET` | HMAC secret shared with ws-lib `/private/store` for user data exports. | *(unset = export upload disabled)* |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins for authenticated API calls | `*` |
-| `SANITY_PROJECT_ID` | Sanity project ID. When unset, the Sanity proxy and `/communities` endpoint return `502`. | *(unset = proxy disabled)* |
-| `SANITY_DATASET` | Sanity dataset name | `production` |
-| `SANITY_API_VERSION` | Sanity API version | `2024-01-01` |
-| `SANITY_READ_TOKEN` | Sanity read token (only required for private datasets / drafts) | *(none)* |
-| `SANITY_WEBHOOK_SECRET` | Shared secret used to verify `Sanity-Webhook-Signature` on `POST /webhooks/sanity` | *(none, but required for the webhook to accept any request)* |
-| `SANITY_CACHE_TTL` | TTL for in-process Sanity query cache (Go `time.Duration`, e.g. `5m`) | `5m` |
 
 ## First-Time Setup
 
@@ -218,8 +212,8 @@ changes.
 | `language` | `string` | No | ISO 639-1 language code |
 | `country` | `string` | No | ISO 3166-1 alpha-2 country code (physical only) |
 
-Returns `502 Bad Gateway` when the Sanity proxy is not configured
-(`SANITY_PROJECT_ID` unset) or when the upstream is unreachable.
+Served from the first-party editorial store (`editorial_communities`);
+only published entries are returned.
 
 ### Utility Endpoints
 
@@ -230,21 +224,6 @@ Returns `502 Bad Gateway` when the Sanity proxy is not configured
 | `GET /robots.txt` | Crawler directives |
 | `GET /sitemap.xml` | Site map for search engines |
 | `GET /metrics` | Prometheus metrics |
-| `POST /webhooks/sanity` | Receives Sanity content-change events; verifies HMAC signature against `SANITY_WEBHOOK_SECRET` and busts the in-process cache by document type and ID. |
-| `GET /sanity/image/*path` | Image proxy for Sanity assets. Forwards the request to `cdn.sanity.io/images/{projectId}/{dataset}/...` and preserves the query string (so Sanity image transforms still work). Sets a 1-day public `Cache-Control` header for CDN caching. |
-
-### Sanity Studio webhook setup
-
-The webhook receiver is hardcoded to expect this projection — configure it in
-Sanity Studio (Manage → API → Webhooks → Create webhook):
-
-```
-{ "_id": _id, "_type": _type, "operation": delta::operation() }
-```
-
-Filter: `_type in ["community", "article", ...]` (whichever doc types you want
-to invalidate). Set the URL to `https://<your-host>/webhooks/sanity` and the
-secret to the same value used for `SANITY_WEBHOOK_SECRET` on the backend.
 
 ## Response Format
 
