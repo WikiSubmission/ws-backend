@@ -19,7 +19,6 @@ COPY api/     ./api/
 COPY db/      ./db/
 COPY auth/    ./auth/
 COPY email/   ./email/
-COPY sanity/  ./sanity/
 COPY games/   ./games/
 COPY offline/ ./offline/
 COPY notify/  ./notify/
