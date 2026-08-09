@@ -101,7 +101,9 @@ func TestPublishedAppendixColumnsIncludeVideo(t *testing.T) {
 func TestPublishedAppendixColumnCountMatchesScan(t *testing.T) {
 	// Scan targets in scanPublishedAppendix, in order. Counted by line rather
 	// than by comma, because COALESCE(…, '') puts commas inside a column.
-	const scanTargets = 13
+	// 14 since body_pt joined body: an appendix carries its prose in both
+	// carriers while the Portable Text migration is in flight.
+	const scanTargets = 14
 	for _, full := range []bool{false, true} {
 		got := 0
 		for _, line := range strings.Split(publishedAppendixColumns(full), "\n") {
