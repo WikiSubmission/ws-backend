@@ -437,6 +437,15 @@ func StartServer(database *db.DB) {
 	r.GET("/api/v1/editorial/public/articles/:lang/:slug/related", editorialPublic.Related)
 	r.GET("/api/v1/editorial/public/search", editorialPublic.Search)
 
+	// Public appendices reader. Same rules as the article routes above: outside
+	// the OpenAPI surface, published snapshots only. The legacy read-only
+	// `appendices` table still backs GET /appendices (title + snippet metadata);
+	// these routes serve the editorial rows, which additionally carry a markdown
+	// body.
+	editorialAppendices := handlers.EditorialAppendicesPublicHandler{DB: database}
+	r.GET("/api/v1/editorial/public/appendices", editorialAppendices.List)
+	r.GET("/api/v1/editorial/public/appendices/:lang/:code", editorialAppendices.GetByCode)
+
 	// Editor image uploads: authenticated (RequireAuth + in-handler editorial
 	// permission check), forwarded to ws-lib's public store under editorial/.
 	// Outside the OpenAPI surface, so registered before the validator.

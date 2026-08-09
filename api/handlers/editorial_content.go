@@ -22,6 +22,9 @@ var (
 	slugPattern         = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	appendixCodePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	uuidPattern         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	// A bare YouTube video id, not a URL: the reader builds the embed src from
+	// it, so anything URL-shaped would produce a broken iframe.
+	youTubeIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 )
 
 // contentModuleFromParam maps the wire enum onto the db module key. The two
@@ -281,7 +284,10 @@ func (s *Server) validateContentFields(
 		scalars.Slug = &slug
 
 	case db.ModuleAppendix:
-		if err := rejectUnknownKeys(fields, "version_id", "code", "title", "snippet", "body"); err != nil {
+		if err := rejectUnknownKeys(
+			fields, "version_id", "code", "title", "snippet", "body", "body_pt",
+			"video_id", "video_title",
+		); err != nil {
 			return scalars, err
 		}
 		versionID, err := optionalInt(fields, "version_id")
@@ -301,11 +307,29 @@ func (s *Server) validateContentFields(
 		if _, err := requiredString(fields, "title"); err != nil {
 			return scalars, err
 		}
-		// body is markdown text (matching the appendix model), not Portable Text.
-		for _, ostr := range []string{"snippet", "body"} {
+		// Two body carriers, deliberately. `body` is the original markdown, kept
+		// valid while the migration is in flight; `body_pt` is Portable Text and
+		// is what the reader prefers when present. Markdown has one container,
+		// the blockquote, so it could not tell a forged verse from a genuine one
+		// or a totals row from a data row; typed blocks can, and the two live
+		// side by side until every appendix has been converted and reviewed.
+		//
+		// video_id / video_title hold the single trailing YouTube embed as
+		// metadata, so neither body carries embed syntax.
+		for _, ostr := range []string{"snippet", "body", "video_id", "video_title"} {
 			if _, err := optionalString(fields, ostr); err != nil {
 				return scalars, err
 			}
+		}
+		if err := optionalArray(fields, "body_pt"); err != nil {
+			return scalars, err
+		}
+		videoID, err := optionalString(fields, "video_id")
+		if err != nil {
+			return scalars, err
+		}
+		if videoID != nil && *videoID != "" && !youTubeIDPattern.MatchString(*videoID) {
+			return scalars, fieldErrf("video_id must be a bare YouTube id matching %s", youTubeIDPattern.String())
 		}
 		scalars.VersionID = versionID
 		scalars.Code = &code
