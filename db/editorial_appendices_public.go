@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -20,7 +21,16 @@ import (
 // resolution is deterministic. Callers that care can pin one explicitly with
 // the version slug.
 //
-// `body` is markdown text (see ws-backend commit c54d4db), not Portable Text.
+// An appendix carries its prose twice while the Portable Text migration is in
+// flight. `body` is the original markdown (see ws-backend commit c54d4db) and
+// `body_pt` is a Portable Text block array; readers prefer `body_pt` and fall
+// back to `body`. Markdown has exactly one container, the blockquote, so it
+// could not distinguish a forged verse from a genuine quotation nor a totals
+// row from a data row, which is why the typed carrier exists. Both are served
+// so a half-converted corpus still reads correctly.
+//
+// `body_pt` is passed through as raw JSON: this layer does not parse or
+// validate the block array, it only hands back what was published.
 //
 // An appendix carries at most one video: a single trailing YouTube embed. That
 // is metadata rather than prose, so it lives in its own payload keys
@@ -34,8 +44,9 @@ type PublishedAppendix struct {
 	Code        string
 	Title       string
 	Snippet     string
-	Body        string
-	VideoID     string // bare 11-char YouTube id, empty when there is no video
+	Body        string          // markdown
+	BodyPT      json.RawMessage // Portable Text blocks, nil when not converted
+	VideoID     string          // bare 11-char YouTube id, empty when there is no video
 	VideoTitle  string
 	Language    string // language code of the owning version, e.g. "en"
 	VersionSlug string
@@ -51,14 +62,17 @@ type AppendixFilter struct {
 	VersionSlug string // exact quran_versions.slug
 }
 
-// publishedAppendixColumns is the shared SELECT list. `full` includes the
-// markdown body (single-appendix view); the listing omits it to keep the
-// payload small. The video keys are two short strings, so they ride along on
-// listings too.
+// publishedAppendixColumns is the shared SELECT list. `full` includes both
+// bodies (single-appendix view); the listing omits them to keep the payload
+// small, since a converted appendix body runs to tens of kilobytes. The video
+// keys are two short strings, so they ride along on listings too.
 func publishedAppendixColumns(full bool) string {
 	body := "''::text"
+	bodyPT := "NULL::jsonb"
 	if full {
 		body = "COALESCE(a.published->>'body', '')"
+		// `->` not `->>`: the block array is handed back as JSON, not as text.
+		bodyPT = "a.published->'body_pt'"
 	}
 	return `
 		a.id,
@@ -66,6 +80,7 @@ func publishedAppendixColumns(full bool) string {
 		COALESCE(a.published->>'title', ''),
 		COALESCE(a.published->>'snippet', ''),
 		` + body + ` AS body,
+		` + bodyPT + ` AS body_pt,
 		COALESCE(a.published->>'video_id', ''),
 		COALESCE(a.published->>'video_title', ''),
 		l.code,
@@ -91,7 +106,7 @@ const appendixOrder = `
 func scanPublishedAppendix(row pgx.Row) (*PublishedAppendix, error) {
 	var a PublishedAppendix
 	if err := row.Scan(
-		&a.ID, &a.Code, &a.Title, &a.Snippet, &a.Body,
+		&a.ID, &a.Code, &a.Title, &a.Snippet, &a.Body, &a.BodyPT,
 		&a.VideoID, &a.VideoTitle,
 		&a.Language, &a.VersionSlug, &a.VersionName, &a.Direction,
 		&a.PublishedAt, &a.UpdatedAt,
@@ -142,8 +157,8 @@ func (db *DB) ListPublishedAppendices(ctx context.Context, f AppendixFilter) ([]
 	return out, rows.Err()
 }
 
-// GetPublishedAppendixByCode returns one published appendix, with its markdown
-// body, or ErrContentNotFound. When the filter matches several versions the
+// GetPublishedAppendixByCode returns one published appendix, with both of its
+// bodies, or ErrContentNotFound. When the filter matches several versions the
 // canonical English one wins, then the oldest.
 func (db *DB) GetPublishedAppendixByCode(ctx context.Context, code string, f AppendixFilter) (*PublishedAppendix, error) {
 	defer observe("get_published_appendix", time.Now())

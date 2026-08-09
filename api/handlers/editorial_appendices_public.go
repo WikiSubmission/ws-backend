@@ -7,6 +7,7 @@ package handlers
 // snapshot. Editing happens through the authenticated /editorial admin surface.
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -20,26 +21,34 @@ type EditorialAppendicesPublicHandler struct {
 	DB *db.DB
 }
 
-// publicAppendix is the wire shape. `body` is markdown text, not Portable
-// Text, and is omitted from listings.
+// publicAppendix is the wire shape. Two body carriers ride together while the
+// Portable Text migration is in flight: `body` is the original markdown and
+// `body_pt` is a Portable Text block array. Readers prefer `body_pt` and fall
+// back to `body`, so a partly converted corpus still reads correctly. Both are
+// omitted from listings, since a converted body runs to tens of kilobytes.
+//
+// `body_pt` is passed straight through as stored JSON. The block schema lives
+// with the renderer (packages/shared/lib/appendix-portable-text.ts) and is what
+// the admin write path is validated against; nothing here inspects it.
 //
 // `video_id` / `video_title` are the appendix's single trailing YouTube embed,
 // carried as metadata rather than as body syntax. Both are omitted when the
 // appendix has no video, which is the case for 7 of the 38.
 type publicAppendix struct {
-	ID          int        `json:"id"`
-	Code        string     `json:"code"`
-	Title       string     `json:"title"`
-	Snippet     string     `json:"snippet"`
-	Body        string     `json:"body,omitempty"`
-	VideoID     string     `json:"video_id,omitempty"`
-	VideoTitle  string     `json:"video_title,omitempty"`
-	Language    string     `json:"language"`
-	VersionSlug string     `json:"version_slug"`
-	VersionName string     `json:"version_name"`
-	Direction   string     `json:"direction"`
-	PublishedAt *time.Time `json:"published_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          int             `json:"id"`
+	Code        string          `json:"code"`
+	Title       string          `json:"title"`
+	Snippet     string          `json:"snippet"`
+	Body        string          `json:"body,omitempty"`
+	BodyPT      json.RawMessage `json:"body_pt,omitempty"`
+	VideoID     string          `json:"video_id,omitempty"`
+	VideoTitle  string          `json:"video_title,omitempty"`
+	Language    string          `json:"language"`
+	VersionSlug string          `json:"version_slug"`
+	VersionName string          `json:"version_name"`
+	Direction   string          `json:"direction"`
+	PublishedAt *time.Time      `json:"published_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 func publicAppendixFromRow(a db.PublishedAppendix, withBody bool) publicAppendix {
@@ -59,6 +68,12 @@ func publicAppendixFromRow(a db.PublishedAppendix, withBody bool) publicAppendix
 	}
 	if withBody {
 		out.Body = a.Body
+		// A published appendix that has never been converted stores no
+		// `body_pt`; a JSON `null` would reach the client as a body it then has
+		// to test for, so it is dropped instead and `omitempty` hides the key.
+		if len(a.BodyPT) > 0 && string(a.BodyPT) != "null" {
+			out.BodyPT = a.BodyPT
+		}
 	}
 	return out
 }
@@ -86,7 +101,7 @@ func (h EditorialAppendicesPublicHandler) List(c *gin.Context) {
 }
 
 // GetByCode returns one published appendix by language code and appendix code,
-// including its markdown body. ?version pins an exact Quran version when a
+// including both of its bodies. ?version pins an exact Quran version when a
 // language carries more than one.
 func (h EditorialAppendicesPublicHandler) GetByCode(c *gin.Context) {
 	lang, code := c.Param("lang"), c.Param("code")

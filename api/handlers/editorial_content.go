@@ -285,7 +285,7 @@ func (s *Server) validateContentFields(
 
 	case db.ModuleAppendix:
 		if err := rejectUnknownKeys(
-			fields, "version_id", "code", "title", "snippet", "body",
+			fields, "version_id", "code", "title", "snippet", "body", "body_pt",
 			"video_id", "video_title",
 		); err != nil {
 			return scalars, err
@@ -307,13 +307,22 @@ func (s *Server) validateContentFields(
 		if _, err := requiredString(fields, "title"); err != nil {
 			return scalars, err
 		}
-		// body is markdown text (matching the appendix model), not Portable Text.
+		// Two body carriers, deliberately. `body` is the original markdown, kept
+		// valid while the migration is in flight; `body_pt` is Portable Text and
+		// is what the reader prefers when present. Markdown has one container,
+		// the blockquote, so it could not tell a forged verse from a genuine one
+		// or a totals row from a data row; typed blocks can, and the two live
+		// side by side until every appendix has been converted and reviewed.
+		//
 		// video_id / video_title hold the single trailing YouTube embed as
-		// metadata, so the body stays plain markdown with no embed syntax.
+		// metadata, so neither body carries embed syntax.
 		for _, ostr := range []string{"snippet", "body", "video_id", "video_title"} {
 			if _, err := optionalString(fields, ostr); err != nil {
 				return scalars, err
 			}
+		}
+		if err := optionalArray(fields, "body_pt"); err != nil {
+			return scalars, err
 		}
 		videoID, err := optionalString(fields, "video_id")
 		if err != nil {
