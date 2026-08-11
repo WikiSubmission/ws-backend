@@ -61,7 +61,11 @@ func detectQueryLangs(query string, available map[string]bool) []string {
 
 	// Script → candidate language codes.
 	scriptToLangs := map[string][]string{
-		"arabic":     {"ar", "fa", "ur", "ku"},
+		// `ckb` is Sorani Kurdish, written in Arabic script — without it an
+		// Arabic-script query could never narrow to the Kurdish catalogue. Safe
+		// for every caller: the list is filtered against `available` below, so a
+		// language with no content is dropped anyway.
+		"arabic":     {"ar", "fa", "ur", "ku", "ckb"},
 		"hebrew":     {"he"},
 		"devanagari": {"hi", "mr", "ne"},
 		"cyrillic":   {"ru", "bg", "uk", "sr", "mk"},

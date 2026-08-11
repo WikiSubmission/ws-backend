@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/wikiSubmission/ws-backend/db"
@@ -39,6 +40,7 @@ type Server struct {
 	BibleBooks     map[int]BibleBookCache
 	QuranLangs     map[string]bool // lang codes with Quran verse_text content
 	BibleLangs     map[string]bool // lang codes with Bible verse_text content
+	SiteLangs      map[string]bool // UI locales with indexed site_documents content
 	Embedder       Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
 	ExportUploader ExportUploader  // nil = user data export upload disabled
 	PushSender     WebPushSender   // zero value = push sending disabled
@@ -113,6 +115,17 @@ func (s *Server) InitializeCaches(ctx context.Context) error {
 		return fmt.Errorf("bible langs cache: %w", err)
 	}
 	s.BibleLangs = bibleLangs
+
+	// 6. Load the UI locales with indexed site content. Not fatal when the
+	// catalogue has not been seeded yet: /site/search then simply finds nothing,
+	// rather than the whole server refusing to start.
+	siteLangs, err := s.DB.FetchSiteLangs(ctx)
+	if err != nil {
+		slog.Warn("site langs cache unavailable; /site/search will accept any lang", "err", err)
+		s.SiteLangs = map[string]bool{}
+	} else {
+		s.SiteLangs = siteLangs
+	}
 
 	return nil
 }

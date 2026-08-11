@@ -349,6 +349,12 @@ seed-admin EMAIL:
 seed-library:
     go run ./api/cmd/seed_library/
 
+# Load the site catalogue: page rows from db/seeds/site_docs_<lang>.json, then
+# chapter/appendix landing rows derived from chapter_text and appendices.
+# Regenerate the seeds first with `pnpm site:seed-pages` in org/apps/web.
+seed-site:
+    go run ./api/cmd/seed_site/
+
 # ---------------------------------------------------------------------------
 # Quran Games
 # ---------------------------------------------------------------------------

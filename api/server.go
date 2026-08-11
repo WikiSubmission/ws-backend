@@ -490,11 +490,20 @@ func StartServer(database *db.DB) {
 
 	// Cache-Control for public reader endpoints. Quran/search responses are
 	// deterministic and immutable enough for a 1-hour CDN/browser cache.
+	//
+	// The cases are explicit rather than a bare "/search" suffix test, which
+	// would also catch /site/search and /library/search. The site catalogue is
+	// rebuilt on every content deploy, so an hour is too long for it.
 	r.Use(func(c *gin.Context) {
-		p := c.Request.URL.Path
-		if strings.HasSuffix(p, "/quran") || strings.HasSuffix(p, "/search") {
+		switch p := c.Request.URL.Path; {
+		case strings.HasSuffix(p, "/site/search"):
+			c.Header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
+		case strings.HasSuffix(p, "/quran"),
+			strings.HasSuffix(p, "/search"):
 			c.Header("Cache-Control", "public, max-age=3600")
-		} else if strings.HasSuffix(p, "/languages") || strings.HasSuffix(p, "/chapters") || strings.HasSuffix(p, "/appendices") {
+		case strings.HasSuffix(p, "/languages"),
+			strings.HasSuffix(p, "/chapters"),
+			strings.HasSuffix(p, "/appendices"):
 			c.Header("Cache-Control", "public, max-age=86400")
 		}
 		c.Next()
