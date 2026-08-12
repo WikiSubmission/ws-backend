@@ -286,13 +286,24 @@ func (db *DB) SearchSiteDocuments(
             LIMIT  200
           ),
           trgm_hits AS (
+            -- Both trigram operators, because neither covers the realistic typos
+            -- alone and they fail in opposite directions. The similarity operator
+            -- compares the query against the whole string, so a short typo
+            -- against a long fuzzy_text is diluted below the threshold ("zakt"
+            -- vs "Zakat Obligatory Charity" scores 0.11). The word_similarity
+            -- operator compares against the best-matching word extent, which
+            -- fixes that but carries a higher default threshold (0.6) that a
+            -- within-word typo misses ("privcy" vs "Privacy Policy" scores 0.4).
+            -- One GIN gin_trgm_ops index serves both, so this costs no extra
+            -- index: the plan is a BitmapOr over two scans of it.
             SELECT d.route, d.anchor, d.lang, d.kind, d.title, d.heading,
                    d.description, d.body, d.priority, d.section_index,
-                   (similarity(d.fuzzy_text, $1) + d.priority / 200.0)::real AS score
+                   (GREATEST(similarity(d.fuzzy_text, $1), word_similarity($1, d.fuzzy_text))
+                     + d.priority / 200.0)::real AS score
             FROM   site_documents d
             WHERE  NOT EXISTS (SELECT 1 FROM site_hits)
               AND  NOT EXISTS (SELECT 1 FROM lib_hits)
-              AND  d.fuzzy_text %% $1
+              AND  (d.fuzzy_text % $1 OR $1 <% d.fuzzy_text)
               AND  ($2::text[] IS NULL OR d.lang = ANY($2::text[]))
               AND  ($3::text[] IS NULL OR d.kind = ANY($3::text[]))
             ORDER  BY score DESC
