@@ -355,6 +355,12 @@ seed-library:
 seed-site:
     go run ./api/cmd/seed_site/
 
+# Load the Quran's printed topical index from db/seeds/quran_topic_index_<lang>.json.
+# Regenerate the seed first with `node scripts/topic_index/build.mjs` (add --fetch
+# to re-download the source pages from masjidtucson.org).
+seed-topic-index:
+    go run ./api/cmd/seed_topic_index/
+
 # ---------------------------------------------------------------------------
 # Quran Games
 # ---------------------------------------------------------------------------

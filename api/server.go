@@ -496,6 +496,13 @@ func StartServer(database *db.DB) {
 	// rebuilt on every content deploy, so an hour is too long for it.
 	r.Use(func(c *gin.Context) {
 		switch p := c.Request.URL.Path; {
+		// The topical index is seeded from a printed book and changes only when
+		// the seed is regenerated, so it caches as long as /appendices does. This
+		// case comes first because /topic-index/search would otherwise fall into
+		// the generic "/search" case below, and Contains rather than HasSuffix
+		// because /topic-index/verse/{verseKey} carries a path parameter.
+		case strings.Contains(p, "/topic-index"):
+			c.Header("Cache-Control", "public, max-age=86400")
 		case strings.HasSuffix(p, "/site/search"):
 			c.Header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
 		case strings.HasSuffix(p, "/quran"),

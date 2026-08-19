@@ -34,16 +34,17 @@ type BibleBookCache struct {
 }
 
 type Server struct {
-	DB             *db.DB
-	Languages      map[string]LanguageCache
-	Chapters       map[int]ChapterCache
-	BibleBooks     map[int]BibleBookCache
-	QuranLangs     map[string]bool // lang codes with Quran verse_text content
-	BibleLangs     map[string]bool // lang codes with Bible verse_text content
-	SiteLangs      map[string]bool // UI locales with indexed site_documents content
-	Embedder       Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
-	ExportUploader ExportUploader  // nil = user data export upload disabled
-	PushSender     WebPushSender   // zero value = push sending disabled
+	DB              *db.DB
+	Languages       map[string]LanguageCache
+	Chapters        map[int]ChapterCache
+	BibleBooks      map[int]BibleBookCache
+	QuranLangs      map[string]bool // lang codes with Quran verse_text content
+	BibleLangs      map[string]bool // lang codes with Bible verse_text content
+	SiteLangs       map[string]bool // UI locales with indexed site_documents content
+	TopicIndexLangs map[string]bool // index editions with topic_index_entries content
+	Embedder        Embedder        // nil = FTS-only mode (OPENAI_API_KEY not set)
+	ExportUploader  ExportUploader  // nil = user data export upload disabled
+	PushSender      WebPushSender   // zero value = push sending disabled
 
 	// Games rate limiters. Lazily allocated by the games handlers if not set
 	// by the caller, so tests do not need to wire them explicitly.
@@ -125,6 +126,17 @@ func (s *Server) InitializeCaches(ctx context.Context) error {
 		s.SiteLangs = map[string]bool{}
 	} else {
 		s.SiteLangs = siteLangs
+	}
+
+	// 7. Load the topical index editions. Same non-fatal handling as the site
+	// catalogue: an unseeded index means /topic-index finds nothing, not a server
+	// that refuses to start.
+	topicLangs, err := s.DB.FetchTopicIndexLangs(ctx)
+	if err != nil {
+		slog.Warn("topic index langs cache unavailable; /topic-index will accept any lang", "err", err)
+		s.TopicIndexLangs = map[string]bool{}
+	} else {
+		s.TopicIndexLangs = topicLangs
 	}
 
 	return nil
