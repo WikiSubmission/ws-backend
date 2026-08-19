@@ -55,6 +55,18 @@
 --
 -- Idempotent: safe to re-run.
 
+-- array_to_string(anyarray, text) is only STABLE, because the generic anyarray
+-- signature leaves the element output function unknown, so Postgres rejects it
+-- inside a STORED generated column with "generation expression is not immutable".
+-- Pinning the signature to text[] with a fixed delimiter removes that doubt:
+-- joining text with a space is deterministic. Declared IMMUTABLE for the same
+-- reason public.abjadi_rank in 001_baseline.sql is. The obvious alternative,
+-- string_agg over unnest, is genuinely immutable but generated columns cannot
+-- contain a subquery.
+CREATE OR REPLACE FUNCTION public.text_array_to_string(arr text[]) RETURNS text
+    LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+    AS $$ SELECT array_to_string(arr, ' ') $$;
+
 CREATE TABLE IF NOT EXISTS public.topic_index_entries (
     id            INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
@@ -82,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.topic_index_entries (
     search_tsv    tsvector GENERATED ALWAYS AS (
         setweight(to_tsvector('simple', coalesce(title, '')),                        'A') ||
         setweight(to_tsvector('simple', coalesce(subentry_text, '')),                'B') ||
-        setweight(to_tsvector('simple', array_to_string(cross_refs, ' ')),           'C')
+        setweight(to_tsvector('simple', public.text_array_to_string(cross_refs)),    'C')
     ) STORED,
 
     -- Trigram haystack for the fuzzy fallback leg. Titles and labels only.
