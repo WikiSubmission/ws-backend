@@ -274,13 +274,13 @@ func TestPrepareContentWrite(t *testing.T) {
 }
 
 func TestEditorFromGrantsRow(t *testing.T) {
-	ref := 5
 	name := "Editor One"
 	row := &db.EditorGrantsRow{
 		UserID:      12,
 		Email:       "editor@example.org",
 		DisplayName: &name,
 		Role:        "editor",
+		Roles:       []string{"member", "editor"},
 		IsActive:    true,
 		Modules:     map[string]bool{"article": true, "category": false},
 		QuranVersions: []db.EditorVersionGrantRow{
@@ -289,7 +289,6 @@ func TestEditorFromGrantsRow(t *testing.T) {
 		BibleVersions: []db.EditorVersionGrantRow{
 			{VersionID: 2, CanWrite: false},
 		},
-		QuranReferenceVersionID: &ref,
 	}
 	got := editorFromGrantsRow(row)
 	if got.UserId != 12 || got.Email != "editor@example.org" || !got.IsActive {
@@ -305,7 +304,30 @@ func TestEditorFromGrantsRow(t *testing.T) {
 	if len(got.BibleVersions) != 1 || got.BibleVersions[0].CanWrite {
 		t.Errorf("bible grants not mapped: %#v", got.BibleVersions)
 	}
-	if got.QuranReferenceVersionId == nil || *got.QuranReferenceVersionId != 5 {
-		t.Errorf("reference pref not mapped: %#v", got.QuranReferenceVersionId)
+	if len(got.Roles) != 2 || got.Roles[1] != AccessRoleEditor {
+		t.Errorf("roles not mapped: %#v", got.Roles)
+	}
+}
+
+func TestContentSubresourceAuthorization(t *testing.T) {
+	reader := &db.EditorPermissions{Modules: map[db.EditorModule]bool{db.ModuleArticle: false}}
+	if !canAccessContent(reader, db.ModuleCategory, false) || canAccessContent(reader, db.ModuleCategory, true) {
+		t.Error("article read must allow category list but not category writes")
+	}
+	if !canAccessContent(reader, db.ModuleAuthor, false) || canAccessContent(reader, db.ModuleAuthor, true) {
+		t.Error("article read must allow the author picker but not author management")
+	}
+
+	writer := &db.EditorPermissions{Modules: map[db.EditorModule]bool{db.ModuleArticle: true}}
+	if !canAccessContent(writer, db.ModuleCategory, true) {
+		t.Error("article write must allow category creation and updates")
+	}
+	if canAccessContent(writer, db.ModuleAuthor, true) {
+		t.Error("article write must not allow author management")
+	}
+
+	admin := &db.EditorPermissions{IsAdmin: true, Modules: map[db.EditorModule]bool{}}
+	if !canAccessContent(admin, db.ModuleAuthor, true) {
+		t.Error("admin must manage authors")
 	}
 }

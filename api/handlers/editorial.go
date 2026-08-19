@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strconv"
 
@@ -32,7 +33,12 @@ func (s *Server) resolveEditorialPermissions(ctx context.Context) (*db.EditorPer
 	if user == nil || !user.IsActive {
 		return nil, nil
 	}
-	return s.DB.FetchEditorPermissions(ctx, user.ID, user.Role == "admin")
+	perms, err := s.DB.FetchEditorPermissions(ctx, user.ID, user.HasRole("admin"))
+	if err != nil {
+		return nil, err
+	}
+	applyUserRoles(perms, user)
+	return perms, nil
 }
 
 // resolveEditorialActor is like resolveEditorialPermissions but also returns the
@@ -51,11 +57,38 @@ func (s *Server) resolveEditorialActor(ctx context.Context) (int, *db.EditorPerm
 	if user == nil || !user.IsActive {
 		return 0, nil, nil
 	}
-	perms, err := s.DB.FetchEditorPermissions(ctx, user.ID, user.Role == "admin")
+	perms, err := s.DB.FetchEditorPermissions(ctx, user.ID, user.HasRole("admin"))
 	if err != nil {
 		return 0, nil, err
 	}
+	applyUserRoles(perms, user)
 	return user.ID, perms, nil
+}
+
+// applyUserRoles makes roles the coarse gate and grants the granular gate.
+// Legacy author/category grants remain stored for rollback but no longer grant
+// standalone surfaces: authors are admin-only and categories inherit Articles.
+func applyUserRoles(perms *db.EditorPermissions, user *db.UserRow) {
+	if perms == nil || user == nil || perms.IsAdmin {
+		return
+	}
+	if !user.HasRole("editor") {
+		for module := range perms.Modules {
+			if module != db.ModuleGame {
+				delete(perms.Modules, module)
+			}
+		}
+		perms.QuranVersions = map[int]bool{}
+		perms.QuranApproverVersions = map[int]bool{}
+		perms.BibleVersions = map[int]bool{}
+	}
+	delete(perms.Modules, db.ModuleAuthor)
+	delete(perms.Modules, db.ModuleCategory)
+
+	if !user.HasRole("game_editor") {
+		delete(perms.Modules, db.ModuleGame)
+		perms.Games = map[string]bool{}
+	}
 }
 
 // GetEditorialSession returns the resolved editorial permissions for the caller.
@@ -96,6 +129,43 @@ func (s *Server) ListEditorialQuranVersions(ctx context.Context, _ ListEditorial
 		out[i] = quranVersionFromRow(&rows[i])
 	}
 	return ListEditorialQuranVersions200JSONResponse(EditorialQuranVersionListEnvelope{Data: out}), nil
+}
+
+// UpdateEditorialQuranReferenceVersion lets an editor choose their own
+// word-by-word reference from the Quran versions they can read.
+func (s *Server) UpdateEditorialQuranReferenceVersion(ctx context.Context, request UpdateEditorialQuranReferenceVersionRequestObject) (UpdateEditorialQuranReferenceVersionResponseObject, error) {
+	if request.Body == nil {
+		return UpdateEditorialQuranReferenceVersion400JSONResponse{BadRequestJSONResponse{Message: "request body is required"}}, nil
+	}
+	userID, perms, err := s.resolveEditorialActor(ctx)
+	if err != nil {
+		slog.Error("UpdateEditorialQuranReferenceVersion: resolve actor", "error", err)
+		return UpdateEditorialQuranReferenceVersion500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	if userID == 0 || perms == nil || !perms.CanReadModule(db.ModuleQuran) {
+		return UpdateEditorialQuranReferenceVersion403JSONResponse{ForbiddenJSONResponse{Message: "quran editorial access required"}}, nil
+	}
+
+	var versionID *int
+	if request.Body.ReferenceVersionId != nil {
+		id := int(*request.Body.ReferenceVersionId)
+		if id <= 0 {
+			return UpdateEditorialQuranReferenceVersion400JSONResponse{BadRequestJSONResponse{Message: "invalid reference version"}}, nil
+		}
+		if !perms.CanReadQuranVersion(id) {
+			return UpdateEditorialQuranReferenceVersion403JSONResponse{ForbiddenJSONResponse{Message: "reference version access required"}}, nil
+		}
+		versionID = &id
+	}
+	if err := s.DB.UpdateEditorQuranReferencePreference(ctx, userID, versionID); err != nil {
+		if errors.Is(err, db.ErrContentBadReference) {
+			return UpdateEditorialQuranReferenceVersion400JSONResponse{BadRequestJSONResponse{Message: "reference version does not exist"}}, nil
+		}
+		slog.Error("UpdateEditorialQuranReferenceVersion: DB error", "error", err)
+		return UpdateEditorialQuranReferenceVersion500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+	perms.QuranReferenceVersionID = versionID
+	return UpdateEditorialQuranReferenceVersion200JSONResponse(EditorialSessionEnvelope{Data: editorialSessionFromPerms(perms)}), nil
 }
 
 // ListEditorialBibleVersions returns the Bible version registry. Requires read

@@ -71,6 +71,7 @@ type mobileAuthUser struct {
 	Email       string         `json:"email"`
 	DisplayName *string        `json:"display_name,omitempty"`
 	Role        string         `json:"role"`
+	Roles       []string       `json:"roles"`
 	Permissions map[string]any `json:"permissions"`
 	IsActive    bool           `json:"is_active"`
 	IsAdmin     bool           `json:"is_admin"`
@@ -237,7 +238,7 @@ func (h *NativeAuthHandler) respondWithSession(c *gin.Context, user *db.UserRow)
 	// isEditor now comes from the grant tables rather than a JSONB flag, so the
 	// snapshot has to be resolved here. A failure degrades to "no games access"
 	// rather than failing the sign-in — the backend re-checks on every request.
-	perms, err := h.Store.FetchEditorPermissions(c.Request.Context(), user.ID, user.Role == "admin")
+	perms, err := h.Store.FetchEditorPermissions(c.Request.Context(), user.ID, user.HasRole("admin"))
 	if err != nil {
 		slog.Error("mobile auth: fetch editor permissions", "error", err, "user_id", user.ID)
 		perms = nil
@@ -276,9 +277,10 @@ func mobileUserFromRow(user *db.UserRow, perms *db.EditorPermissions) mobileAuth
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
 		Role:        user.Role,
+		Roles:       user.Roles,
 		Permissions: permissions,
 		IsActive:    user.IsActive,
-		IsAdmin:     user.Role == "admin",
+		IsAdmin:     user.HasRole("admin"),
 		IsEditor:    auth.HasGamesEditorAccess(user, perms),
 	}
 }

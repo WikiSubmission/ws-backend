@@ -15,15 +15,39 @@ type UserRow struct {
 	Email       string          `db:"email"        json:"email"`
 	DisplayName *string         `db:"display_name" json:"display_name,omitempty"`
 	Role        string          `db:"role"         json:"role"`
+	Roles       []string        `db:"roles"        json:"roles"`
 	Permissions json.RawMessage `db:"permissions"  json:"permissions"`
 	IsActive    bool            `db:"is_active"    json:"is_active"`
 	CreatedAt   time.Time       `db:"created_at"   json:"created_at"`
 	UpdatedAt   time.Time       `db:"updated_at"   json:"updated_at"`
 }
 
+const userColumns = `id, auth_id, email, display_name, role,
+	COALESCE(ARRAY(
+		SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = users.id
+		ORDER BY CASE ur.role::text
+			WHEN 'member' THEN 0 WHEN 'editor' THEN 1
+			WHEN 'game_editor' THEN 2 WHEN 'admin' THEN 3 END
+	), ARRAY[]::text[]) AS roles,
+	permissions, is_active, created_at, updated_at`
+
+func (u *UserRow) HasRole(role string) bool {
+	if u == nil {
+		return false
+	}
+	for _, candidate := range u.Roles {
+		if candidate == role {
+			return true
+		}
+	}
+	// Compatibility for rows read while an older migration state is being
+	// repaired. The additive migration normally guarantees Roles is populated.
+	return (role == "member" && len(u.Roles) == 0) || u.Role == role
+}
+
 func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, error) {
 	defer observe("fetch_all_users", time.Now())
-	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
+	query := `SELECT ` + userColumns + `
 	          FROM users ORDER BY id LIMIT $1 OFFSET $2`
 	rows, err := db.Pool.Query(ctx, query, limit, offset)
 	if err != nil {
@@ -35,7 +59,7 @@ func (db *DB) FetchAllUsers(ctx context.Context, limit, offset int) ([]UserRow, 
 
 func (db *DB) FetchUserByAuthID(ctx context.Context, authID string) (*UserRow, error) {
 	defer observe("fetch_user_by_auth_id", time.Now())
-	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
+	query := `SELECT ` + userColumns + `
 	          FROM users WHERE auth_id = $1`
 	rows, err := db.Pool.Query(ctx, query, authID)
 	if err != nil {
@@ -54,7 +78,7 @@ func (db *DB) FetchUserByAuthID(ctx context.Context, authID string) (*UserRow, e
 
 func (db *DB) FetchUserByID(ctx context.Context, id int) (*UserRow, error) {
 	defer observe("fetch_user_by_id", time.Now())
-	query := `SELECT id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at
+	query := `SELECT ` + userColumns + `
 	          FROM users WHERE id = $1`
 	rows, err := db.Pool.Query(ctx, query, id)
 	if err != nil {
@@ -85,17 +109,12 @@ func (db *DB) UpsertUser(ctx context.Context, authID, email string, displayName 
 	              SET auth_id = EXCLUDED.auth_id,
 	                  display_name = COALESCE(users.display_name, EXCLUDED.display_name),
 	                  updated_at = NOW()
-	          RETURNING id, auth_id, email, display_name, role, permissions, is_active, created_at, updated_at`
-	rows, err := db.Pool.Query(ctx, query, authID, email, displayName)
-	if err != nil {
+	          RETURNING id`
+	var id int
+	if err := db.Pool.QueryRow(ctx, query, authID, email, displayName).Scan(&id); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[UserRow])
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
+	return db.FetchUserByID(ctx, id)
 }
 
 // UpdateUserDisplayName sets users.display_name for the given id. Used to
@@ -125,9 +144,11 @@ func (db *DB) IsLastActiveAdmin(ctx context.Context, id int) (bool, error) {
 	var isLast bool
 	err := db.Pool.QueryRow(ctx, `
 		SELECT EXISTS (
-			SELECT 1 FROM users WHERE id = $1 AND role = 'admin' AND is_active
+			SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.id = $1 AND ur.role = 'admin' AND u.is_active
 		) AND NOT EXISTS (
-			SELECT 1 FROM users WHERE id <> $1 AND role = 'admin' AND is_active
+			SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.id <> $1 AND ur.role = 'admin' AND u.is_active
 		)`, id).Scan(&isLast)
 	if err != nil {
 		return false, err
@@ -136,15 +157,63 @@ func (db *DB) IsLastActiveAdmin(ctx context.Context, id int) (bool, error) {
 }
 
 func (db *DB) UpdateUserRole(ctx context.Context, id int, role string) error {
-	query := `UPDATE users SET role = $1::user_role, updated_at = NOW() WHERE id = $2`
-	tag, err := db.Pool.Exec(ctx, query, role, id)
+	roles := []string{"member"}
+	if role != "member" {
+		roles = append(roles, role)
+	}
+	return db.UpdateUserRoles(ctx, id, roles)
+}
+
+// UpdateUserRoles replaces an account's role set atomically. Member is always
+// retained, and users.role is kept as a legacy highest-role projection for old
+// application versions during the staged rollout.
+func (db *DB) UpdateUserRoles(ctx context.Context, id int, roles []string) error {
+	requested := map[string]bool{"member": true}
+	for _, role := range roles {
+		switch role {
+		case "member", "editor", "game_editor", "admin":
+			requested[role] = true
+		default:
+			return fmt.Errorf("unknown role %q", role)
+		}
+	}
+
+	effective := "member"
+	if requested["admin"] {
+		effective = "admin"
+	} else if requested["editor"] {
+		effective = "editor"
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE users SET role = $1::user_role, updated_at = NOW() WHERE id = $2`,
+		effective, id)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("user %d not found", id)
 	}
-	return nil
+	if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id = $1`, id); err != nil {
+		return err
+	}
+	for _, role := range []string{"member", "editor", "game_editor", "admin"} {
+		if !requested[role] {
+			continue
+		}
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO user_roles (user_id, role) VALUES ($1, $2::access_role)`,
+			id, role); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func (db *DB) UpdateUserPermissions(ctx context.Context, id int, permissions json.RawMessage) error {

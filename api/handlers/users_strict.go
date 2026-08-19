@@ -24,6 +24,7 @@ func userFromRow(u *db.UserRow) (User, error) {
 		Email:       openapi_types.Email(u.Email),
 		DisplayName: u.DisplayName,
 		Role:        UserRole(u.Role),
+		Roles:       roleModels(u.Roles),
 		Permissions: &permissions,
 		IsActive:    u.IsActive,
 		CreatedAt:   u.CreatedAt,
@@ -44,7 +45,7 @@ func (s *Server) callerIsAdmin(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return caller != nil && caller.IsActive && caller.Role == "admin", nil
+	return caller != nil && caller.IsActive && caller.HasRole("admin"), nil
 }
 
 func (s *Server) ListUsersAdmin(ctx context.Context, request ListUsersAdminRequestObject) (ListUsersAdminResponseObject, error) {
@@ -136,12 +137,26 @@ func (s *Server) UpdateUserAdmin(ctx context.Context, request UpdateUserAdminReq
 
 	id := int(request.Id)
 	req := request.Body
+	if req.Role != nil && req.Roles != nil {
+		return UpdateUserAdmin400JSONResponse{BadRequestJSONResponse{
+			Message: "send roles, not both roles and the deprecated role field",
+		}}, nil
+	}
 
 	// Refuse to strip the last active admin, whether by demoting their role or by
 	// deactivating them — either one locks everyone out of /admin/access, which is
 	// the only surface that can grant it back. Checked before any write, so a
 	// rejected request changes nothing.
 	demotesRole := req.Role != nil && string(*req.Role) != "admin"
+	if req.Roles != nil {
+		demotesRole = true
+		for _, role := range *req.Roles {
+			if role == AccessRoleAdmin {
+				demotesRole = false
+				break
+			}
+		}
+	}
 	deactivates := req.IsActive != nil && !*req.IsActive
 	if demotesRole || deactivates {
 		isLast, err := s.DB.IsLastActiveAdmin(ctx, id)
@@ -159,6 +174,16 @@ func (s *Server) UpdateUserAdmin(ctx context.Context, request UpdateUserAdminReq
 	if req.Role != nil {
 		if err := s.DB.UpdateUserRole(ctx, id, string(*req.Role)); err != nil {
 			slog.Error("UpdateUserAdmin: UpdateUserRole error", "error", err)
+			return UpdateUserAdmin500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		}
+	}
+	if req.Roles != nil {
+		roles := make([]string, len(*req.Roles))
+		for i, role := range *req.Roles {
+			roles[i] = string(role)
+		}
+		if err := s.DB.UpdateUserRoles(ctx, id, roles); err != nil {
+			slog.Error("UpdateUserAdmin: UpdateUserRoles error", "error", err)
 			return UpdateUserAdmin500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
 		}
 	}

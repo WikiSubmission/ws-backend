@@ -11,7 +11,7 @@ import (
 // Admin-side editorial grant management. Reads and writes the grant tables
 // introduced in migrations 018/019/027 (editor_module_grants,
 // editor_quran_version_grants incl. can_approve, editor_bible_version_grants,
-// editor_game_grants, editor_quran_reference_pref). Admin-only surface; callers
+// editor_game_grants). Admin-only surface; callers
 // gate on IsAdmin.
 
 // ErrUserNotFound signals an unknown user id (HTTP 404).
@@ -33,16 +33,16 @@ type EditorGameGrantRow struct {
 
 // EditorGrantsRow aggregates one user's editorial grants.
 type EditorGrantsRow struct {
-	UserID                  int
-	Email                   string
-	DisplayName             *string
-	Role                    string
-	IsActive                bool
-	Modules                 map[string]bool
-	QuranVersions           []EditorVersionGrantRow
-	BibleVersions           []EditorVersionGrantRow
-	Games                   []EditorGameGrantRow
-	QuranReferenceVersionID *int
+	UserID        int
+	Email         string
+	DisplayName   *string
+	Role          string
+	Roles         []string
+	IsActive      bool
+	Modules       map[string]bool
+	QuranVersions []EditorVersionGrantRow
+	BibleVersions []EditorVersionGrantRow
+	Games         []EditorGameGrantRow
 }
 
 // ListEditorGrants returns users (ordered by id) with their editorial grants
@@ -51,7 +51,14 @@ func (db *DB) ListEditorGrants(ctx context.Context, limit, offset int) ([]Editor
 	defer observe("list_editor_grants", time.Now())
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT id, email, display_name, role, is_active, COUNT(*) OVER() AS total
+		SELECT id, email, display_name, role,
+		       COALESCE(ARRAY(
+		         SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = users.id
+		         ORDER BY CASE ur.role::text
+		           WHEN 'member' THEN 0 WHEN 'editor' THEN 1
+		           WHEN 'game_editor' THEN 2 WHEN 'admin' THEN 3 END
+		       ), ARRAY[]::text[]) AS roles,
+		       is_active, COUNT(*) OVER() AS total
 		FROM users
 		ORDER BY id
 		LIMIT $1 OFFSET $2`, limit, offset)
@@ -66,7 +73,7 @@ func (db *DB) ListEditorGrants(ctx context.Context, limit, offset int) ([]Editor
 	total := 0
 	for rows.Next() {
 		r := EditorGrantsRow{Modules: map[string]bool{}}
-		if err := rows.Scan(&r.UserID, &r.Email, &r.DisplayName, &r.Role, &r.IsActive, &total); err != nil {
+		if err := rows.Scan(&r.UserID, &r.Email, &r.DisplayName, &r.Role, &r.Roles, &r.IsActive, &total); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, r)
@@ -94,9 +101,16 @@ func (db *DB) GetEditorGrants(ctx context.Context, userID int) (*EditorGrantsRow
 
 	r := EditorGrantsRow{Modules: map[string]bool{}}
 	err := db.Pool.QueryRow(ctx, `
-		SELECT id, email, display_name, role, is_active
+		SELECT id, email, display_name, role,
+		       COALESCE(ARRAY(
+		         SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = users.id
+		         ORDER BY CASE ur.role::text
+		           WHEN 'member' THEN 0 WHEN 'editor' THEN 1
+		           WHEN 'game_editor' THEN 2 WHEN 'admin' THEN 3 END
+		       ), ARRAY[]::text[]) AS roles,
+		       is_active
 		FROM users WHERE id = $1`, userID,
-	).Scan(&r.UserID, &r.Email, &r.DisplayName, &r.Role, &r.IsActive)
+	).Scan(&r.UserID, &r.Email, &r.DisplayName, &r.Role, &r.Roles, &r.IsActive)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -199,30 +213,14 @@ func (db *DB) attachGrants(ctx context.Context, ids []int, byID map[int]*EditorG
 		return err
 	}
 
-	prefs, err := db.Pool.Query(ctx, `
-		SELECT user_id, reference_version_id
-		FROM editor_quran_reference_pref WHERE user_id = ANY($1)`, ids)
-	if err != nil {
-		return err
-	}
-	defer prefs.Close()
-	for prefs.Next() {
-		var uid int
-		var ref *int
-		if err := prefs.Scan(&uid, &ref); err != nil {
-			return err
-		}
-		if u := byID[uid]; u != nil {
-			u.QuranReferenceVersionID = ref
-		}
-	}
-	return prefs.Err()
+	return nil
 }
 
 // ReplaceEditorGrants swaps out one user's editorial grants in a single
 // transaction: module grants, per-version Quran grants (write + approve),
-// per-version Bible grants, per-game grants and the word-by-word reference
-// preference. Grants absent from the input are revoked.
+// per-version Bible grants and per-game grants. Grants absent from the input
+// are revoked. The word-by-word reference is a user-owned preference and is
+// intentionally not writable from this admin operation.
 func (db *DB) ReplaceEditorGrants(
 	ctx context.Context,
 	userID int,
@@ -230,7 +228,6 @@ func (db *DB) ReplaceEditorGrants(
 	quranVersions []EditorVersionGrantRow,
 	bibleVersions []EditorVersionGrantRow,
 	games []EditorGameGrantRow,
-	quranReferenceVersionID *int,
 ) (*EditorGrantsRow, error) {
 	defer observe("replace_editor_grants", time.Now())
 
@@ -290,21 +287,6 @@ func (db *DB) ReplaceEditorGrants(
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO editor_game_grants (user_id, game_key, can_write)
 			VALUES ($1, $2, $3)`, userID, g.GameKey, g.CanWrite); err != nil {
-			return nil, translateContentPgError(err)
-		}
-	}
-
-	if quranReferenceVersionID == nil {
-		if _, err := tx.Exec(ctx, `DELETE FROM editor_quran_reference_pref WHERE user_id = $1`, userID); err != nil {
-			return nil, err
-		}
-	} else {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO editor_quran_reference_pref (user_id, reference_version_id, updated_at)
-			VALUES ($1, $2, now())
-			ON CONFLICT (user_id) DO UPDATE
-			SET reference_version_id = EXCLUDED.reference_version_id, updated_at = now()`,
-			userID, *quranReferenceVersionID); err != nil {
 			return nil, translateContentPgError(err)
 		}
 	}

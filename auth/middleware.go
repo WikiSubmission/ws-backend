@@ -72,7 +72,11 @@ func requireGame(
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "editor access required"})
 			return
 		}
-		perms, err := database.FetchEditorPermissions(c.Request.Context(), user.ID, user.Role == "admin")
+		if !user.HasRole("admin") && !user.HasRole("game_editor") {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "game editor role required"})
+			return
+		}
+		perms, err := database.FetchEditorPermissions(c.Request.Context(), user.ID, user.HasRole("admin"))
 		if err != nil {
 			slog.Error("game gate: fetch permissions", "error", err, "path", c.FullPath())
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
@@ -117,10 +121,10 @@ func HasGamesEditorAccess(u *db.UserRow, perms *db.EditorPermissions) bool {
 	if u == nil || !u.IsActive {
 		return false
 	}
-	if u.Role == "admin" {
+	if u.HasRole("admin") {
 		return true
 	}
-	return perms.HasAnyGameAccess()
+	return u.HasRole("game_editor") && perms.HasAnyGameAccess()
 }
 
 const (
@@ -200,7 +204,7 @@ func OptionalAuth(verifier *AuthJSVerifier) gin.HandlerFunc {
 	}
 }
 
-// RequireAdmin additionally checks that the authenticated user has role=admin in the DB.
+// RequireAdmin additionally checks that the authenticated user has the admin role.
 func RequireAdmin(database *db.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authID, exists := c.Get(ContextKeyUID)
@@ -213,7 +217,7 @@ func RequireAdmin(database *db.DB) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "user not found"})
 			return
 		}
-		if user.Role != "admin" {
+		if !user.HasRole("admin") {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin access required"})
 			return
 		}

@@ -35,7 +35,7 @@ func (f *fakeStore) UpsertUser(_ context.Context, authID, email string, displayN
 	if f.upsertErr != nil {
 		return nil, f.upsertErr
 	}
-	u := &db.UserRow{ID: 1, AuthID: authID, Email: email, Role: "member", IsActive: true}
+	u := &db.UserRow{ID: 1, AuthID: authID, Email: email, Role: "member", Roles: []string{"member"}, IsActive: true}
 	if f.template != nil {
 		clone := *f.template
 		clone.AuthID = authID
@@ -190,7 +190,7 @@ func TestExchangeAdminFlags(t *testing.T) {
 // the flag is absent here, so isEditor can only come from the grant tables.
 func TestExchangeEditorFromGameGrant(t *testing.T) {
 	store := &fakeStore{
-		template: &db.UserRow{ID: 9, Role: "member", IsActive: true},
+		template: &db.UserRow{ID: 9, Role: "member", Roles: []string{"member", "game_editor"}, IsActive: true},
 		perms:    &db.EditorPermissions{Games: map[string]bool{"fill-blank": false}},
 	}
 	google := stubVerifier{identity: auth.VerifiedIdentity{Subject: "x", Email: "a@b.c", EmailVerified: true}}

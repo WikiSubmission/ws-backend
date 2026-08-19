@@ -347,8 +347,38 @@ func (s *Server) validateContentFields(
 // module's documents when the editing surface needs them as picker options:
 // the article editor references authors and categories.
 var companionReadModules = map[db.EditorModule][]db.EditorModule{
-	db.ModuleAuthor:   {db.ModuleArticle},
-	db.ModuleCategory: {db.ModuleArticle},
+	db.ModuleAuthor: {db.ModuleArticle},
+}
+
+func canAccessContent(perms *db.EditorPermissions, module db.EditorModule, write bool) bool {
+	if perms == nil {
+		return false
+	}
+	// Categories are an Articles sub-resource, not a separately grantable
+	// module. Article readers can list them; article writers can create/update.
+	if module == db.ModuleCategory {
+		if write {
+			return perms.CanWriteModule(db.ModuleArticle)
+		}
+		return perms.CanReadModule(db.ModuleArticle)
+	}
+	// Author management is admin-only. Article editors retain read-only access
+	// to the author list for the article form's author picker.
+	if module == db.ModuleAuthor && write {
+		return perms.IsAdmin
+	}
+	allowed := perms.CanReadModule(module)
+	if !allowed && !write {
+		for _, companion := range companionReadModules[module] {
+			if perms.CanReadModule(companion) {
+				return true
+			}
+		}
+	}
+	if write {
+		return perms.CanWriteModule(module)
+	}
+	return allowed
 }
 
 // resolveContentActor authorizes the caller for one module. write=false checks
@@ -366,19 +396,7 @@ func (s *Server) resolveContentActor(
 	if perms == nil {
 		return 0, nil
 	}
-	allowed := perms.CanReadModule(module)
-	if !allowed && !write {
-		for _, companion := range companionReadModules[module] {
-			if perms.CanReadModule(companion) {
-				allowed = true
-				break
-			}
-		}
-	}
-	if write {
-		allowed = perms.CanWriteModule(module)
-	}
-	if !allowed {
+	if !canAccessContent(perms, module, write) {
 		return 0, nil
 	}
 	return userID, nil
@@ -603,13 +621,26 @@ func (s *Server) DeleteEditorialContent(ctx context.Context, request DeleteEdito
 		return DeleteEditorialContent403JSONResponse{ForbiddenJSONResponse{Message: "module write access required"}}, nil
 	}
 
-	err = s.DB.DeleteContentDoc(ctx, module, int(request.DocId))
+	if module == db.ModuleCategory {
+		perms, resolveErr := s.resolveEditorialPermissions(ctx)
+		if resolveErr != nil {
+			slog.Error("DeleteEditorialContent: resolve permissions", "error", resolveErr)
+			return DeleteEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+		}
+		err = s.DB.DeleteCategory(ctx, int(request.DocId), userID, perms != nil && perms.IsAdmin)
+	} else {
+		err = s.DB.DeleteContentDoc(ctx, module, int(request.DocId))
+	}
 	switch {
 	case errors.Is(err, db.ErrContentNotFound):
 		return DeleteEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "document not found"}}, nil
 	case errors.Is(err, db.ErrContentBadReference):
 		// Restricted FK from another table (none today, but future-proof).
 		return DeleteEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "document is referenced elsewhere"}}, nil
+	case errors.Is(err, db.ErrCategoryDeleteForbidden):
+		return DeleteEditorialContent403JSONResponse{ForbiddenJSONResponse{Message: "only the category creator can delete it"}}, nil
+	case errors.Is(err, db.ErrCategoryInUse):
+		return DeleteEditorialContent409JSONResponse{ConflictJSONResponse{Message: "category is assigned to one or more articles"}}, nil
 	case err != nil:
 		slog.Error("DeleteEditorialContent: DB error", "module", module, "error", err)
 		return DeleteEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil

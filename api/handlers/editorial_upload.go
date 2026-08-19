@@ -134,7 +134,11 @@ func (h EditorialUploadHandler) authorizeEditor(c *gin.Context) bool {
 		c.JSON(http.StatusForbidden, gin.H{"message": "editorial access required"})
 		return false
 	}
-	perms, err := h.DB.FetchEditorPermissions(ctx, user.ID, user.Role == "admin")
+	if !user.HasRole("admin") && !user.HasRole("editor") {
+		c.JSON(http.StatusForbidden, gin.H{"message": "editor role required"})
+		return false
+	}
+	perms, err := h.DB.FetchEditorPermissions(ctx, user.ID, user.HasRole("admin"))
 	if err != nil {
 		slog.Error("editorial upload: fetch permissions", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})

@@ -341,6 +341,24 @@ func (db *DB) FetchEditorPermissions(ctx context.Context, userID int, isAdmin bo
 	return perms, nil
 }
 
+// UpdateEditorQuranReferencePreference changes only the current editor's
+// word-by-word reference choice. It is deliberately separate from the admin
+// grant replacement transaction: this setting belongs to the editor.
+func (db *DB) UpdateEditorQuranReferencePreference(ctx context.Context, userID int, versionID *int) error {
+	if versionID == nil {
+		_, err := db.Pool.Exec(ctx,
+			`DELETE FROM editor_quran_reference_pref WHERE user_id = $1`, userID)
+		return err
+	}
+	_, err := db.Pool.Exec(ctx, `
+		INSERT INTO editor_quran_reference_pref (user_id, reference_version_id, updated_at)
+		VALUES ($1, $2, now())
+		ON CONFLICT (user_id) DO UPDATE
+		SET reference_version_id = EXCLUDED.reference_version_id, updated_at = now()`,
+		userID, *versionID)
+	return translateContentPgError(err)
+}
+
 // scanQuranVersionGrants fills the caller's Quran version write grants and the
 // dedicated approve grants in one pass.
 func (db *DB) scanQuranVersionGrants(ctx context.Context, userID int, perms *EditorPermissions) error {

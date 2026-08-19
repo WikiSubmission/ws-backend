@@ -38,6 +38,45 @@ func TestEditorialSessionFromPerms(t *testing.T) {
 	}
 }
 
+func TestApplyUserRolesSeparatesCMSAndGames(t *testing.T) {
+	makePerms := func() *db.EditorPermissions {
+		return &db.EditorPermissions{
+			Modules:       map[db.EditorModule]bool{db.ModuleArticle: true, db.ModuleAuthor: true, db.ModuleCategory: true, db.ModuleGame: true},
+			QuranVersions: map[int]bool{1: true},
+			BibleVersions: map[int]bool{2: true},
+			Games:         map[string]bool{"fill-blank": true},
+		}
+	}
+
+	member := makePerms()
+	applyUserRoles(member, &db.UserRow{Roles: []string{"member"}})
+	if len(member.Modules) != 0 || len(member.Games) != 0 || len(member.QuranVersions) != 0 {
+		t.Errorf("member retained grants: %#v", member)
+	}
+
+	editor := makePerms()
+	applyUserRoles(editor, &db.UserRow{Roles: []string{"member", "editor"}})
+	if !editor.CanWriteModule(db.ModuleArticle) || len(editor.Games) != 0 {
+		t.Errorf("editor role partition incorrect: %#v", editor)
+	}
+	if editor.CanReadModule(db.ModuleAuthor) || editor.CanReadModule(db.ModuleCategory) {
+		t.Errorf("standalone author/category grants must be ignored: %#v", editor.Modules)
+	}
+
+	gameEditor := makePerms()
+	applyUserRoles(gameEditor, &db.UserRow{Roles: []string{"member", "game_editor"}})
+	if !gameEditor.CanWriteGame("fill-blank") || gameEditor.CanReadModule(db.ModuleArticle) {
+		t.Errorf("game editor role partition incorrect: %#v", gameEditor)
+	}
+
+	admin := makePerms()
+	admin.IsAdmin = true
+	applyUserRoles(admin, &db.UserRow{Roles: []string{"member", "admin"}})
+	if !admin.CanReadModule(db.ModuleAuthor) || !admin.CanWriteGame("anything") {
+		t.Errorf("admin bypass changed: %#v", admin)
+	}
+}
+
 func TestParseVersionAuthors(t *testing.T) {
 	tests := []struct {
 		name    string

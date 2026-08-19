@@ -79,23 +79,26 @@ func editorFromGrantsRow(r *db.EditorGrantsRow) EditorialEditor {
 	for i, g := range r.Games {
 		games[i] = EditorGameGrant{GameKey: g.GameKey, CanWrite: g.CanWrite}
 	}
-	var ref *int64
-	if r.QuranReferenceVersionID != nil {
-		v := int64(*r.QuranReferenceVersionID)
-		ref = &v
-	}
 	return EditorialEditor{
-		UserId:                  int64(r.UserID),
-		Email:                   r.Email,
-		DisplayName:             r.DisplayName,
-		Role:                    r.Role,
-		IsActive:                r.IsActive,
-		Modules:                 modules,
-		QuranVersions:           quran,
-		BibleVersions:           bible,
-		Games:                   games,
-		QuranReferenceVersionId: ref,
+		UserId:        int64(r.UserID),
+		Email:         r.Email,
+		DisplayName:   r.DisplayName,
+		Role:          r.Role,
+		Roles:         roleModels(r.Roles),
+		IsActive:      r.IsActive,
+		Modules:       modules,
+		QuranVersions: quran,
+		BibleVersions: bible,
+		Games:         games,
 	}
+}
+
+func roleModels(roles []string) []AccessRole {
+	out := make([]AccessRole, len(roles))
+	for i, role := range roles {
+		out[i] = AccessRole(role)
+	}
+	return out
 }
 
 // ListEditorialEditors returns users and their editorial grants (admin only).
@@ -176,12 +179,6 @@ func (s *Server) ReplaceEditorialEditorGrants(ctx context.Context, request Repla
 		return ReplaceEditorialEditorGrants400JSONResponse{BadRequestJSONResponse{Message: "unknown game " + badKey}}, nil
 	}
 
-	var ref *int
-	if request.Body.QuranReferenceVersionId != nil {
-		v := int(*request.Body.QuranReferenceVersionId)
-		ref = &v
-	}
-
 	row, err := s.DB.ReplaceEditorGrants(
 		ctx,
 		int(request.UserId),
@@ -189,7 +186,6 @@ func (s *Server) ReplaceEditorialEditorGrants(ctx context.Context, request Repla
 		toGrantRows(request.Body.QuranVersions),
 		toGrantRows(request.Body.BibleVersions),
 		games,
-		ref,
 	)
 	switch {
 	case errors.Is(err, db.ErrUserNotFound):

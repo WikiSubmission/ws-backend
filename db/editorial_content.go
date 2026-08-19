@@ -24,6 +24,11 @@ var (
 	ErrContentConflict = errors.New("content document conflicts with an existing one")
 	// ErrContentBadReference signals a broken reference, e.g. unknown author id (HTTP 400).
 	ErrContentBadReference = errors.New("content document references a missing row")
+	// ErrCategoryDeleteForbidden means a non-admin tried to delete a category
+	// created by another account (including legacy rows with no owner).
+	ErrCategoryDeleteForbidden = errors.New("category delete requires its creator")
+	// ErrCategoryInUse means at least one article still names the category.
+	ErrCategoryInUse = errors.New("category is assigned to an article")
 )
 
 // ContentStatus is the derived lifecycle state of a document.
@@ -380,4 +385,52 @@ func (db *DB) DeleteContentDoc(ctx context.Context, module EditorModule, id int)
 		return ErrContentNotFound
 	}
 	return nil
+}
+
+// DeleteCategory enforces the non-admin ownership and usage rules in one
+// transaction. The table lock prevents an article update from assigning the
+// category between the usage check and delete; category deletion is rare, so
+// correctness is worth the brief write serialization here.
+func (db *DB) DeleteCategory(ctx context.Context, id, actorID int, isAdmin bool) error {
+	defer observe("delete_category", time.Now())
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var createdBy *int
+	if err := tx.QueryRow(ctx,
+		`SELECT created_by FROM editorial_categories WHERE id = $1 FOR UPDATE`, id,
+	).Scan(&createdBy); errors.Is(err, pgx.ErrNoRows) {
+		return ErrContentNotFound
+	} else if err != nil {
+		return err
+	}
+
+	if !isAdmin {
+		if createdBy == nil || *createdBy != actorID {
+			return ErrCategoryDeleteForbidden
+		}
+		if _, err := tx.Exec(ctx, `LOCK TABLE editorial_articles IN SHARE MODE`); err != nil {
+			return err
+		}
+		var inUse bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM editorial_articles
+				WHERE COALESCE(draft->'categories', '[]'::jsonb) @> jsonb_build_array($1::integer)
+				   OR COALESCE(published->'categories', '[]'::jsonb) @> jsonb_build_array($1::integer)
+			)`, id).Scan(&inUse); err != nil {
+			return err
+		}
+		if inUse {
+			return ErrCategoryInUse
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM editorial_categories WHERE id = $1`, id); err != nil {
+		return translateContentPgError(err)
+	}
+	return tx.Commit(ctx)
 }
