@@ -404,6 +404,17 @@ func StartServer(database *db.DB) {
 	offlineAdminGroup.GET("/rebuild", offlineAdmin.RebuildStatus)
 	offlineAdminGroup.GET("/files", offlineAdmin.ListFiles)
 
+	// Admin reseed of the topical index. The seed JSON is embedded in this binary
+	// (db/topic_index.go) but api/cmd/seed_topic_index is not in the image, so
+	// this is how a deployed environment loads it. Admin-only since it replaces a
+	// public dataset.
+	topicIndexAdmin := handlers.NewTopicIndexAdminHandler(database)
+	topicIndexAdminGroup := r.Group("/api/v1/admin/topic-index")
+	topicIndexAdminGroup.Use(auth.RequireAuth(verifier))
+	topicIndexAdminGroup.Use(auth.RequireAdmin(database))
+	topicIndexAdminGroup.GET("", topicIndexAdmin.Status)
+	topicIndexAdminGroup.POST("/reseed", topicIndexAdmin.Reseed)
+
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
 	// register before the validator like the games routes above.

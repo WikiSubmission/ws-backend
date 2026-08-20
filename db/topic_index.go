@@ -636,6 +636,34 @@ func nullableLang(lang string) *string {
 	return &lang
 }
 
+// TopicIndexCounts is the row census for one edition, for the admin reseed
+// endpoint to report before and after.
+type TopicIndexCounts struct {
+	Entries    int `db:"entries"`
+	Subentries int `db:"subentries"`
+	Refs       int `db:"refs"`
+}
+
+// CountTopicIndex censuses one edition, or every edition when lang is empty.
+func (db *DB) CountTopicIndex(ctx context.Context, lang string) (TopicIndexCounts, error) {
+	defer observe("count_topic_index", time.Now())
+
+	var out TopicIndexCounts
+	err := db.Pool.QueryRow(ctx, `
+        WITH e AS (
+          SELECT id FROM topic_index_entries
+          WHERE ($1::text IS NULL OR lang = $1::text)
+        )
+        SELECT
+          (SELECT count(*)::int FROM e)                                            AS entries,
+          (SELECT count(*)::int FROM topic_index_subentries s
+             WHERE s.entry_id IN (SELECT id FROM e))                               AS subentries,
+          (SELECT count(*)::int FROM topic_index_refs r
+             WHERE r.entry_id IN (SELECT id FROM e))                               AS refs
+    `, nullableLang(lang)).Scan(&out.Entries, &out.Subentries, &out.Refs)
+	return out, err
+}
+
 // FetchTopicIndexLangs returns the index editions that actually have rows, for
 // the handler's language validation. Mirrors FetchSiteLangs in db/site.go.
 func (db *DB) FetchTopicIndexLangs(ctx context.Context) (map[string]bool, error) {

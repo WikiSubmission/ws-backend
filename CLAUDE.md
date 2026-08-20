@@ -105,6 +105,20 @@ Handlers validate the `lang` param against `s.Languages` and return `400` for un
 
 5. Return typed response objects (e.g. `GetQuran200JSONResponse{...}`, `GetQuran400JSONResponse{...}`)
 
+### Routes outside the OpenAPI surface
+
+A few admin routes are plain Gin handlers rather than generated strict handlers,
+registered **before** `middleware.OapiRequestValidatorWithOptions` in
+`api/server.go` — the validator rejects anything absent from `openapi.yaml`, so
+registering them after it would 404 them. They sit under `/api/v1/admin/*` behind
+`auth.RequireAuth` + `auth.RequireAdmin`: `admin/offline` (bundle rebuild),
+`admin/notifications`, `admin/games/*`, and `admin/topic-index` (reseed the
+topical index from the seed embedded in this binary).
+
+Note that anything registered there cannot reach `serverImpl`, which is
+constructed after the validator. A handler needing the metadata caches has to be
+given them another way, or do without.
+
 ### Unimplemented endpoints
 
 Return `501` with `NotImplementedErrorJSONResponse{Message: "...", Code: "NOT_IMPLEMENTED"}`.

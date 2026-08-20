@@ -374,3 +374,40 @@ func TestSeedTopicIndexIsIdempotent(t *testing.T) {
 		t.Errorf("letter A went from %d entries to %d after re-seeding", len(before), len(after))
 	}
 }
+
+func TestCountTopicIndex(t *testing.T) {
+	db := setupTestDB(t)
+	seededTopicIndex(t, db)
+	ctx := context.Background()
+
+	// Every edition.
+	all, err := db.CountTopicIndex(ctx, "")
+	if err != nil {
+		t.Fatalf("CountTopicIndex failed: %v", err)
+	}
+	if all.Entries == 0 || all.Subentries == 0 || all.Refs == 0 {
+		t.Fatalf("census came back empty for a seeded index: %+v", all)
+	}
+	// References outnumber entries by roughly eleven to one in the printed index.
+	if all.Refs < all.Entries {
+		t.Errorf("expected more references (%d) than entries (%d)", all.Refs, all.Entries)
+	}
+
+	// Scoped to the one edition that exists, so the numbers must agree.
+	en, err := db.CountTopicIndex(ctx, "en")
+	if err != nil {
+		t.Fatalf("CountTopicIndex(en) failed: %v", err)
+	}
+	if en != all {
+		t.Errorf("en census %+v differs from the all-editions census %+v", en, all)
+	}
+
+	// An edition that does not exist censuses to zero rather than erroring.
+	none, err := db.CountTopicIndex(ctx, "zz")
+	if err != nil {
+		t.Fatalf("CountTopicIndex for an unknown edition failed: %v", err)
+	}
+	if none.Entries != 0 || none.Subentries != 0 || none.Refs != 0 {
+		t.Errorf("expected an empty census for an unknown edition, got %+v", none)
+	}
+}

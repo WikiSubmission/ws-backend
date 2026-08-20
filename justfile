@@ -355,11 +355,20 @@ seed-library:
 seed-site:
     go run ./api/cmd/seed_site/
 
-# Load the Quran's printed topical index from db/seeds/quran_topic_index_<lang>.json.
-# Regenerate the seed first with `node scripts/topic_index/build.mjs` (add --fetch
-# to re-download the source pages from masjidtucson.org).
-seed-topic-index:
-    go run ./api/cmd/seed_topic_index/
+# Regenerate the seed first with `node scripts/topic_index/build.mjs` (add
+# --fetch to re-download the source pages from masjidtucson.org).
+#
+# This needs direct network reach to the target's Postgres. Where the deploy does
+# not grant it, POST /api/v1/admin/topic-index/reseed as an admin instead: the
+# seed is embedded in the running server binary, so no DB access is needed (see
+# api/handlers/topic_index_admin.go).
+#
+# Load the Quran's printed topical index into a target (local|hetzner|...)
+seed-topic-index TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$(just url "$1")"
+    DATABASE_URL="$url" go run ./api/cmd/seed_topic_index/
 
 # ---------------------------------------------------------------------------
 # Quran Games
