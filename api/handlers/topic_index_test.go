@@ -21,6 +21,11 @@ func TestParseTopicVerseKey(t *testing.T) {
 		{"2:255", 2, 255, true},
 		{"114:6", 114, 6, true},
 		{" 2:255 ", 2, 255, true},
+		// A caller that escapes path segments delivers the separator encoded. The
+		// site's own /api/ws proxy does; rejecting it would be an encoding
+		// artefact, not bad input.
+		{"2%3A255", 2, 255, true},
+		{"2%3a255", 2, 255, true},
 		// Verse 0 is the Basmalah, which every chapter except 1 and 9 carries.
 		{"2:0", 2, 0, true},
 		{"2", 0, 0, false},

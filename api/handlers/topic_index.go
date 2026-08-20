@@ -245,8 +245,17 @@ func (s *Server) GetTopicIndexForVerse(ctx context.Context, request GetTopicInde
 
 // parseTopicVerseKey splits "2:255" into its parts. Verse numbers here are
 // 1-based, matching the printed index and the frontend's ?verse=N.
+//
+// Accepts a percent-encoded separator as well. Gin routes on the decoded path so
+// a path parameter normally arrives as "2:255", but any caller that escapes path
+// segments before forwarding — the site's own /api/ws proxy does — can deliver
+// "2%3A255", and a 400 there would be an encoding artefact rather than bad input.
 func parseTopicVerseKey(key string) (chapter, verse int, ok bool) {
-	parts := strings.SplitN(strings.TrimSpace(key), ":", 2)
+	trimmed := strings.TrimSpace(key)
+	trimmed = strings.ReplaceAll(trimmed, "%3A", ":")
+	trimmed = strings.ReplaceAll(trimmed, "%3a", ":")
+
+	parts := strings.SplitN(trimmed, ":", 2)
 	if len(parts) != 2 {
 		return 0, 0, false
 	}
