@@ -22,6 +22,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "پێرستی بابەتەکان",
+    "heading": null,
+    "description": "هەموو بابەتێک، بە رێزی ئەلفوبێ",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",

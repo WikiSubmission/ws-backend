@@ -121,6 +121,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "الفهرس الموضوعي",
+    "heading": null,
+    "description": "كل موضوع، من الألف إلى الياء",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",
@@ -130,6 +141,17 @@
     "description": "الجذور والتوافق",
     "body": "مختبر الكلمات.\n\nكل جذر عربي في القرآن، وكل كلمة مشتقّة، وكل ورود — قابل للبحث بالحروف العربية أو بمكافئاتها اللاتينية. اكتب ktb لتجد ك ت ب.\n\nجارٍ تحميل فهرس الجذور…",
     "priority": 60
+  },
+  {
+    "route": "/quran/games",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "الألعاب",
+    "heading": null,
+    "description": "ألعاب الحفظ",
+    "body": "",
+    "priority": 50
   },
   {
     "route": "/bible",

@@ -110,6 +110,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Index thématique",
+    "heading": null,
+    "description": "Chaque sujet, de A à Z",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",
@@ -119,6 +130,17 @@
     "description": "Racines et concordance",
     "body": "Labo des mots.\n\nChaque racine arabe du Coran, chaque mot dérivé, chaque occurrence — recherchable par lettres arabes ou par leurs équivalents latins. Tapez ktb et trouvez ك ت ب.\n\nChargement de l'index des racines…",
     "priority": 60
+  },
+  {
+    "route": "/quran/games",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Games",
+    "heading": null,
+    "description": "Jeux de mémorisation",
+    "body": "",
+    "priority": 50
   },
   {
     "route": "/bible",

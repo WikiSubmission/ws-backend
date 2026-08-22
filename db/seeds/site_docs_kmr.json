@@ -22,6 +22,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Pêrista babetan",
+    "heading": null,
+    "description": "Her babetek, ji A hetanî Z",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",

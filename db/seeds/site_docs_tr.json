@@ -110,6 +110,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Konu dizini",
+    "heading": null,
+    "description": "Her konu, A'dan Z'ye",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",
@@ -119,6 +130,17 @@
     "description": "Kökler ve dizin",
     "body": "Kelime laboratuvarı.\n\nKuran'daki her Arapça kök, her türetilmiş kelime, her geçiş — Arap harfleri veya Latin karşılıklarıyla aranabilir. ktb yazın, ك ت ب bulun.\n\nKök indeksi yükleniyor…",
     "priority": 60
+  },
+  {
+    "route": "/quran/games",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Games",
+    "heading": null,
+    "description": "Ezberleme oyunları",
+    "body": "",
+    "priority": 50
   },
   {
     "route": "/bible",

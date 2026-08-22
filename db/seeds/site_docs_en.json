@@ -121,6 +121,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Topical index",
+    "heading": null,
+    "description": "Every subject, A to Z",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",
@@ -130,6 +141,17 @@
     "description": "Roots & concordance",
     "body": "Word lab.\n\nEvery Arabic root in the Quran, every derived word, every occurrence — searchable by Arabic letters or by their Latin equivalents. Type ktb and find ك ت ب.\n\nLoading the roots index…",
     "priority": 60
+  },
+  {
+    "route": "/quran/games",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Games",
+    "heading": null,
+    "description": "Memorization games",
+    "body": "",
+    "priority": 50
   },
   {
     "route": "/bible",

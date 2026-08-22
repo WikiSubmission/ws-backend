@@ -110,6 +110,17 @@
     "priority": 90
   },
   {
+    "route": "/quran/index",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Sachregister",
+    "heading": null,
+    "description": "Jedes Thema, von A bis Z",
+    "body": "",
+    "priority": 60
+  },
+  {
     "route": "/quran/words",
     "anchor": null,
     "kind": "page",
@@ -119,6 +130,17 @@
     "description": "Wurzeln & Konkordanz",
     "body": "Wort labor.\n\nJede arabische Wurzel im Koran, jedes abgeleitete Wort, jedes Vorkommen — durchsuchbar nach arabischen Buchstaben oder ihren lateinischen Entsprechungen. Tippe ktb und finde ك ت ب.\n\nLade Wurzelindex…",
     "priority": 60
+  },
+  {
+    "route": "/quran/games",
+    "anchor": null,
+    "kind": "page",
+    "section_index": 0,
+    "title": "Games",
+    "heading": null,
+    "description": "Gedächtnisspiele",
+    "body": "",
+    "priority": 50
   },
   {
     "route": "/bible",
