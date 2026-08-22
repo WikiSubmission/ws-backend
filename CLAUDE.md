@@ -112,8 +112,15 @@ registered **before** `middleware.OapiRequestValidatorWithOptions` in
 `api/server.go` — the validator rejects anything absent from `openapi.yaml`, so
 registering them after it would 404 them. They sit under `/api/v1/admin/*` behind
 `auth.RequireAuth` + `auth.RequireAdmin`: `admin/offline` (bundle rebuild),
-`admin/notifications`, `admin/games/*`, and `admin/topic-index` (reseed the
-topical index from the seed embedded in this binary).
+`admin/notifications`, `admin/games/*`, `admin/topic-index` and
+`admin/site-docs`.
+
+The last two exist because the Dockerfile builds only `./api/`, so the
+`api/cmd/seed_*` commands are absent from the image while the seed files they
+read are embedded in the binary through `db/`. A deployed environment therefore
+holds the data with no way to load it, and the `just seed-*` recipes need direct
+network reach to that environment's Postgres. Any future dataset seeded from an
+embedded file wants the same pair of routes.
 
 Note that anything registered there cannot reach `serverImpl`, which is
 constructed after the validator. A handler needing the metadata caches has to be

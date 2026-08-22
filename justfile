@@ -345,15 +345,29 @@ seed-music TARGET="local":
 seed-admin EMAIL:
     go run ./api/cmd/seed_admin/ --email "{{EMAIL}}"
 
-# Load the library documents seed (introduction, proclamation, appendices)
-seed-library:
-    go run ./api/cmd/seed_library/
+# Load the library documents into a target (local|hetzner|...)
+seed-library TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$(just url "$1")"
+    DATABASE_URL="$url" go run ./api/cmd/seed_library/
 
-# Load the site catalogue: page rows from db/seeds/site_docs_<lang>.json, then
-# chapter/appendix landing rows derived from chapter_text and appendices.
-# Regenerate the seeds first with `pnpm site:seed-pages` in org/apps/web.
-seed-site:
-    go run ./api/cmd/seed_site/
+# Page rows from db/seeds/site_docs_<lang>.json, then chapter/appendix landing
+# rows derived from chapter_text and appendices. Regenerate the seeds first with
+# `pnpm site:seed-pages` in org/apps/web — adding a route to the manifest there
+# changes them, and the web build now fails until the route is registered.
+#
+# This needs direct network reach to the target's Postgres. Where the deploy does
+# not grant it, POST /api/v1/admin/site-docs/reseed as an admin instead: the
+# seeds are embedded in the running server binary, so no DB access is needed (see
+# api/handlers/site_admin.go).
+#
+# Load the site catalogue into a target (local|hetzner|...)
+seed-site TARGET="local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$(just url "$1")"
+    DATABASE_URL="$url" go run ./api/cmd/seed_site/
 
 # Regenerate the seed first with `node scripts/topic_index/build.mjs` (add
 # --fetch to re-download the source pages from masjidtucson.org).

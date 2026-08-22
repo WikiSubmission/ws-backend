@@ -415,6 +415,18 @@ func StartServer(database *db.DB) {
 	topicIndexAdminGroup.GET("", topicIndexAdmin.Status)
 	topicIndexAdminGroup.POST("/reseed", topicIndexAdmin.Reseed)
 
+	// Admin reseed of the site catalogue behind /site/search and the command menu.
+	// Same reasoning as admin/topic-index: db/seeds/site_docs_* is embedded here
+	// but api/cmd/seed_site is not in the image. The catalogue changes whenever a
+	// route is added to the manifest in wikisubmission-org, so it needs a route to
+	// a deployed environment rather than only to a reachable Postgres.
+	siteAdmin := handlers.NewSiteAdminHandler(database)
+	siteAdminGroup := r.Group("/api/v1/admin/site-docs")
+	siteAdminGroup.Use(auth.RequireAuth(verifier))
+	siteAdminGroup.Use(auth.RequireAdmin(database))
+	siteAdminGroup.GET("", siteAdmin.Status)
+	siteAdminGroup.POST("/reseed", siteAdmin.Reseed)
+
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
 	// register before the validator like the games routes above.

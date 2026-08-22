@@ -202,15 +202,15 @@ func (db *DB) RebuildDerivedSiteDocuments(ctx context.Context) (int, error) {
 
 // SiteHitRow is one full-text search hit across the site's pages.
 type SiteHitRow struct {
-	Route        string  `db:"route"`
-	Anchor       *string `db:"anchor"`
-	Lang         string  `db:"lang"`
-	Kind         string  `db:"kind"`
-	Title        string  `db:"title"`
-	Heading      *string `db:"heading"`
-	Description  *string `db:"description"`
-	Score        float32 `db:"score"`
-	Headline     string  `db:"headline"`
+	Route       string  `db:"route"`
+	Anchor      *string `db:"anchor"`
+	Lang        string  `db:"lang"`
+	Kind        string  `db:"kind"`
+	Title       string  `db:"title"`
+	Heading     *string `db:"heading"`
+	Description *string `db:"description"`
+	Score       float32 `db:"score"`
+	Headline    string  `db:"headline"`
 }
 
 // SearchSiteDocuments searches the site's own pages plus the library corpus.
@@ -334,6 +334,32 @@ func (db *DB) SearchSiteDocuments(
 	}
 	defer rows.Close()
 	return pgx.CollectRows(rows, pgx.RowToStructByName[SiteHitRow])
+}
+
+// SiteDocumentCounts is the row census for site_documents, split by the `source`
+// scope each seeding path owns, for the admin reseed endpoint to report.
+type SiteDocumentCounts struct {
+	Seed      int `db:"seed"`
+	Derived   int `db:"derived"`
+	Editorial int `db:"editorial"`
+	Sections  int `db:"sections"`
+}
+
+// CountSiteDocuments censuses site_documents. Sections counts rows the crawler
+// owns (section_index > 0), which is what a bad regeneration silently drops.
+func (db *DB) CountSiteDocuments(ctx context.Context) (SiteDocumentCounts, error) {
+	defer observe("count_site_documents", time.Now())
+
+	var out SiteDocumentCounts
+	err := db.Pool.QueryRow(ctx, `
+        SELECT
+          count(*) FILTER (WHERE source = 'seed')::int      AS seed,
+          count(*) FILTER (WHERE source = 'derived')::int   AS derived,
+          count(*) FILTER (WHERE source = 'editorial')::int AS editorial,
+          count(*) FILTER (WHERE section_index > 0)::int    AS sections
+        FROM site_documents
+    `).Scan(&out.Seed, &out.Derived, &out.Editorial, &out.Sections)
+	return out, err
 }
 
 // FetchSiteLangs returns the UI locales that actually have indexed site content,
