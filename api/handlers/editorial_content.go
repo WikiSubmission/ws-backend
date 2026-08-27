@@ -362,8 +362,11 @@ func canAccessContent(perms *db.EditorPermissions, module db.EditorModule, write
 		}
 		return perms.CanReadModule(db.ModuleArticle)
 	}
-	// Author management is admin-only. Article editors retain read-only access
-	// to the author list for the article form's author picker.
+	// The author list is admin-only to write. An editor may still write the one
+	// row linked to their own account — that is authorized per document by
+	// resolveAuthorWriteActor, not here, because this gate has no document in
+	// hand. Article editors retain read-only access to the whole list for the
+	// article form's author picker.
 	if module == db.ModuleAuthor && write {
 		return perms.IsAdmin
 	}
@@ -379,6 +382,88 @@ func canAccessContent(perms *db.EditorPermissions, module db.EditorModule, write
 		return perms.CanWriteModule(module)
 	}
 	return allowed
+}
+
+// resolveWriteActor authorizes a write. Every module but author is gated on
+// the module grant alone; author additionally lets an editor write the single
+// row linked to their own account. docID is nil for a create. The bool reports
+// whether the caller is an admin, which the author path needs so it can pin a
+// non-admin's write to their own account.
+func (s *Server) resolveWriteActor(
+	ctx context.Context,
+	module db.EditorModule,
+	docID *int,
+) (int, bool, error) {
+	if module == db.ModuleAuthor {
+		return s.resolveAuthorWriteActor(ctx, docID)
+	}
+	userID, err := s.resolveContentActor(ctx, module, true)
+	if err != nil || userID == 0 {
+		return 0, false, err
+	}
+	// Only the author path branches on admin; everyone else has already been
+	// authorized by the module gate.
+	return userID, false, nil
+}
+
+// resolveAuthorWriteActor authorizes a write to the author module against a
+// specific document. Admins write any row. A non-admin who can read the author
+// module writes only the row linked to their own account, which is how the
+// self-service profile at /editor/profile works — an editor maintains their own
+// byline without being handed the whole author list.
+//
+// docID is nil for a create, which a non-admin may only do for themselves;
+// callers pin user_id to the returned id (see enforceAuthorSelfLink). Deletes
+// deliberately do not come through here: they stay admin-only via
+// resolveContentActor, so an editor cannot remove a byline that articles point
+// at. Returns userID 0 when the caller must be denied (403).
+func (s *Server) resolveAuthorWriteActor(ctx context.Context, docID *int) (int, bool, error) {
+	userID, perms, err := s.resolveEditorialActor(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	if perms == nil {
+		return 0, false, nil
+	}
+	if perms.IsAdmin {
+		return userID, true, nil
+	}
+	// Read access is the floor: someone with no reason to see the author module
+	// has no reason to write in it either.
+	if !canAccessContent(perms, db.ModuleAuthor, false) {
+		return 0, false, nil
+	}
+	if docID == nil {
+		return userID, false, nil
+	}
+	linked, err := s.DB.AuthorAccountID(ctx, *docID)
+	if errors.Is(err, db.ErrContentNotFound) {
+		// Report as a denial; the handler turns a missing row into its own 404
+		// only for callers allowed to know it is missing.
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	if linked == nil || *linked != userID {
+		return 0, false, nil
+	}
+	return userID, false, nil
+}
+
+// enforceAuthorSelfLink keeps a non-admin's author write pinned to their own
+// account. Rejecting rather than silently rewriting: a payload naming someone
+// else's account is a bug or an escalation attempt, and both deserve to be
+// visible rather than quietly corrected.
+func enforceAuthorSelfLink(scalars *db.ContentScalars, userID int, isAdmin bool) error {
+	if isAdmin {
+		return nil
+	}
+	if scalars.UserID != nil && *scalars.UserID != userID {
+		return fieldErrf("user_id: you can only edit your own profile")
+	}
+	scalars.UserID = &userID
+	return nil
 }
 
 // resolveContentActor authorizes the caller for one module. write=false checks
@@ -531,7 +616,7 @@ func (s *Server) CreateEditorialContent(ctx context.Context, request CreateEdito
 	if !ok {
 		return CreateEditorialContent400JSONResponse{BadRequestJSONResponse{Message: "unknown content module"}}, nil
 	}
-	userID, err := s.resolveContentActor(ctx, module, true)
+	userID, isAdmin, err := s.resolveWriteActor(ctx, module, nil)
 	if err != nil {
 		slog.Error("CreateEditorialContent: resolve actor", "error", err)
 		return CreateEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -548,6 +633,12 @@ func (s *Server) CreateEditorialContent(ctx context.Context, request CreateEdito
 		}
 		slog.Error("CreateEditorialContent: prepare", "module", module, "error", err)
 		return CreateEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
+	}
+
+	if module == db.ModuleAuthor {
+		if err := enforceAuthorSelfLink(&scalars, userID, isAdmin); err != nil {
+			return CreateEditorialContent400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+		}
 	}
 
 	row, err := s.DB.CreateContentDoc(ctx, module, draft, scalars, group, userID)
@@ -569,7 +660,8 @@ func (s *Server) UpdateEditorialContent(ctx context.Context, request UpdateEdito
 	if !ok {
 		return UpdateEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "unknown content module"}}, nil
 	}
-	userID, err := s.resolveContentActor(ctx, module, true)
+	docID := int(request.DocId)
+	userID, isAdmin, err := s.resolveWriteActor(ctx, module, &docID)
 	if err != nil {
 		slog.Error("UpdateEditorialContent: resolve actor", "error", err)
 		return UpdateEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -591,7 +683,13 @@ func (s *Server) UpdateEditorialContent(ctx context.Context, request UpdateEdito
 		return UpdateEditorialContent400JSONResponse{BadRequestJSONResponse{Message: "translation_group cannot be changed after creation"}}, nil
 	}
 
-	row, err := s.DB.UpdateContentDoc(ctx, module, int(request.DocId), draft, scalars, userID)
+	if module == db.ModuleAuthor {
+		if err := enforceAuthorSelfLink(&scalars, userID, isAdmin); err != nil {
+			return UpdateEditorialContent400JSONResponse{BadRequestJSONResponse{Message: err.Error()}}, nil
+		}
+	}
+
+	row, err := s.DB.UpdateContentDoc(ctx, module, docID, draft, scalars, userID)
 	switch {
 	case errors.Is(err, db.ErrContentNotFound):
 		return UpdateEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "document not found"}}, nil
@@ -654,7 +752,8 @@ func (s *Server) PublishEditorialContent(ctx context.Context, request PublishEdi
 	if !ok {
 		return PublishEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "unknown content module"}}, nil
 	}
-	userID, err := s.resolveContentActor(ctx, module, true)
+	docID := int(request.DocId)
+	userID, _, err := s.resolveWriteActor(ctx, module, &docID)
 	if err != nil {
 		slog.Error("PublishEditorialContent: resolve actor", "error", err)
 		return PublishEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -663,7 +762,7 @@ func (s *Server) PublishEditorialContent(ctx context.Context, request PublishEdi
 		return PublishEditorialContent403JSONResponse{ForbiddenJSONResponse{Message: "module write access required"}}, nil
 	}
 
-	row, err := s.DB.PublishContentDoc(ctx, module, int(request.DocId), userID)
+	row, err := s.DB.PublishContentDoc(ctx, module, docID, userID)
 	switch {
 	case errors.Is(err, db.ErrContentNotFound):
 		return PublishEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "document not found"}}, nil
@@ -680,7 +779,8 @@ func (s *Server) UnpublishEditorialContent(ctx context.Context, request Unpublis
 	if !ok {
 		return UnpublishEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "unknown content module"}}, nil
 	}
-	userID, err := s.resolveContentActor(ctx, module, true)
+	docID := int(request.DocId)
+	userID, _, err := s.resolveWriteActor(ctx, module, &docID)
 	if err != nil {
 		slog.Error("UnpublishEditorialContent: resolve actor", "error", err)
 		return UnpublishEditorialContent500JSONResponse{InternalServerErrrorJSONResponse{Message: "internal server error"}}, nil
@@ -689,7 +789,7 @@ func (s *Server) UnpublishEditorialContent(ctx context.Context, request Unpublis
 		return UnpublishEditorialContent403JSONResponse{ForbiddenJSONResponse{Message: "module write access required"}}, nil
 	}
 
-	row, err := s.DB.UnpublishContentDoc(ctx, module, int(request.DocId), userID)
+	row, err := s.DB.UnpublishContentDoc(ctx, module, docID, userID)
 	switch {
 	case errors.Is(err, db.ErrContentNotFound):
 		return UnpublishEditorialContent404JSONResponse{NotFoundJSONResponse{Message: "document not found"}}, nil

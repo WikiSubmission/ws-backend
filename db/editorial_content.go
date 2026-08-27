@@ -254,6 +254,27 @@ func (db *DB) GetContentDoc(ctx context.Context, module EditorModule, id int) (*
 	return &r, nil
 }
 
+// AuthorAccountID returns the WikiSubmission account an author row is linked
+// to, or nil when it is linked to none. Read from the mirrored column rather
+// than the draft payload: the column is what an admin set, so an editor cannot
+// claim someone else's row by editing their own draft JSON.
+//
+// Returns ErrContentNotFound when no such author exists.
+func (db *DB) AuthorAccountID(ctx context.Context, id int) (*int, error) {
+	defer observe("author_account_id", time.Now())
+	var userID *int
+	err := db.Pool.QueryRow(ctx,
+		`SELECT user_id FROM editorial_authors WHERE id = $1`, id,
+	).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrContentNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userID, nil
+}
+
 // CreateContentDoc inserts a new draft document. translationGroup only applies
 // to modules with hasGroup (articles); pass nil to start a fresh group.
 func (db *DB) CreateContentDoc(

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/wikiSubmission/ws-backend/db"
@@ -330,4 +331,71 @@ func TestContentSubresourceAuthorization(t *testing.T) {
 	if !canAccessContent(admin, db.ModuleAuthor, true) {
 		t.Error("admin must manage authors")
 	}
+}
+
+// The self-service profile at /editor/profile lets a non-admin editor maintain
+// their own author row. enforceAuthorSelfLink is the guard that keeps "their
+// own" honest: the module gate above cannot see a document, so this is what
+// stops an editor pointing their write at somebody else's account.
+func TestEnforceAuthorSelfLink(t *testing.T) {
+	const me, someoneElse = 7, 9
+
+	t.Run("pins an unset link to the caller", func(t *testing.T) {
+		scalars := db.ContentScalars{}
+		if err := enforceAuthorSelfLink(&scalars, me, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if scalars.UserID == nil || *scalars.UserID != me {
+			t.Errorf("user_id = %v, want %d", scalars.UserID, me)
+		}
+	})
+
+	t.Run("accepts the caller's own link", func(t *testing.T) {
+		own := me
+		scalars := db.ContentScalars{UserID: &own}
+		if err := enforceAuthorSelfLink(&scalars, me, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if *scalars.UserID != me {
+			t.Errorf("user_id = %d, want %d", *scalars.UserID, me)
+		}
+	})
+
+	t.Run("rejects a link to another account", func(t *testing.T) {
+		other := someoneElse
+		scalars := db.ContentScalars{UserID: &other}
+		err := enforceAuthorSelfLink(&scalars, me, false)
+		if err == nil {
+			t.Fatal("expected a rejection, got nil")
+		}
+		var fe *fieldError
+		if !errors.As(err, &fe) {
+			t.Errorf("want a fieldError (400), got %T", err)
+		}
+		// The payload must not be silently rewritten into a valid one.
+		if *scalars.UserID != someoneElse {
+			t.Error("rejected payload should be left untouched")
+		}
+	})
+
+	t.Run("leaves an admin free to link any account", func(t *testing.T) {
+		other := someoneElse
+		scalars := db.ContentScalars{UserID: &other}
+		if err := enforceAuthorSelfLink(&scalars, me, true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if *scalars.UserID != someoneElse {
+			t.Errorf("user_id = %d, want %d untouched", *scalars.UserID, someoneElse)
+		}
+	})
+
+	t.Run("does not pin an admin's unset link", func(t *testing.T) {
+		scalars := db.ContentScalars{}
+		if err := enforceAuthorSelfLink(&scalars, me, true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if scalars.UserID != nil {
+			t.Errorf("user_id = %v, want nil — an admin may create an unlinked author", scalars.UserID)
+		}
+	})
 }
