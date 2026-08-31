@@ -24,11 +24,15 @@ type VerseRef struct {
 var versePartRe = regexp.MustCompile(`^(-?\d+)(?:-(\d+))?$`)
 
 // ParseVerseRefs parses a raw `verses` query string into a slice of VerseSpec.
-// Accepted formats (comma-separated): "1:1", "1:1-3", "1:2,2:255,36:1-5".
+// Tokens may be separated by "," or ".".
+// Accepted formats: "1:1", "1:1-3", "1:2,2:255,36:1-5", "1:2.2:255.36:1-5".
 // Does NOT validate chapter/verse existence — that is left to ExpandVerseRefs.
 func ParseVerseRefs(raw string) ([]VerseSpec, error) {
 	var specs []VerseSpec
-	for _, token := range strings.Split(raw, ",") {
+	tokens := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '.'
+	})
+	for _, token := range tokens {
 		token = strings.TrimSpace(token)
 		if token == "" {
 			continue

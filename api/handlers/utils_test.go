@@ -193,6 +193,24 @@ func TestParseVerseRefs(t *testing.T) {
 			},
 		},
 		{
+			name: "dot-separated list",
+			raw:  "1:2.1:4-5.4:2",
+			want: []VerseSpec{
+				{Chapter: 1, Start: 2, End: -1},
+				{Chapter: 1, Start: 4, End: 5},
+				{Chapter: 4, Start: 2, End: -1},
+			},
+		},
+		{
+			name: "mixed comma and dot separators",
+			raw:  "1:2,1:4-5.4:2",
+			want: []VerseSpec{
+				{Chapter: 1, Start: 2, End: -1},
+				{Chapter: 1, Start: 4, End: 5},
+				{Chapter: 4, Start: 2, End: -1},
+			},
+		},
+		{
 			name: "negative start verse",
 			raw:  "1:-2",
 			want: []VerseSpec{{Chapter: 1, Start: -2, End: -1}},
@@ -219,6 +237,7 @@ func TestParseVerseRefs(t *testing.T) {
 		{name: "non-numeric verse end", raw: "1:2-a", wantErr: true},
 		{name: "empty string", raw: "", wantErr: true},
 		{name: "only commas", raw: ",,", wantErr: true},
+		{name: "only dots", raw: "..", wantErr: true},
 	}
 
 	for _, tt := range tests {
