@@ -233,6 +233,28 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 		}
 	}
 
+	// Word and root scope only ever populate matched words, never `tr` — the
+	// openapi contract for `langs` says returned verse objects always include
+	// the verse translations, so hydrate the full verse content here the same
+	// way the verses-scope Phase B fetch does. This ensures callers get the
+	// entire verse, not just the matched word, regardless of scope.
+	if searchErr == nil && (rootSearch || scope == string(Words)) && len(verseRefMap) > 0 {
+		responseLangs := langs
+		if responseLangs == nil {
+			responseLangs = make([]string, 0, len(s.QuranLangs))
+			for lc := range s.QuranLangs {
+				responseLangs = append(responseLangs, lc)
+			}
+		}
+		chNums, viNums := verseRefsFromMap(verseRefMap)
+		transRows, tErr := s.DB.FetchVersesWithTranslationsByRefs(ctx, chNums, viNums, responseLangs)
+		if tErr != nil {
+			slog.Warn("search: failed to hydrate verse translations", "q", queryLabel, "error", tErr)
+		} else {
+			attachTranslationsToVerses(transRows, chapterMap, verseRefMap)
+		}
+	}
+
 	// Word and root scope return only the matched language per word: a root
 	// match lives on the Arabic word_text row, and an FTS match on the searched
 	// language's row. When the caller asks for additional word_langs (most
@@ -241,19 +263,7 @@ func (s *Server) Search(ctx context.Context, request SearchRequestObject) (Searc
 	// across endpoints. Sibling (non-matched) words are never introduced.
 	if searchErr == nil && (rootSearch || scope == string(Words)) &&
 		p.WordLangs != nil && len(*p.WordLangs) > 0 && len(verseRefMap) > 0 {
-		var chNums, viNums []int32
-		for vKey, v := range verseRefMap {
-			if v.Vi == nil {
-				continue
-			}
-			var cn int
-			if _, err := fmt.Sscanf(vKey, "%d:", &cn); err != nil {
-				slog.Warn("search: failed to parse verse key for word enrichment", "key", vKey, "error", err)
-				continue
-			}
-			chNums = append(chNums, int32(cn))
-			viNums = append(viNums, int32(*v.Vi))
-		}
+		chNums, viNums := verseRefsFromMap(verseRefMap)
 		wordsRaw, wErr := s.DB.FetchWordsForVersesByRefs(ctx, chNums, viNums, *p.WordLangs)
 		if wErr != nil {
 			slog.Warn("search: failed to enrich word langs", "q", queryLabel, "error", wErr)
@@ -449,6 +459,60 @@ func groupWordResults(
 		(*targetWord.Hl)[row.LangCode] = row.Headline
 	}
 	return nil
+}
+
+// verseRefsFromMap extracts the (chapter_number, verse_index) pairs already
+// present in verseRefMap, for use with the *ByRefs fetch helpers.
+func verseRefsFromMap(verseRefMap map[string]*VerseData) (chNums, viNums []int32) {
+	for vKey, v := range verseRefMap {
+		if v.Vi == nil {
+			continue
+		}
+		var cn int
+		if _, err := fmt.Sscanf(vKey, "%d:", &cn); err != nil {
+			slog.Warn("search: failed to parse verse key", "key", vKey, "error", err)
+			continue
+		}
+		chNums = append(chNums, int32(cn))
+		viNums = append(viNums, int32(*v.Vi))
+	}
+	return chNums, viNums
+}
+
+// attachTranslationsToVerses grafts full verse translation content onto
+// verses already present in verseRefMap (built from word/root search rows,
+// which only carry the matched word). This ensures scope=words/root
+// responses always include the entire verse text, not just the matched
+// word, per the /search `langs` contract.
+func attachTranslationsToVerses(
+	rows []db.VerseRow,
+	chapterMap map[int]*ChapterData,
+	verseRefMap map[string]*VerseData,
+) {
+	for _, row := range rows {
+		if ch, ok := chapterMap[row.ChapterNumber]; ok {
+			(*ch.Titles)[row.LangCode] = row.ChapterTitle
+		}
+		vKey := fmt.Sprintf("%d:%d", row.ChapterNumber, row.VerseIndex)
+		vData, ok := verseRefMap[vKey]
+		if !ok {
+			continue
+		}
+		if vData.Tr == nil {
+			vData.Tr = &map[string]TranslationContent{}
+		}
+		dir := TranslationContentD(row.Direction)
+		lID, lCode := row.LangID, row.LangCode
+		content := row.VerseContent
+		(*vData.Tr)[lCode] = TranslationContent{
+			Li: &lID,
+			Lc: &lCode,
+			D:  &dir,
+			Tx: &content,
+			S:  row.VerseSubtitle,
+			F:  row.VerseFooter,
+		}
+	}
 }
 
 // attachWordsToVerses grafts per-word data onto an existing verseRefMap
