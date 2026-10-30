@@ -1,30 +1,30 @@
 # English translation sync, October 29, 2026
 
-ws-backend's English (`verse_text`, language `en`) compared with the WikiSubmission monorepo's English (`quran_verses`, `quran_subtitles`, `quran_footnotes`, production snapshot of October 28). ws-backend's live API matched its March export exactly, so each change below is what readers of ws-backend saw before the sync.
+ws-backend's English (`verse_text`, language `en`) compared with the WikiSubmission monorepo's English (`quran_verses`, `quran_subtitles`, `quran_footnotes`, production snapshot of October 28). ws-backend's live API matched its March export exactly, so each change below is what readers of ws-backend saw before the sync. Each listed change was checked against Masjid Tucson's online Quran (masjidtucson.org/quran/noframes) on October 29, 2026: in every one, the site has the monorepo's text, apart from the footnote marker it writes as *.
 
 338 changes in 334 fields across 330 verses, in the categories below. Each change has an id; any category or id can be held back on its own, even when it shares a field with another change. Removed text is struck through, added text underlined.
 
-| | Category | Changes | Recommendation | In this run |
+| | Category | Changes | Verdict | In this run |
 | --- | --- | --- | --- | --- |
 | A | Wording | 5 | apply | all |
 | B | "Submission" to "Islam" | 9 | apply | all |
-| C | Heading placement, 14:29 to 14:31 | 1 | apply | none |
-| D | "GOD" to "God" inside brackets | 14 | apply | none |
-| E | Unnumbered Basmalah | 112 | your call | none |
-| F | Missing footnote marker | 1 | apply | none |
-| G | Brackets | 4 | your call | none |
-| H | Double quotes around speech | 13 | your call | none |
-| I | Ayn mark and nested quotes | 4 | apply | none |
-| J | Spacing in the initials | 2 | don't apply | none |
-| K | Spaces around nested quotes, dashes and slashes | 9 | your call | none |
-| L | Space before a footnote marker | 1 | don't apply | none |
-| M | Curly and straight quotes | 2 | split | none |
-| N | Stray quotes around a footnote | 1 | apply | none |
-| O | Heading footnote marker | 160 | your call | none |
+| C | Heading placement, 14:29 to 14:31 | 1 | matches Masjid Tucson | none |
+| D | "GOD" to "God" inside brackets | 14 | matches Masjid Tucson | none |
+| E | Unnumbered Basmalah | 112 | matches Masjid Tucson | none |
+| F | Missing footnote marker | 1 | matches Masjid Tucson | none |
+| G | Brackets | 4 | matches Masjid Tucson | none |
+| H | Double quotes around speech | 13 | matches Masjid Tucson | none |
+| I | Ayn mark and nested quotes | 4 | matches Masjid Tucson | none |
+| J | Spacing in the initials | 2 | matches Masjid Tucson | none |
+| K | Spaces around nested quotes, dashes and slashes | 9 | matches Masjid Tucson | none |
+| L | Space before a footnote marker | 1 | matches Masjid Tucson | none |
+| M | Curly and straight quotes | 2 | matches Masjid Tucson | none |
+| N | Stray quotes around a footnote | 1 | matches Masjid Tucson | none |
+| O | Heading footnote marker | 160 | storage convention | none |
 
 ## A. Wording (5)
 
-Changes of meaning. Each verse's new text matches Masjid Tucson's online Quran (masjidtucson.org/quran/noframes) word for word, checked October 29, 2026. Recommendation: apply.
+Changes of meaning. Masjid Tucson matches the monorepo word for word.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -36,7 +36,7 @@ Changes of meaning. Each verse's new text matches Masjid Tucson's online Quran (
 
 ## B. "Submission" to "Islam" (9)
 
-Terminology in headings and footnotes. 2:127 and 2:135 keep both words. Each new heading and footnote matches Masjid Tucson's online Quran word for word, checked October 29, 2026. Recommendation: apply.
+Terminology in headings and footnotes. 2:127 and 2:135 keep both words. Masjid Tucson matches the monorepo word for word.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Terminology in headings and footnotes. 2:127 and 2:135 keep both words. Each new
 
 ## C. Heading placement, 14:29 to 14:31 (1)
 
-ws-backend set both headings one verse early. "Idol Worship" belongs on 14:30 and "Crucial Commandments" on 14:31, the verses they introduce. Recommendation: apply.
+ws-backend set both headings one verse early. Masjid Tucson puts "Idol Worship" on 14:30 and "Crucial Commandments" on 14:31, as the monorepo does.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ ws-backend set both headings one verse early. "Idol Worship" belongs on 14:30 an
 
 ## D. "GOD" to "God" inside brackets (14)
 
-Capital "GOD" marks the Arabic word Allah. Bracketed words are not in the Arabic, and the monorepo has no capital GOD inside brackets anywhere. Recommendation: apply.
+Capital "GOD" marks the Arabic word Allah; bracketed words are not in the Arabic. Masjid Tucson writes "God" in all 14, as the monorepo does.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ Capital "GOD" marks the Arabic word Allah. Bracketed words are not in the Arabic
 
 ## E. Unnumbered Basmalah (112)
 
-The Basmalah that opens suras 2 to 114, stored as verse 0. The monorepo writes "God" and drops the final period. Lower case may be deliberate, since unnumbered Basmalahs fall outside the count of GOD, but nothing in the repository says so. 16:0 alone also capitalizes "Name". Masjid Tucson's sura pages write it the monorepo's way (checked on 63:0). Recommendation: your call.
+The Basmalah that opens suras 2 to 114, stored as verse 0. Masjid Tucson writes "In the name of God, Most Gracious, Most Merciful" with no period, and "Name" at 16:0, exactly as the monorepo does.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -202,7 +202,7 @@ The Basmalah that opens suras 2 to 114, stored as verse 0. The monorepo writes "
 
 ## F. Missing footnote marker (1)
 
-2:142 has a footnote in both texts, but ws-backend's verse lacked the marker. Recommendation: apply.
+2:142 has a footnote in both texts, and Masjid Tucson marks it in the verse; ws-backend's verse lacked the marker.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -210,7 +210,7 @@ The Basmalah that opens suras 2 to 114, stored as verse 0. The monorepo writes "
 
 ## G. Brackets (4)
 
-Round brackets become square ones (18:25, 37:35, 110:0), and 29:53 drops them. Recommendation: your call.
+Square brackets in 18:25, 37:35 and 110:0, and none in 29:53, as Masjid Tucson prints them.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -221,7 +221,7 @@ Round brackets become square ones (18:25, 37:35, 110:0), and 29:53 drops them. R
 
 ## H. Double quotes around speech (13)
 
-Quotes opened, closed or left open where a speech starts in one verse and runs into the next. Recommendation: your call.
+Quotes opened, closed or left open where a speech runs across verses, as Masjid Tucson prints them.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -241,7 +241,7 @@ Quotes opened, closed or left open where a speech starts in one verse and runs i
 
 ## I. Ayn mark and nested quotes (4)
 
-An apostrophe for the ayn ("'Ãd", "'A. S. Q."), used in all 23 of the monorepo's 'Ãd verses, and the opening single quote of a nested speech in 12:82. Recommendation: apply.
+An apostrophe for the ayn ("'Ãd", "'A. S. Q.") and the opening single quote of a nested speech in 12:82, as Masjid Tucson prints them.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -252,7 +252,7 @@ An apostrophe for the ayn ("'Ãd", "'A. S. Q."), used in all 23 of the monorepo'
 
 ## J. Spacing in the initials (2)
 
-2:1 and 3:1 become "A.L.M.", but the monorepo spaces the same initials in 29:1 to 32:1 ("A. L. M.") and every other sura but 42:1. Recommendation: don't apply.
+Masjid Tucson writes "A.L.M." in 2:1 and 3:1, though it spaces the same initials in 29:1 to 32:1. The monorepo follows it.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -261,7 +261,7 @@ An apostrophe for the ayn ("'Ãd", "'A. S. Q."), used in all 23 of the monorepo'
 
 ## K. Spaces around nested quotes, dashes and slashes (9)
 
-Cosmetic. The monorepo is not consistent here: 3 verses keep the space between quote marks and 13 keep a space after a dash. Recommendation: your call.
+Cosmetic spacing, as Masjid Tucson prints it in these verses.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -277,7 +277,7 @@ Cosmetic. The monorepo is not consistent here: 3 verses keep the space between q
 
 ## L. Space before a footnote marker (1)
 
-11:17 gains a space before ±, as in 7 other monorepo verses; most of the text has none. Recommendation: don't apply.
+Masjid Tucson has the space in 11:17 ("solid proof *"), and the monorepo follows it.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -285,7 +285,7 @@ Cosmetic. The monorepo is not consistent here: 3 verses keep the space between q
 
 ## M. Curly and straight quotes (2)
 
-The text uses straight quotes. 6:50 drops a stray curly one (apply); the 5:116 footnote turns its quotes curly, the only footnote that would have them (don't apply). Recommendation: split.
+Masjid Tucson uses straight quotes in 6:50 and curly ones in the 5:116 footnote, as the monorepo does.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -294,7 +294,7 @@ The text uses straight quotes. 6:50 drops a stray curly one (apply); the 5:116 f
 
 ## N. Stray quotes around a footnote (1)
 
-The 6:113 footnote is wrapped in quotation marks in ws-backend. Recommendation: apply.
+ws-backend wrapped the 6:113 footnote in quotation marks; Masjid Tucson has none.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
@@ -302,7 +302,7 @@ The 6:113 footnote is wrapped in quotation marks in ws-backend. Recommendation: 
 
 ## O. Heading footnote marker (160)
 
-Headings that have a footnote end in * in ws-backend and ± in the monorepo, the marker verse text already uses. Readers see the character itself. Masjid Tucson's headings use *. Recommendation: your call.
+Masjid Tucson marks every footnote with *, in verses and headings alike. Both stores keep ± in verse text; the monorepo uses ± in headings too, ws-backend keeps *. A choice of how to store the marker, not of wording.
 
 | Id | Verse | ws-backend before | Monorepo (after) |
 | --- | --- | --- | --- |
