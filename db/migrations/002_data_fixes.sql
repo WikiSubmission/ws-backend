@@ -57,11 +57,13 @@ WHERE verse_id = (SELECT v.id FROM verses v
                   WHERE c.chapter_number = 105 AND v.verse_index = 3)
   AND lang_id = (SELECT id FROM languages WHERE code = 'tl');
 
--- 14:40 — English: "My Lord" → "Our Lord" in the opening clause
+-- 14:40, English: "Our Lord" → "My Lord" in the opening clause, as the
+-- English sync sets it (scripts/english_sync). This runs on every boot, so it
+-- must agree with the synced text or a restart would undo it.
 UPDATE verse_text
 SET content = replace(content,
-    'My Lord, make me one who consistently observes',
-    'Our Lord, make me one who consistently observes')
+    'Our Lord, make me one who consistently observes',
+    'My Lord, make me one who consistently observes')
 WHERE verse_id = (SELECT v.id FROM verses v
                   JOIN chapters c ON c.id = v.chapter_id
                   WHERE c.chapter_number = 14 AND v.verse_index = 40)

@@ -1,0 +1,3858 @@
+[
+ {
+  "id": "E1",
+  "verse": "2:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E1",
+  "verse": "2:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "J1",
+  "verse": "2:1",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "J"
+ },
+ {
+  "id": "J1",
+  "verse": "2:1",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "J"
+ },
+ {
+  "id": "O1",
+  "verse": "2:28",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O2",
+  "verse": "2:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O3",
+  "verse": "2:37",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H1",
+  "verse": "2:39",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H1",
+  "verse": "2:39",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O4",
+  "verse": "2:54",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O5",
+  "verse": "2:55",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O6",
+  "verse": "2:67",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "A1",
+  "verse": "2:72",
+  "field": "content",
+  "old": "person",
+  "new": "soul",
+  "cat": "A"
+ },
+ {
+  "id": "O7",
+  "verse": "2:80",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O8",
+  "verse": "2:106",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D1",
+  "verse": "2:124",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "D2",
+  "verse": "2:126",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "B1",
+  "verse": "2:127",
+  "field": "subtitle",
+  "old": "",
+  "new": " (Islam)",
+  "cat": "B"
+ },
+ {
+  "id": "B2",
+  "verse": "2:135",
+  "field": "subtitle",
+  "old": "",
+  "new": " (Islam)",
+  "cat": "B"
+ },
+ {
+  "id": "O9",
+  "verse": "2:135",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "F1",
+  "verse": "2:142",
+  "field": "content",
+  "old": "",
+  "new": "±",
+  "cat": "F"
+ },
+ {
+  "id": "O10",
+  "verse": "2:142",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O11",
+  "verse": "2:165",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O12",
+  "verse": "2:172",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O13",
+  "verse": "2:174",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O14",
+  "verse": "2:178",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O15",
+  "verse": "2:183",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O16",
+  "verse": "2:190",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O17",
+  "verse": "2:196",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O18",
+  "verse": "2:211",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O19",
+  "verse": "2:219",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O20",
+  "verse": "2:238",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O21",
+  "verse": "2:246",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O22",
+  "verse": "2:254",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O23",
+  "verse": "2:259",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O24",
+  "verse": "2:275",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "A2",
+  "verse": "2:286",
+  "field": "content",
+  "old": ", forgive us,",
+  "new": "",
+  "cat": "A"
+ },
+ {
+  "id": "A2",
+  "verse": "2:286",
+  "field": "content",
+  "old": "have mercy on",
+  "new": "forgive",
+  "cat": "A"
+ },
+ {
+  "id": "E2",
+  "verse": "3:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E2",
+  "verse": "3:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "J2",
+  "verse": "3:1",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "J"
+ },
+ {
+  "id": "J2",
+  "verse": "3:1",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "J"
+ },
+ {
+  "id": "O25",
+  "verse": "3:18",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H2",
+  "verse": "3:48",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H2",
+  "verse": "3:48",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O26",
+  "verse": "3:54",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O27",
+  "verse": "3:59",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O28",
+  "verse": "3:81",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O29",
+  "verse": "3:130",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O30",
+  "verse": "3:169",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O31",
+  "verse": "3:186",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E3",
+  "verse": "4:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E3",
+  "verse": "4:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O32",
+  "verse": "4:3",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O33",
+  "verse": "4:11",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O34",
+  "verse": "4:34",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O35",
+  "verse": "4:78",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B3",
+  "verse": "4:125",
+  "field": "subtitle",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "O36",
+  "verse": "4:125",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O37",
+  "verse": "4:129",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O38",
+  "verse": "4:157",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E4",
+  "verse": "5:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E4",
+  "verse": "5:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O39",
+  "verse": "5:12",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O40",
+  "verse": "5:27",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O41",
+  "verse": "5:51",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "K1",
+  "verse": "5:67",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O42",
+  "verse": "5:72",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H3",
+  "verse": "5:84",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H3",
+  "verse": "5:84",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O43",
+  "verse": "5:114",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "“",
+  "cat": "M"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "”",
+  "cat": "M"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "“",
+  "cat": "M"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "”",
+  "cat": "M"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "“",
+  "cat": "M"
+ },
+ {
+  "id": "M2",
+  "verse": "5:116",
+  "field": "footer",
+  "old": "\"",
+  "new": "”",
+  "cat": "M"
+ },
+ {
+  "id": "E5",
+  "verse": "6:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E5",
+  "verse": "6:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O44",
+  "verse": "6:38",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O45",
+  "verse": "6:44",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "M1",
+  "verse": "6:50",
+  "field": "content",
+  "old": "“",
+  "new": "\"",
+  "cat": "M"
+ },
+ {
+  "id": "O46",
+  "verse": "6:60",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "N1",
+  "verse": "6:113",
+  "field": "footer",
+  "old": "\"",
+  "new": "",
+  "cat": "N"
+ },
+ {
+  "id": "N1",
+  "verse": "6:113",
+  "field": "footer",
+  "old": "\"",
+  "new": "",
+  "cat": "N"
+ },
+ {
+  "id": "O47",
+  "verse": "6:114",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O48",
+  "verse": "6:124",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O49",
+  "verse": "6:125",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O50",
+  "verse": "6:141",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O51",
+  "verse": "6:145",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O52",
+  "verse": "6:149",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O53",
+  "verse": "6:157",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E6",
+  "verse": "7:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E6",
+  "verse": "7:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "H4",
+  "verse": "7:88",
+  "field": "content",
+  "old": "\"",
+  "new": "",
+  "cat": "H"
+ },
+ {
+  "id": "H5",
+  "verse": "7:156",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O54",
+  "verse": "7:172",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E7",
+  "verse": "8:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E7",
+  "verse": "8:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O55",
+  "verse": "8:12",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O56",
+  "verse": "8:17",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O57",
+  "verse": "8:24",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O58",
+  "verse": "8:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O59",
+  "verse": "8:35",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O60",
+  "verse": "8:36",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O61",
+  "verse": "9:1",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O62",
+  "verse": "9:24",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O63",
+  "verse": "9:33",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O64",
+  "verse": "9:36",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O65",
+  "verse": "9:37",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O66",
+  "verse": "9:54",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O67",
+  "verse": "9:80",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D3",
+  "verse": "9:98",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O68",
+  "verse": "9:101",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O69",
+  "verse": "9:107",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O70",
+  "verse": "9:127",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E8",
+  "verse": "10:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E8",
+  "verse": "10:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O71",
+  "verse": "10:20",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H6",
+  "verse": "10:29",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H6",
+  "verse": "10:29",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O72",
+  "verse": "10:62",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O73",
+  "verse": "10:92",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O74",
+  "verse": "10:100",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E9",
+  "verse": "11:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E9",
+  "verse": "11:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "L1",
+  "verse": "11:17",
+  "field": "content",
+  "old": "",
+  "new": " ",
+  "cat": "L"
+ },
+ {
+  "id": "O75",
+  "verse": "11:46",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E10",
+  "verse": "12:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E10",
+  "verse": "12:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O76",
+  "verse": "12:9",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "I1",
+  "verse": "12:82",
+  "field": "content",
+  "old": "",
+  "new": "'",
+  "cat": "I"
+ },
+ {
+  "id": "H7",
+  "verse": "12:87",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "E11",
+  "verse": "13:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E11",
+  "verse": "13:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O77",
+  "verse": "13:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O78",
+  "verse": "13:37",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E12",
+  "verse": "14:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E12",
+  "verse": "14:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "C1",
+  "verse": "14:29",
+  "field": "subtitle",
+  "old": "Idol Worship: The Mother of All Evil",
+  "new": "",
+  "cat": "C"
+ },
+ {
+  "id": "C1",
+  "verse": "14:30",
+  "field": "subtitle",
+  "old": "Crucial",
+  "new": "Idol",
+  "cat": "C"
+ },
+ {
+  "id": "C1",
+  "verse": "14:30",
+  "field": "subtitle",
+  "old": "Commandments",
+  "new": "Worship: The Mother of All Evil",
+  "cat": "C"
+ },
+ {
+  "id": "C1",
+  "verse": "14:31",
+  "field": "subtitle",
+  "old": "",
+  "new": "Crucial Commandments",
+  "cat": "C"
+ },
+ {
+  "id": "A3",
+  "verse": "14:40",
+  "field": "content",
+  "old": "Our",
+  "new": "My",
+  "cat": "A"
+ },
+ {
+  "id": "O79",
+  "verse": "14:48",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E13",
+  "verse": "15:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E13",
+  "verse": "15:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O80",
+  "verse": "15:9",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O81",
+  "verse": "15:85",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E14",
+  "verse": "16:0",
+  "field": "content",
+  "old": "name",
+  "new": "Name",
+  "cat": "E"
+ },
+ {
+  "id": "E14",
+  "verse": "16:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E14",
+  "verse": "16:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O82",
+  "verse": "16:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D4",
+  "verse": "16:91",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O83",
+  "verse": "16:98",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O84",
+  "verse": "16:123",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E15",
+  "verse": "17:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E15",
+  "verse": "17:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O85",
+  "verse": "17:13",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E16",
+  "verse": "18:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E16",
+  "verse": "18:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O86",
+  "verse": "18:7",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O87",
+  "verse": "18:16",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O88",
+  "verse": "18:21",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "G1",
+  "verse": "18:25",
+  "field": "subtitle",
+  "old": "(",
+  "new": "[",
+  "cat": "G"
+ },
+ {
+  "id": "G1",
+  "verse": "18:25",
+  "field": "subtitle",
+  "old": ")",
+  "new": "]",
+  "cat": "G"
+ },
+ {
+  "id": "O89",
+  "verse": "18:25",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O90",
+  "verse": "18:32",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O91",
+  "verse": "18:94",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E17",
+  "verse": "19:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E17",
+  "verse": "19:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "D5",
+  "verse": "19:11",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "K2",
+  "verse": "19:26",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O92",
+  "verse": "19:71",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E18",
+  "verse": "20:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E18",
+  "verse": "20:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O93",
+  "verse": "20:15",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "K3",
+  "verse": "20:48",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "K3",
+  "verse": "20:48",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O94",
+  "verse": "20:115",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E19",
+  "verse": "21:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E19",
+  "verse": "21:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "K4",
+  "verse": "21:25",
+  "field": "subtitle",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "K4",
+  "verse": "21:25",
+  "field": "subtitle",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O95",
+  "verse": "21:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B4",
+  "verse": "21:73",
+  "field": "subtitle",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "D6",
+  "verse": "21:79",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O96",
+  "verse": "21:96",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B5",
+  "verse": "21:96",
+  "field": "footer",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "E20",
+  "verse": "22:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E20",
+  "verse": "22:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O97",
+  "verse": "22:19",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B6",
+  "verse": "22:26",
+  "field": "subtitle",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "O98",
+  "verse": "22:26",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O99",
+  "verse": "22:33",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O100",
+  "verse": "22:52",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B7",
+  "verse": "22:78",
+  "field": "subtitle",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "O101",
+  "verse": "22:78",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E21",
+  "verse": "23:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E21",
+  "verse": "23:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "K5",
+  "verse": "23:29",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O102",
+  "verse": "23:84",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E22",
+  "verse": "24:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E22",
+  "verse": "24:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O103",
+  "verse": "24:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D7",
+  "verse": "24:36",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "E23",
+  "verse": "25:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E23",
+  "verse": "25:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O104",
+  "verse": "25:27",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E24",
+  "verse": "26:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E24",
+  "verse": "26:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "K6",
+  "verse": "26:17",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "K6",
+  "verse": "26:17",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "I2",
+  "verse": "26:123",
+  "field": "content",
+  "old": "",
+  "new": "'",
+  "cat": "I"
+ },
+ {
+  "id": "O105",
+  "verse": "26:210",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O106",
+  "verse": "26:214",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E25",
+  "verse": "27:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E25",
+  "verse": "27:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "K7",
+  "verse": "27:31",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "D8",
+  "verse": "27:75",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O107",
+  "verse": "27:82",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E26",
+  "verse": "28:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E26",
+  "verse": "28:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "H8",
+  "verse": "28:31",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H8",
+  "verse": "28:31",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H9",
+  "verse": "28:32",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H9",
+  "verse": "28:32",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H10",
+  "verse": "28:34",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H10",
+  "verse": "28:34",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O108",
+  "verse": "28:43",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H11",
+  "verse": "28:77",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H11",
+  "verse": "28:77",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "E27",
+  "verse": "29:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E27",
+  "verse": "29:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O109",
+  "verse": "29:19",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O110",
+  "verse": "29:48",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "G2",
+  "verse": "29:53",
+  "field": "subtitle",
+  "old": "(",
+  "new": "",
+  "cat": "G"
+ },
+ {
+  "id": "G2",
+  "verse": "29:53",
+  "field": "subtitle",
+  "old": ")",
+  "new": "",
+  "cat": "G"
+ },
+ {
+  "id": "E28",
+  "verse": "30:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E28",
+  "verse": "30:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O111",
+  "verse": "30:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E29",
+  "verse": "31:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E29",
+  "verse": "31:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O112",
+  "verse": "31:34",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E30",
+  "verse": "32:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E30",
+  "verse": "32:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E31",
+  "verse": "33:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E31",
+  "verse": "33:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O113",
+  "verse": "33:7",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O114",
+  "verse": "33:21",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O115",
+  "verse": "33:40",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O116",
+  "verse": "33:56",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O117",
+  "verse": "33:63",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E32",
+  "verse": "34:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E32",
+  "verse": "34:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O118",
+  "verse": "34:21",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D9",
+  "verse": "34:39",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O119",
+  "verse": "34:43",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O120",
+  "verse": "34:46",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E33",
+  "verse": "35:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E33",
+  "verse": "35:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O121",
+  "verse": "35:12",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O122",
+  "verse": "35:14",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O123",
+  "verse": "35:24",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E34",
+  "verse": "36:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E34",
+  "verse": "36:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O124",
+  "verse": "36:13",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D10",
+  "verse": "36:14",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O125",
+  "verse": "36:26",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O126",
+  "verse": "36:30",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E35",
+  "verse": "37:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E35",
+  "verse": "37:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "G3",
+  "verse": "37:35",
+  "field": "content",
+  "old": "(",
+  "new": "[",
+  "cat": "G"
+ },
+ {
+  "id": "G3",
+  "verse": "37:35",
+  "field": "content",
+  "old": ")",
+  "new": "]",
+  "cat": "G"
+ },
+ {
+  "id": "K8",
+  "verse": "37:53",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "K8",
+  "verse": "37:53",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "O127",
+  "verse": "37:102",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D11",
+  "verse": "37:143",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "E36",
+  "verse": "38:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E36",
+  "verse": "38:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O128",
+  "verse": "38:41",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H12",
+  "verse": "38:85",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H12",
+  "verse": "38:85",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "E37",
+  "verse": "39:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E37",
+  "verse": "39:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O129",
+  "verse": "39:5",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O130",
+  "verse": "39:45",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "B8",
+  "verse": "39:45",
+  "field": "footer",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "O131",
+  "verse": "39:67",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E38",
+  "verse": "40:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E38",
+  "verse": "40:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O132",
+  "verse": "40:11",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O133",
+  "verse": "40:34",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O134",
+  "verse": "40:60",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O135",
+  "verse": "40:78",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E39",
+  "verse": "41:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E39",
+  "verse": "41:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O136",
+  "verse": "41:41",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O137",
+  "verse": "41:43",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O138",
+  "verse": "41:53",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E40",
+  "verse": "42:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E40",
+  "verse": "42:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "I3",
+  "verse": "42:2",
+  "field": "content",
+  "old": "",
+  "new": "'",
+  "cat": "I"
+ },
+ {
+  "id": "O139",
+  "verse": "42:21",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O140",
+  "verse": "42:24",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E41",
+  "verse": "43:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E41",
+  "verse": "43:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O141",
+  "verse": "43:36",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O142",
+  "verse": "43:61",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E42",
+  "verse": "44:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E42",
+  "verse": "44:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O143",
+  "verse": "44:10",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O144",
+  "verse": "44:13",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "D12",
+  "verse": "44:23",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "O145",
+  "verse": "44:56",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E43",
+  "verse": "45:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E43",
+  "verse": "45:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O146",
+  "verse": "45:6",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E44",
+  "verse": "46:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E44",
+  "verse": "46:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O147",
+  "verse": "46:6",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O148",
+  "verse": "46:10",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O149",
+  "verse": "46:15",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O150",
+  "verse": "46:29",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "H13",
+  "verse": "46:31",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "H13",
+  "verse": "46:31",
+  "field": "content",
+  "old": "",
+  "new": "\"",
+  "cat": "H"
+ },
+ {
+  "id": "O151",
+  "verse": "46:35",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E45",
+  "verse": "47:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E45",
+  "verse": "47:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O152",
+  "verse": "47:18",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "O153",
+  "verse": "47:38",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E46",
+  "verse": "48:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E46",
+  "verse": "48:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O154",
+  "verse": "48:28",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E47",
+  "verse": "49:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E47",
+  "verse": "49:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E48",
+  "verse": "50:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E48",
+  "verse": "50:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E49",
+  "verse": "51:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E49",
+  "verse": "51:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E50",
+  "verse": "52:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E50",
+  "verse": "52:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E51",
+  "verse": "53:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E51",
+  "verse": "53:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E52",
+  "verse": "54:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E52",
+  "verse": "54:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "I4",
+  "verse": "54:18",
+  "field": "content",
+  "old": "",
+  "new": "'",
+  "cat": "I"
+ },
+ {
+  "id": "E53",
+  "verse": "55:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E53",
+  "verse": "55:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E54",
+  "verse": "56:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E54",
+  "verse": "56:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "D13",
+  "verse": "56:11",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "E55",
+  "verse": "57:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E55",
+  "verse": "57:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O155",
+  "verse": "57:22",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E56",
+  "verse": "58:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E56",
+  "verse": "58:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E57",
+  "verse": "59:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E57",
+  "verse": "59:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E58",
+  "verse": "60:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E58",
+  "verse": "60:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E59",
+  "verse": "61:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E59",
+  "verse": "61:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E60",
+  "verse": "62:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E60",
+  "verse": "62:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E61",
+  "verse": "63:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E61",
+  "verse": "63:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "B9",
+  "verse": "63:1",
+  "field": "footer",
+  "old": "Submission",
+  "new": "Islam",
+  "cat": "B"
+ },
+ {
+  "id": "O156",
+  "verse": "63:6",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E62",
+  "verse": "64:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E62",
+  "verse": "64:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E63",
+  "verse": "65:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E63",
+  "verse": "65:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O157",
+  "verse": "65:12",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E64",
+  "verse": "66:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E64",
+  "verse": "66:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E65",
+  "verse": "67:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E65",
+  "verse": "67:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O158",
+  "verse": "67:2",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E66",
+  "verse": "68:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E66",
+  "verse": "68:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "D14",
+  "verse": "68:28",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "D"
+ },
+ {
+  "id": "E67",
+  "verse": "69:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E67",
+  "verse": "69:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E68",
+  "verse": "70:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E68",
+  "verse": "70:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "A4",
+  "verse": "70:4",
+  "field": "content",
+  "old": " and the Spirit",
+  "new": "",
+  "cat": "A"
+ },
+ {
+  "id": "A5",
+  "verse": "70:41",
+  "field": "content",
+  "old": "their",
+  "new": "your",
+  "cat": "A"
+ },
+ {
+  "id": "E69",
+  "verse": "71:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E69",
+  "verse": "71:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "K9",
+  "verse": "71:12",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "K9",
+  "verse": "71:12",
+  "field": "content",
+  "old": " ",
+  "new": "",
+  "cat": "K"
+ },
+ {
+  "id": "E70",
+  "verse": "72:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E70",
+  "verse": "72:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "O159",
+  "verse": "72:19",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E71",
+  "verse": "73:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E71",
+  "verse": "73:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E72",
+  "verse": "74:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E72",
+  "verse": "74:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E73",
+  "verse": "75:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E73",
+  "verse": "75:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E74",
+  "verse": "76:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E74",
+  "verse": "76:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E75",
+  "verse": "77:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E75",
+  "verse": "77:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E76",
+  "verse": "78:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E76",
+  "verse": "78:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E77",
+  "verse": "79:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E77",
+  "verse": "79:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E78",
+  "verse": "80:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E78",
+  "verse": "80:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E79",
+  "verse": "81:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E79",
+  "verse": "81:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E80",
+  "verse": "82:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E80",
+  "verse": "82:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E81",
+  "verse": "83:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E81",
+  "verse": "83:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E82",
+  "verse": "84:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E82",
+  "verse": "84:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E83",
+  "verse": "85:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E83",
+  "verse": "85:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E84",
+  "verse": "86:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E84",
+  "verse": "86:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E85",
+  "verse": "87:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E85",
+  "verse": "87:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E86",
+  "verse": "88:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E86",
+  "verse": "88:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E87",
+  "verse": "89:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E87",
+  "verse": "89:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E88",
+  "verse": "90:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E88",
+  "verse": "90:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E89",
+  "verse": "91:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E89",
+  "verse": "91:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E90",
+  "verse": "92:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E90",
+  "verse": "92:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E91",
+  "verse": "93:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E91",
+  "verse": "93:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E92",
+  "verse": "94:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E92",
+  "verse": "94:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E93",
+  "verse": "95:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E93",
+  "verse": "95:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E94",
+  "verse": "96:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E94",
+  "verse": "96:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E95",
+  "verse": "97:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E95",
+  "verse": "97:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E96",
+  "verse": "98:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E96",
+  "verse": "98:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E97",
+  "verse": "99:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E97",
+  "verse": "99:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E98",
+  "verse": "100:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E98",
+  "verse": "100:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E99",
+  "verse": "101:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E99",
+  "verse": "101:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E100",
+  "verse": "102:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E100",
+  "verse": "102:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E101",
+  "verse": "103:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E101",
+  "verse": "103:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E102",
+  "verse": "104:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E102",
+  "verse": "104:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E103",
+  "verse": "105:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E103",
+  "verse": "105:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E104",
+  "verse": "106:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E104",
+  "verse": "106:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E105",
+  "verse": "107:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E105",
+  "verse": "107:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E106",
+  "verse": "108:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E106",
+  "verse": "108:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E107",
+  "verse": "109:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E107",
+  "verse": "109:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E108",
+  "verse": "110:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E108",
+  "verse": "110:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "G4",
+  "verse": "110:0",
+  "field": "subtitle",
+  "old": "(",
+  "new": "[",
+  "cat": "G"
+ },
+ {
+  "id": "G4",
+  "verse": "110:0",
+  "field": "subtitle",
+  "old": ")",
+  "new": "]",
+  "cat": "G"
+ },
+ {
+  "id": "O160",
+  "verse": "110:0",
+  "field": "subtitle",
+  "old": "*",
+  "new": "±",
+  "cat": "O"
+ },
+ {
+  "id": "E109",
+  "verse": "111:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E109",
+  "verse": "111:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E110",
+  "verse": "112:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E110",
+  "verse": "112:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E111",
+  "verse": "113:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E111",
+  "verse": "113:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ },
+ {
+  "id": "E112",
+  "verse": "114:0",
+  "field": "content",
+  "old": "GOD",
+  "new": "God",
+  "cat": "E"
+ },
+ {
+  "id": "E112",
+  "verse": "114:0",
+  "field": "content",
+  "old": ".",
+  "new": "",
+  "cat": "E"
+ }
+]
