@@ -3,9 +3,10 @@
 -- Enforces one note per (user, scripture, verse_key) with markdown content.
 -- Adds FTS index on notes for search.
 
--- ── 1. Drop old normal bookmarks (test data only — confirmed by user) ─────────
-
-DELETE FROM bookmarks WHERE kind = 'normal';
+-- ── 1. Old normal bookmarks ───────────────────────────────────────────────────
+-- This step used to run DELETE FROM bookmarks WHERE kind = 'normal' to clear
+-- test data. Because the old runner replayed every file on each boot, it kept
+-- deleting real bookmarks, so it was removed. Legacy rows are left in place.
 
 -- ── 2. Create bookmark_categories ─────────────────────────────────────────────
 
@@ -37,8 +38,10 @@ CREATE INDEX IF NOT EXISTS bookmark_entries_category_id_idx
 
 -- ── 4. Enforce one note per verse ─────────────────────────────────────────────
 
--- Drop old notes (test data only — confirmed by user).
-DELETE FROM notes;
+-- This step used to run DELETE FROM notes to clear test data, which the old
+-- replay-every-boot runner turned into a wipe of every user's notes on each
+-- restart. It now only removes duplicates (keeping the most recently updated
+-- note per verse), and only on the one run that adds the constraint.
 
 -- Unique constraint: one note per (user, scripture, verse_key).
 DO $$
@@ -48,6 +51,13 @@ BEGIN
         WHERE conname = 'notes_user_scripture_verse_unique'
           AND conrelid = 'notes'::regclass
     ) THEN
+        DELETE FROM notes n
+        USING notes newer
+        WHERE newer.user_id = n.user_id
+          AND newer.scripture = n.scripture
+          AND newer.verse_key = n.verse_key
+          AND (newer.updated_at, newer.id) > (n.updated_at, n.id);
+
         ALTER TABLE notes
             ADD CONSTRAINT notes_user_scripture_verse_unique
             UNIQUE (user_id, scripture, verse_key);
