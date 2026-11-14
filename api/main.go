@@ -14,6 +14,14 @@ import (
 )
 
 func main() {
+	// The offline desktop sidecar skips .env on purpose: a developer's .env
+	// points at hosted services the desktop app must never reach. Its logs go
+	// to stderr because stdout carries the readiness handshake.
+	if len(os.Args) > 1 && os.Args[1] == "--desktop" {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
+		os.Exit(runDesktop(os.Stdin, os.Stdout))
+	}
+
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("info: No .env file found, using system environment variables")
 	}
