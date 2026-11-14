@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -28,8 +27,9 @@ type DB struct {
 var migrationFiles embed.FS
 
 // DbSetup is a high-level helper that initializes the connection pool and
-// runs all pending schema migrations. It returns an error if the connection
-// fails or if a migration script contains invalid SQL.
+// runs every migration not yet recorded in the schema_migrations ledger (see
+// migrate.go). It returns an error if the connection fails or if a migration
+// script contains invalid SQL.
 func DbSetup() (*DB, error) {
 	db, err := ConnectDB()
 	if err != nil {
@@ -46,39 +46,6 @@ func DbSetup() (*DB, error) {
 
 	slog.Info("Database setup and migrations completed successfully")
 	return db, nil
-}
-
-// RunMigrations discovers all .sql files in the embedded 'migrations' directory,
-// sorts them alphabetically, and executes them against the database.
-// It is idempotent assuming the SQL scripts use 'IF NOT EXISTS' clauses.
-func (db *DB) RunMigrations(ctx context.Context) error {
-	entries, err := migrationFiles.ReadDir("migrations")
-	if err != nil {
-		return fmt.Errorf("failed to read migrations directory: %w", err)
-	}
-
-	// Sort files alphabetically to ensure numeric prefixes (e.g., 01_, 02_) are respected.
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() < entries[j].Name()
-	})
-
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
-			path := "migrations/" + entry.Name()
-			content, err := migrationFiles.ReadFile(path)
-			if err != nil {
-				return fmt.Errorf("failed to read migration file %s: %w", entry.Name(), err)
-			}
-
-			slog.Info("Executing database migration", "file", entry.Name())
-			_, err = db.Pool.Exec(ctx, string(content))
-			if err != nil {
-				return fmt.Errorf("migration failed in %s: %w", entry.Name(), err)
-			}
-		}
-	}
-
-	return nil
 }
 
 // ConnectDB builds a connection string from environment variables and
