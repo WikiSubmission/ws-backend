@@ -97,23 +97,34 @@ func ConnectDB() (*DB, error) {
 	// migration 011 runs on first deploy), log and continue — FTS still works.
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		if err := pgvectorpgx.RegisterTypes(ctx, conn); err != nil {
+			// Only a missing extension is benign. A cancelled context or a dropped
+			// connection leaves conn closed, and returning nil here would put that
+			// dead connection into the pool for the next caller to trip over.
+			if ctx.Err() != nil || conn.IsClosed() {
+				return err
+			}
 			slog.Debug("pgvector types not registered (vector extension not yet installed)", "error", err)
 		}
 		return nil
+	}
+
+	// pgxpool opens its MinConns connections in a background goroutine using the
+	// context given to NewWithConfig, so that context must outlive this function.
+	// Passing the timeout context below would cancel those connections mid
+	// handshake as soon as ConnectDB returns.
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		slog.Error("Unable to create database pool", slog.Any("error", err))
+		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
 	// Set a 10-second timeout for the initial connection attempt and ping
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		slog.Error("Unable to create database pool", slog.Any("error", err))
-		return nil, fmt.Errorf("unable to create connection pool: %w", err)
-	}
-
 	// Verify the connection is active
 	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		slog.Error("Database ping failed", slog.Any("error", err))
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
