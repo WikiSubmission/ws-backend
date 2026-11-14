@@ -1,8 +1,9 @@
 -- 002_data_fixes.sql
 -- Production data corrections against the normalized schema.
 -- All statements are idempotent: UPDATEs are exact-match SETs, and the 14:40
--- replace() becomes a no-op once the substring is gone. Add new fixes here as
--- they come up; do not touch 001_baseline.sql for data changes.
+-- replace() becomes a no-op once the substring is gone. The schema_migrations
+-- ledger runs this file once per database, so new fixes go in a new numbered
+-- migration, not here; do not touch 001_baseline.sql for data changes.
 
 -- ---------------------------------------------------------------------------
 -- Word fixes (lookup by words.global_index, which equals the legacy index)
@@ -58,8 +59,8 @@ WHERE verse_id = (SELECT v.id FROM verses v
   AND lang_id = (SELECT id FROM languages WHERE code = 'tl');
 
 -- 14:40, English: "Our Lord" → "My Lord" in the opening clause, as the
--- English sync sets it (scripts/english_sync). This runs on every boot, so it
--- must agree with the synced text or a restart would undo it.
+-- English sync sets it (scripts/english_sync). Before the migration ledger this
+-- ran on every boot, so it had to agree with the synced text.
 UPDATE verse_text
 SET content = replace(content,
     'Our Lord, make me one who consistently observes',

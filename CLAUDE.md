@@ -65,8 +65,11 @@ go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
 
 - Files live in `db/migrations/*.sql`, embedded via `//go:embed`
 - Sorted alphabetically; use numeric prefixes (`01_`, `02_`, …)
-- Must be idempotent — use `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, etc.
-- Run automatically at startup via `db.DbSetup()`
+- Run automatically at startup via `db.DbSetup()` (runner in `db/migrate.go`). The `schema_migrations` ledger records each file, so a file runs once per database, in its own transaction together with its ledger row
+- Never edit a file that has shipped; add a new numbered file instead. Edits to an applied file are never run
+- No statements that cannot run in a transaction block (e.g. `CREATE INDEX CONCURRENTLY`)
+- Still prefer idempotent SQL (`IF NOT EXISTS`, guarded `DO` blocks) and never write unconditional `DELETE`/`TRUNCATE` of user data
+- Databases migrated before the ledger: if the ledger is empty and `topic_index_entries` exists, files up to `031_quran_topic_index.sql` are recorded as applied without running
 
 ### Queries
 

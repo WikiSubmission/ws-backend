@@ -283,9 +283,9 @@ Run `just` (no args) for the full list. Key recipes:
 
 ## Database migrations
 
-Schema lives in two SQL files, both embedded into the binary and applied at startup (alphabetical, idempotent):
+Schema lives in numbered SQL files under `db/migrations/`, embedded into the binary and applied at startup in alphabetical order. The `schema_migrations` table records every applied file, so each one runs once per database, inside its own transaction. To change the schema or fix data, add a new numbered file; editing a file that has already shipped has no effect.
 
 - `db/migrations/001_baseline.sql` — squashed from prior 13 migrations; baseline schema.
-- `db/migrations/002_data_fixes.sql` — production data corrections (Arabic glyphs, 14:40 EN, 105:3 transliteration). Add new fixes here.
+- `db/migrations/002_data_fixes.sql` — production data corrections (Arabic glyphs, 14:40 EN, 105:3 transliteration).
 
 Snapshots (created by `just export`) are **data-only** — schema always comes from the migration runner.
