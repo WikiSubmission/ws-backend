@@ -92,7 +92,10 @@ func StartPostgres(ctx context.Context, opts PostgresOptions) (*Postgres, error)
 		Locale("C").
 		StartTimeout(90 * time.Second).
 		StartParameters(map[string]string{
-			"listen_addresses":        "127.0.0.1",
+			"listen_addresses": "127.0.0.1",
+			// Match the hosted server, so timestamps serialize the same way
+			// (UTC) whatever the user's system time zone is.
+			"timezone":                "UTC",
 			"max_connections":         "30",
 			"unix_socket_directories": "",
 		}).

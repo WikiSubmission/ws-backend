@@ -42,6 +42,10 @@ type desktopConfig struct {
 	DataDir string `json:"dataDir"`
 	// PgArchiveDir holds the bundled embedded-postgres-binaries-*.txz.
 	PgArchiveDir string `json:"pgArchiveDir"`
+	// SnapshotDir holds the bundled Quran content (manifest.json plus one
+	// file per table, from cmd/build-desktop-snapshot). It is loaded on first
+	// run and again only when its content version changes.
+	SnapshotDir string `json:"snapshotDir"`
 }
 
 // desktopReady is the single JSON line written to stdout once the server
@@ -73,6 +77,9 @@ func runDesktop(stdin io.Reader, stdout io.Writer) (code int) {
 		os.Unsetenv(k)
 	}
 	os.Setenv("APP_ENV", "desktop")
+	// The hosted server runs in UTC, and pgx decodes timestamptz into Go's
+	// local zone, so match it to serialize timestamps the same way.
+	time.Local = time.UTC
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = os.Stderr
 	gin.DefaultErrorWriter = os.Stderr
@@ -125,6 +132,13 @@ func runDesktop(stdin io.Reader, stdout io.Writer) (code int) {
 		return 1
 	}
 	defer database.Close()
+
+	if cfg.SnapshotDir == "" {
+		slog.Warn("Desktop: no snapshotDir configured; content tables stay as they are")
+	} else if _, err := desktop.LoadSnapshot(ctx, database.Pool, cfg.SnapshotDir); err != nil {
+		slog.Error("Desktop: loading the content snapshot failed", slog.Any("error", err))
+		return 1
+	}
 
 	secret, err := randomSecret()
 	if err != nil {
