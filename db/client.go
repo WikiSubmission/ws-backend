@@ -93,28 +93,39 @@ func ConnectDB() (*DB, error) {
 
 	// Register pgvector types on every new connection so the <=> operator
 	// and vector column reads/writes work transparently with pgx.
-	// Non-fatal: if the vector extension is not yet installed (e.g. before
-	// migration 011 runs on first deploy), log and continue — FTS still works.
+	// A missing vector extension is non-fatal: before migration 011 runs on
+	// first deploy, log and continue so FTS still works. Any other failure
+	// (cancelled context, connection closed mid-handshake) is returned so
+	// pgxpool discards the connection instead of handing out a dead one that
+	// fails the next Acquire with "conn closed".
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		if err := pgvectorpgx.RegisterTypes(ctx, conn); err != nil {
+			if ctx.Err() != nil || conn.IsClosed() {
+				return fmt.Errorf("register pgvector types: %w", err)
+			}
 			slog.Debug("pgvector types not registered (vector extension not yet installed)", "error", err)
 		}
 		return nil
 	}
 
-	// Set a 10-second timeout for the initial connection attempt and ping
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	// pgxpool opens the MinConns warm-up connections in a background
+	// goroutine using the context passed to NewWithConfig. A timeout context
+	// cancelled when ConnectDB returns can kill one of those connections
+	// mid-handshake, so the pool gets a background context and the timeout
+	// applies only to the initial ping.
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		slog.Error("Unable to create database pool", slog.Any("error", err))
 		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	// Verify the connection is active
 	if err := pool.Ping(ctx); err != nil {
 		slog.Error("Database ping failed", slog.Any("error", err))
+		pool.Close()
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 
