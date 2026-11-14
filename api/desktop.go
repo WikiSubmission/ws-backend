@@ -212,6 +212,64 @@ func randomSecret() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// desktopBackupMaxBytes bounds a restore upload. Real backups are far smaller;
+// the cap keeps a wrong file from being read into memory whole.
+const desktopBackupMaxBytes = 256 << 20
+
+// registerDesktopRoutes adds the desktop-only backup endpoints. They sit
+// outside the OpenAPI contract, so they are registered before the validator.
+func registerDesktopRoutes(r *gin.Engine, database *db.DB, verifier *auth.AuthJSVerifier) {
+	g := r.Group("/api/v1/desktop")
+	g.Use(auth.RequireAuth(verifier))
+
+	g.GET("/backup", func(c *gin.Context) {
+		userID, ok := desktopUserID(c, database)
+		if !ok {
+			return
+		}
+		b, err := desktop.ExportBackup(c.Request.Context(), database.Pool, userID)
+		if err != nil {
+			slog.Error("Desktop backup failed", slog.Any("error", err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "backup failed"})
+			return
+		}
+		name := "wikisubmission-backup-" + b.CreatedAt.Format("2006-01-02") + ".json"
+		c.Header("Content-Disposition", `attachment; filename="`+name+`"`)
+		c.JSON(http.StatusOK, b)
+	})
+
+	g.POST("/restore", func(c *gin.Context) {
+		userID, ok := desktopUserID(c, database)
+		if !ok {
+			return
+		}
+		var b desktop.Backup
+		dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, desktopBackupMaxBytes))
+		if err := dec.Decode(&b); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "the file is not a valid backup"})
+			return
+		}
+		res, err := desktop.RestoreBackup(c.Request.Context(), database.Pool, userID, &b)
+		if err != nil {
+			slog.Error("Desktop restore failed", slog.Any("error", err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "restore failed; your data was not changed", "detail": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, res)
+	})
+}
+
+func desktopUserID(c *gin.Context, database *db.DB) (int, bool) {
+	authID, _ := c.Get(auth.ContextKeyUID)
+	id, _ := authID.(string)
+	user, err := database.FetchUserByAuthID(c.Request.Context(), id)
+	if err != nil || user == nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unknown user"})
+		return 0, false
+	}
+	return user.ID, true
+}
+
 // desktopHostGuard rejects requests whose Host header is not the loopback
 // address the server listens on. A web page open in the user's browser can
 // reach 127.0.0.1, and DNS rebinding can make it look same-origin; it cannot
@@ -259,6 +317,9 @@ var desktopRoutes = []string{
 	"/api/v1/me/preferences",
 	"/api/v1/me/collections",
 	"/api/v1/me/activity",
+
+	"/api/v1/desktop/backup",
+	"/api/v1/desktop/restore",
 }
 
 func desktopRouteAllowed(path string) bool {

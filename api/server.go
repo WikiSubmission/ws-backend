@@ -424,6 +424,10 @@ func runServer(database *db.DB, opts serverOptions) error {
 	fillBlankWrite.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
 	fillBlankWrite.POST("/curate", gamesAdmin.Curate)
 
+	if opts.Desktop {
+		registerDesktopRoutes(r, database, verifier)
+	}
+
 	// In-play check endpoint (instant per-blank feedback). Lives outside the
 	// OpenAPI surface like the editor routes, so it must be registered before
 	// the validator. Returns only correct/incorrect, never the answer.
