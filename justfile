@@ -543,3 +543,7 @@ desktop-snapshot DUMP OUT="dist/desktop/snapshot":
 desktop-e2e PG_ARCHIVE SNAPSHOT="":
     WS_DESKTOP_E2E_PG_ARCHIVE="$1" WS_DESKTOP_E2E_SNAPSHOT="${2:-}" \
       go test ./api -run TestDesktopEndToEnd -v -timeout 20m
+
+# Download the checksum-verified embedded Postgres archive for a target platform
+desktop-pg-archive GOOS="" GOARCH="" OUT="dist/desktop/postgres":
+    go run ./cmd/fetch-desktop-postgres --goos "${1:-$(go env GOOS)}" --goarch "${2:-$(go env GOARCH)}" --out "${3:-dist/desktop/postgres}"
