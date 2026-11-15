@@ -519,3 +519,31 @@ docker-build:
 # Run the container locally (reads .env for DB vars)
 docker-run: docker-build
     docker run --rm -p 8080:8080 --env-file .env -e APP_ENV=production ws-backend:latest
+
+# ---------------------------------------------------------------------------
+# Desktop (offline app sidecar, see desktop/ and api/desktop.go)
+# ---------------------------------------------------------------------------
+
+# Build the stripped desktop sidecar, e.g. `just desktop-build windows amd64`
+desktop-build GOOS="" GOARCH="" OUT="dist/desktop":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    goos="${1:-$(go env GOOS)}"; goarch="${2:-$(go env GOARCH)}"; out="${3:-dist/desktop}"
+    ext=""; [ "$goos" = "windows" ] && ext=".exe"
+    mkdir -p "$out"
+    CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+      go build -trimpath -ldflags="-w -s" -o "$out/ws-backend-desktop-$goos-$goarch$ext" ./api/
+    echo "Sidecar written to $out/ws-backend-desktop-$goos-$goarch$ext"
+
+# Build the Quran content snapshot from a plain-SQL backup (.sql or .gz)
+desktop-snapshot DUMP OUT="dist/desktop/snapshot":
+    go run ./cmd/build-desktop-snapshot --dump "$1" --out "${2:-dist/desktop/snapshot}"
+
+# End-to-end test of desktop mode; PG_ARCHIVE holds embedded-postgres-binaries-*.txz
+desktop-e2e PG_ARCHIVE SNAPSHOT="":
+    WS_DESKTOP_E2E_PG_ARCHIVE="$1" WS_DESKTOP_E2E_SNAPSHOT="${2:-}" \
+      go test ./api -run TestDesktopEndToEnd -v -timeout 20m
+
+# Download the checksum-verified embedded Postgres archive for a target platform
+desktop-pg-archive GOOS="" GOARCH="" OUT="dist/desktop/postgres":
+    go run ./cmd/fetch-desktop-postgres --goos "${1:-$(go env GOOS)}" --goarch "${2:-$(go env GOARCH)}" --out "${3:-dist/desktop/postgres}"

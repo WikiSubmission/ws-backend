@@ -22,6 +22,8 @@ COPY email/   ./email/
 COPY games/   ./games/
 COPY offline/ ./offline/
 COPY notify/  ./notify/
+# Desktop sidecar mode (`--desktop`); compiled in but unused when hosted.
+COPY desktop/ ./desktop/
 
 
 # Produce a fully static binary (no CGO, no libc dependency).

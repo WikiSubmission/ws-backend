@@ -17,7 +17,15 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 -- Name: vector; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+-- pgvector is optional: the desktop build bundles a Postgres without it, and
+-- semantic search is off there anyway. The embedding column and its index are
+-- added further down only when the extension is installed.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+        CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+    END IF;
+END $$;
 
 --
 -- Name: translation_status; Type: TYPE; Schema: public; Owner: -
@@ -571,8 +579,7 @@ CREATE TABLE IF NOT EXISTS public.verse_text (
     content text,
     footer text,
     published_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((((COALESCE(content, ''::text) || ' '::text) || COALESCE(subtitle, ''::text)) || ' '::text) || COALESCE(footer, ''::text)))) STORED,
-    embedding public.vector(512)
+    content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple'::regconfig, ((((COALESCE(content, ''::text) || ' '::text) || COALESCE(subtitle, ''::text)) || ' '::text) || COALESCE(footer, ''::text)))) STORED
 );
 
 --
@@ -1362,7 +1369,13 @@ CREATE INDEX IF NOT EXISTS idx_verse_history_nav ON public.verse_text_history US
 -- Name: idx_verse_text_embedding_hnsw; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX IF NOT EXISTS idx_verse_text_embedding_hnsw ON public.verse_text USING hnsw (embedding public.vector_cosine_ops) WITH (m='16', ef_construction='128');
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+        ALTER TABLE public.verse_text ADD COLUMN IF NOT EXISTS embedding public.vector(512);
+        CREATE INDEX IF NOT EXISTS idx_verse_text_embedding_hnsw ON public.verse_text USING hnsw (embedding public.vector_cosine_ops) WITH (m='16', ef_construction='128');
+    END IF;
+END $$;
 
 --
 -- Name: idx_verse_text_lang; Type: INDEX; Schema: public; Owner: -

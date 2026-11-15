@@ -21,3 +21,6 @@ offline-bundles/
 __pycache__/
 *.pyc
 .venv/
+
+# Desktop sidecar builds and content snapshots
+dist/

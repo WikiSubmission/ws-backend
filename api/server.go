@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,7 +32,30 @@ import (
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
+// StartServer runs the hosted server on :PORT until SIGINT or SIGTERM.
 func StartServer(database *db.DB) {
+	if err := runServer(database, serverOptions{}); err != nil {
+		slog.Error("Server stopped with error", slog.Any("error", err))
+		os.Exit(1)
+	}
+}
+
+// serverOptions switches runServer into the offline desktop sidecar mode. The
+// zero value is the hosted server.
+type serverOptions struct {
+	// Desktop binds to Listener only, serves the desktop route allowlist, and
+	// leaves out metrics, rate limiting, native sign-in, and the notification
+	// scheduler.
+	Desktop bool
+	// Listener, when set, is served instead of :PORT.
+	Listener net.Listener
+	// Stop, when closed, shuts the server down like a signal would.
+	Stop <-chan struct{}
+	// OnReady runs once the server is accepting connections.
+	OnReady func()
+}
+
+func runServer(database *db.DB, opts serverOptions) error {
 	swagger, _ := handlers.GetSwagger()
 
 	// ── Auth setup ───────────────────────────────────────────────────────────
@@ -57,11 +81,22 @@ func StartServer(database *db.DB) {
 	// gin.New() instead of gin.Default() to avoid double-adding Recovery.
 	r := gin.New()
 
+	if opts.Desktop {
+		// Registered first so every route group below inherits them.
+		r.Use(desktopHostGuard(opts.Listener))
+		r.Use(desktopAllowlist())
+	}
+
 	originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
 	allowedOrigins := []string{"*"} // Default fallback (development only)
 
 	// If the env var is set and not empty, split it into a slice
-	if originsEnv != "" {
+	if opts.Desktop {
+		// The Electron shell proxies app://wikisubmission/api/ws/* from its main
+		// process, so browsers never call this server directly. Only the app
+		// origin is allowed in case a request does carry one.
+		allowedOrigins = []string{desktopOrigin}
+	} else if originsEnv != "" {
 		allowedOrigins = strings.Split(originsEnv, ",")
 		// Clean up whitespace in case of "https://a.com, https://b.com"
 		for i := range allowedOrigins {
@@ -89,7 +124,7 @@ func StartServer(database *db.DB) {
 		// which cors.Validate rejects unless they are declared here (it only
 		// permits http:// and https:// by default) — without this the middleware
 		// panics at startup on any deploy that sets CORS_ALLOWED_ORIGINS.
-		CustomSchemas:    []string{"capacitor://", "ionic://"},
+		CustomSchemas:    []string{"capacitor://", "ionic://", "app://"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -112,8 +147,10 @@ func StartServer(database *db.DB) {
 	r.Use(gin.Recovery())
 	r.Use(SupportHEAD)
 
-	p := ginprometheus.NewPrometheus("gin")
-	p.Use(r)
+	if !opts.Desktop {
+		p := ginprometheus.NewPrometheus("gin")
+		p.Use(r)
+	}
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	// Trusted proxies — must be set explicitly; default to none (no IP spoofing).
@@ -130,7 +167,11 @@ func StartServer(database *db.DB) {
 	// Rate limiting — 20 req/s per IP across all API routes.
 	// INTERNAL_BYPASS_TOKEN, when set, lets trusted internal callers skip
 	// the limiter via the X-Internal-Auth header (e.g. SSR frontends).
-	r.Use(RateLimitMiddleware(20, os.Getenv("INTERNAL_BYPASS_TOKEN")))
+	// Skipped on desktop: every request comes from the one local user, and the
+	// reader's prefetching alone can exceed 20 req/s.
+	if !opts.Desktop {
+		r.Use(RateLimitMiddleware(20, os.Getenv("INTERNAL_BYPASS_TOKEN")))
+	}
 
 	// API Routes
 
@@ -276,7 +317,12 @@ func StartServer(database *db.DB) {
 		// servers, so request handling is unchanged; only the server-matching is
 		// satisfied. Logged at WARN so the missing servers: entry is visible and
 		// can be added to openapi.yaml when convenient.
-		if !matched {
+		if !matched && opts.Desktop {
+			// Desktop requests always arrive on 127.0.0.1:<random port>, so the
+			// snap is expected and not worth a warning per request.
+			c.Request.URL.Scheme = u.Scheme
+			c.Request.URL.Host = u.Host
+		} else if !matched {
 			slog.Warn("request host not in openapi servers block; snapping to canonical server for validation",
 				"request_host", c.Request.Host,
 				"x_forwarded_host", c.GetHeader("X-Forwarded-Host"),
@@ -378,6 +424,10 @@ func StartServer(database *db.DB) {
 	fillBlankWrite.POST("/maintenance/load-lemmas", gamesAdmin.LoadLemmas)
 	fillBlankWrite.POST("/curate", gamesAdmin.Curate)
 
+	if opts.Desktop {
+		registerDesktopRoutes(r, database, verifier)
+	}
+
 	// In-play check endpoint (instant per-blank feedback). Lives outside the
 	// OpenAPI surface like the editor routes, so it must be registered before
 	// the validator. Returns only correct/incorrect, never the answer.
@@ -430,12 +480,17 @@ func StartServer(database *db.DB) {
 	// Native mobile auth (Capacitor app). These are the login endpoints, so they
 	// are public — no RequireAuth — and live outside the OpenAPI surface, so they
 	// register before the validator like the games routes above.
-	nativeAuthHandler := buildNativeAuthHandler(database, verifier)
-	mobileAuth := r.Group("/api/v1/auth/mobile")
-	mobileAuth.POST("/exchange", nativeAuthHandler.Exchange)
-	mobileAuth.POST("/refresh", nativeAuthHandler.Refresh)
-	mobileAuth.POST("/otp/request", nativeAuthHandler.OtpRequest)
-	mobileAuth.POST("/otp/verify", nativeAuthHandler.OtpVerify)
+	// Skipped on desktop: building the handler fetches Google and Apple signing
+	// keys over the network, which would stall an offline launch, and the
+	// desktop app has no sign-in.
+	if !opts.Desktop {
+		nativeAuthHandler := buildNativeAuthHandler(database, verifier)
+		mobileAuth := r.Group("/api/v1/auth/mobile")
+		mobileAuth.POST("/exchange", nativeAuthHandler.Exchange)
+		mobileAuth.POST("/refresh", nativeAuthHandler.Refresh)
+		mobileAuth.POST("/otp/request", nativeAuthHandler.OtpRequest)
+		mobileAuth.POST("/otp/verify", nativeAuthHandler.OtpVerify)
+	}
 
 	// Notifications surface: public zikr list, FCM device registration, and the
 	// admin scheduling routes — all outside the OpenAPI contract, so registered
@@ -504,8 +559,10 @@ func StartServer(database *db.DB) {
 	// The scheduler goroutine claims due scheduled_notifications and dispatches
 	// them; cancelled on shutdown before the HTTP server drains.
 	schedulerCtx, stopScheduler := context.WithCancel(context.Background())
-	scheduler := &notify.Scheduler{Dispatcher: dispatcher}
-	go scheduler.Run(schedulerCtx)
+	if !opts.Desktop {
+		scheduler := &notify.Scheduler{Dispatcher: dispatcher}
+		go scheduler.Run(schedulerCtx)
+	}
 
 	// 3. APPLY VALIDATOR TO THE MAIN ROUTER
 	// This ensures it sees "/api/v1/quran" and can match it against the swagger servers
@@ -570,13 +627,15 @@ func StartServer(database *db.DB) {
 	authed.GET("/users/:id", userHandler.GetUserByID)
 
 	if err := serverImpl.InitializeCaches(context.Background()); err != nil {
-		slog.Error("Cache initialization failed — server cannot serve requests", slog.Any("error", err))
-		os.Exit(1)
+		stopScheduler()
+		return fmt.Errorf("cache initialization failed, server cannot serve requests: %w", err)
 	}
 
 	// Debug registered routes
-	for _, route := range r.Routes() {
-		slog.Info("Route registered", "method", route.Method, "path", route.Path)
+	if !opts.Desktop {
+		for _, route := range r.Routes() {
+			slog.Info("Route registered", "method", route.Method, "path", route.Path)
+		}
 	}
 
 	// Server Configuration
@@ -584,7 +643,6 @@ func StartServer(database *db.DB) {
 	if port == "" {
 		port = "8080"
 	}
-	slog.Info("Starting API Server", "port", port)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           r,
@@ -594,20 +652,39 @@ func StartServer(database *db.DB) {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	serveErr := make(chan error, 1)
 	go func() {
-		slog.Info("API Server starting", "addr", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Server listen error", slog.Any("error", err))
-			os.Exit(1)
+		var err error
+		if opts.Listener != nil {
+			slog.Info("API Server starting", "addr", opts.Listener.Addr().String())
+			err = srv.Serve(opts.Listener)
+		} else {
+			slog.Info("API Server starting", "addr", srv.Addr)
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
+			serveErr <- err
 		}
 	}()
+	if opts.OnReady != nil {
+		opts.OnReady()
+	}
 
 	// Channel to listen for interrupt signals (SIGINT, SIGTERM)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
 
-	<-quit // Block here until a signal is received
-	slog.Info("Shutdown signal received; shutting down gracefully...")
+	var runErr error
+	select {
+	case <-quit:
+		slog.Info("Shutdown signal received; shutting down gracefully...")
+	case <-opts.Stop:
+		slog.Info("Stop requested; shutting down gracefully...")
+	case err := <-serveErr:
+		slog.Error("Server listen error", slog.Any("error", err))
+		runErr = err
+	}
 
 	// Stop the notification scheduler before draining HTTP so no new dispatch
 	// starts mid-shutdown.
@@ -621,7 +698,10 @@ func StartServer(database *db.DB) {
 		slog.Error("Server forced to shutdown", slog.Any("error", err))
 	}
 
-	slog.Info("Server exited cleanly")
+	if runErr == nil {
+		slog.Info("Server exited cleanly")
+	}
+	return runErr
 }
 
 // webPushAdapter satisfies notify.WebPushSender with the handlers package's
