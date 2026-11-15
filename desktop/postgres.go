@@ -86,10 +86,9 @@ func StartPostgres(ctx context.Context, opts PostgresOptions) (*Postgres, error)
 		RuntimePath(l.Runtime).
 		DataPath(l.Data).
 		// UTF-8 is required for Arabic text; Windows initdb otherwise picks the
-		// system code page (WIN1252). The C locale avoids depending on which OS
-		// locales are installed.
+		// system code page (WIN1252).
 		Encoding("UTF8").
-		Locale("C").
+		Locale(clusterLocale()).
 		StartTimeout(90 * time.Second).
 		StartParameters(map[string]string{
 			"listen_addresses": "127.0.0.1",
