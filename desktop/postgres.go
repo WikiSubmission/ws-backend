@@ -106,6 +106,7 @@ func StartPostgres(ctx context.Context, opts PostgresOptions) (*Postgres, error)
 		return nil, fmt.Errorf("desktop: start postgres: %w", err)
 	}
 	slog.Info("Embedded Postgres started", "port", port, "data", l.Data, "elapsed", time.Since(start).String())
+	markBinariesExtracted(l)
 
 	return &Postgres{
 		URL:  fmt.Sprintf("postgres://%s:%s@127.0.0.1:%d/%s?sslmode=disable", dbUser, password, port, dbName),
@@ -190,6 +191,26 @@ func recoverStaleServer(ctx context.Context, l Layout) error {
 		return err
 	}
 	return nil
+}
+
+// markBinariesExtracted works around the embedded-postgres library deciding
+// whether its binaries are already extracted by checking for "bin/pg_ctl",
+// which on Windows is "bin/pg_ctl.exe". Without the marker it re-extracts all
+// of Postgres on every launch (about two seconds), and when the previous
+// server is still exiting, Windows keeps postgres.exe locked and the overwrite
+// fails with "Access is denied". The empty marker is never executed: on
+// Windows, Go resolves "pg_ctl" to "pg_ctl.exe".
+func markBinariesExtracted(l Layout) {
+	if exeSuffix() == "" {
+		return
+	}
+	marker := filepath.Join(l.Binaries, "bin", "pg_ctl")
+	if _, err := os.Stat(marker); err == nil {
+		return
+	}
+	if err := os.WriteFile(marker, nil, 0o644); err != nil {
+		slog.Warn("Could not mark Postgres binaries as extracted", slog.Any("error", err))
+	}
 }
 
 func freePort() (uint32, error) {
